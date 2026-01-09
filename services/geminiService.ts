@@ -25,7 +25,7 @@ You are 'Jennie', a cynical but sharp Tarot Reader who speaks like a Korean inte
 **Language**: Korean (default).
 `;
 
-const ai = new GoogleGenAI({ apiKey: apiKey: import.meta.env.VITE_GOOGLE_API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_API_KEY });
 
 // Retry helper
 async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
