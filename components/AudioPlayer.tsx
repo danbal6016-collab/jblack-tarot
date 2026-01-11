@@ -1,11 +1,16 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 
-// Playlist using reliable Archive.org links (Redirection links for stability)
+// MYSTICAL & DREAMY BGM PLAYLIST
+// Reliable Direct MP3 Links
 const BGM_PLAYLIST = [
-  "https://archive.org/download/ErikSatieGymnopedieNo1/ErikSatieGymnopedieNo1.mp3",
-  "https://archive.org/download/MoonlightSonata_755/Beethoven-MoonlightSonata.mp3",
-  "https://archive.org/download/ChopinNocturneOp.9No.2/Chopin_Nocturne_Op_9_No_2.mp3"
+  // "Fluidscape" - Very dreamy, water-like, mystical (Kevin MacLeod)
+  "https://ia800301.us.archive.org/5/items/Fluidscape/Fluidscape.mp3",
+  // "Angel Share" - Ethereal, harp-like, soft
+  "https://ia800305.us.archive.org/30/items/AngelShare/AngelShare.mp3",
+  // "Clean Soul" - Simple, emotional, moving
+  "https://ia800309.us.archive.org/5/items/CleanSoul/CleanSoul.mp3",
+  // "Meditation Impromptu" - Calm, soothing, deep
+  "https://ia600303.us.archive.org/29/items/MeditationImpromptu01/MeditationImpromptu01.mp3"
 ];
 
 interface AudioPlayerProps {
@@ -16,39 +21,39 @@ interface AudioPlayerProps {
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [hasError, setHasError] = useState(false);
 
-  const tryPlay = async () => {
+  // Robust play attempt
+  const attemptPlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (hasError) return;
-
+    
     try {
+      // Ensure volume is set before playing
+      audio.volume = volume;
       await audio.play();
-    } catch (error) {
-      // Autoplay blocked handling
-      const resumeOnInteraction = async () => {
+      console.log("BGM Playing:", BGM_PLAYLIST[currentTrackIndex]);
+    } catch (err) {
+      console.log("Autoplay blocked. Adding one-time interaction listener.");
+      // Browser blocked autoplay -> wait for ANY interaction
+      const enableAudio = () => {
         if (!userStopped && audio) {
-          try {
-            await audio.play();
-          } catch (e) { /* squelch */ }
+             audio.play().catch(e => console.error("Play failed even after click:", e));
         }
-        cleanupListeners();
+        cleanup();
       };
 
-      const cleanupListeners = () => {
-        window.removeEventListener('click', resumeOnInteraction);
-        window.removeEventListener('keydown', resumeOnInteraction);
-        window.removeEventListener('touchstart', resumeOnInteraction);
+      const cleanup = () => {
+        window.removeEventListener('click', enableAudio);
+        window.removeEventListener('touchstart', enableAudio);
+        window.removeEventListener('keydown', enableAudio);
       };
-
-      window.addEventListener('click', resumeOnInteraction);
-      window.addEventListener('keydown', resumeOnInteraction);
-      window.addEventListener('touchstart', resumeOnInteraction);
+      
+      window.addEventListener('click', enableAudio);
+      window.addEventListener('touchstart', enableAudio);
+      window.addEventListener('keydown', enableAudio);
     }
   };
 
-  // Effect for Play/Pause logic
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -56,33 +61,33 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped }) => {
     audio.volume = volume;
 
     if (!userStopped) {
-      tryPlay();
+      // Small timeout to allow DOM to settle
+      const t = setTimeout(attemptPlay, 500);
+      return () => clearTimeout(t);
     } else {
       audio.pause();
     }
-  }, [volume, userStopped, hasError, currentTrackIndex]);
+  }, [volume, userStopped, currentTrackIndex]);
 
-  const handleError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
-    const error = e.currentTarget.error;
-    console.warn(`BGM Track ${currentTrackIndex} error:`, error?.message || "Unknown error");
-
-    if (currentTrackIndex < BGM_PLAYLIST.length - 1) {
-        const nextIndex = currentTrackIndex + 1;
-        setCurrentTrackIndex(nextIndex);
-    } else {
-        console.error("All BGM tracks failed.");
-        setHasError(true);
-    }
+  const handleTrackEnd = () => {
+    // Loop playlist
+    setCurrentTrackIndex((prev) => (prev + 1) % BGM_PLAYLIST.length);
   };
 
-  // Invisible Audio Element
+  const handleError = () => {
+    console.warn(`Track ${currentTrackIndex} failed to load. Skipping to next.`);
+    setCurrentTrackIndex((prev) => (prev + 1) % BGM_PLAYLIST.length);
+  };
+
   return (
     <audio 
       ref={audioRef} 
       src={BGM_PLAYLIST[currentTrackIndex]} 
-      loop 
+      onEnded={handleTrackEnd}
       onError={handleError}
-      crossOrigin="anonymous"
+      loop={false} 
+      playsInline
+      preload="auto"
     />
   );
 };
