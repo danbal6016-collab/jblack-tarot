@@ -119,17 +119,18 @@ export const getTarotReading = async (
 
   return retryWithBackoff(async () => {
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          systemInstruction: getSystemInstruction(lang),
-          temperature: 1.6, // High creativity for slang and variety
-          topP: 0.95,
-          topK: 64,
-          maxOutputTokens: 3000,
-        },
-      });
+     const data = await callGemini(prompt);
+
+// Gemini REST 응답에서 text 꺼내기
+const text =
+  data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+if (!text) {
+  throw new Error("Empty response from Gemini");
+}
+
+return text;
+
 
       if (response.text) {
         return response.text;
@@ -148,3 +149,16 @@ export const generateTarotImage = async (cardName: string): Promise<string> => {
   const encodedName = encodeURIComponent(cardName);
   return `https://image.pollinations.ai/prompt/tarot%20card%20${encodedName}%20mystical%20dark%20fantasy%20gothic%20style%20highly%20detailed%20masterpiece%20ominous%20beautiful?width=400&height=600&nologo=true&seed=${seed}`;
 };
+export async function callGemini(prompt: string) {
+  const res = await fetch("/api/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt })
+  });
+
+  if (!res.ok) {
+    throw new Error("Gemini request failed");
+  }
+
+  return res.json();
+}
