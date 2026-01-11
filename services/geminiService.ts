@@ -138,7 +138,12 @@ return retryWithBackoff(async () => {
     return generateSavageFallback(question, cards, userInfo);
   }
 });
-   
+   // ... 기존 코드 ...
+      console.warn("API Error, switching to Savage Fallback Mode:", e);
+      return generateSavageFallback(question, cards, userInfo);
+    }
+  }); // 1. 기존에 있던 닫는 괄호
+} // <--- 2. 이 "}" 괄호를 새로 추가하세요! (함수 끝내기)
 
 export const generateTarotImage = async (cardName: string): Promise<string> => {
   const seed = Math.floor(Math.random() * 1000000);
