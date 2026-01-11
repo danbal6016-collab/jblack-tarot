@@ -1,3 +1,5 @@
+import { signInWithGoogle, logOut, db } from './firebase'; // 방금 만든 파일
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import React, { useState, useEffect, useRef } from 'react';
 import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult } from './types';
 import { CATEGORIES, TAROT_DECK } from './constants';
