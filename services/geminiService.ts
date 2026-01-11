@@ -117,32 +117,28 @@ export const getTarotReading = async (
     (One sentence)
   `;
 
-  return retryWithBackoff(async () => {
-    try {
-     const data = await callGemini(prompt);
+  
+return retryWithBackoff(async () => {
+  try {
+    const data = await callGemini(prompt);
 
-// Gemini REST 응답에서 text 꺼내기
-const text =
-  data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const text =
+      data?.candidates?.[0]?.content?.parts
+        ?.map((p: any) => p?.text)
+        .filter(Boolean)
+        .join("") || "";
 
-if (!text) {
-  throw new Error("Empty response from Gemini");
-}
-
-return text;
-
-
-      if (response.text) {
-        return response.text;
-      } else {
-        throw new Error("Empty response");
-      }
-    } catch (e: any) {
-      console.warn("API Error, switching to Savage Fallback Mode:", e);
-      return generateSavageFallback(question, cards, userInfo);
+    if (!text) {
+      throw new Error("Empty response from Gemini");
     }
-  });
-};
+
+    return text;
+  } catch (e: any) {
+    console.warn("API Error, switching to Savage Fallback Mode:", e);
+    return generateSavageFallback(question, cards, userInfo);
+  }
+});
+   
 
 export const generateTarotImage = async (cardName: string): Promise<string> => {
   const seed = Math.floor(Math.random() * 1000000);
@@ -153,12 +149,16 @@ export async function callGemini(prompt: string) {
   const res = await fetch("/api/gemini", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt })
+    body: JSON.stringify({ prompt }),
   });
 
+  const data = await res.json().catch(() => null);
+
   if (!res.ok) {
-    throw new Error("Gemini request failed");
+    const msg = data?.error || data?.message || "Gemini request failed";
+    throw new Error(msg);
   }
 
-  return res.json();
+  return data;
 }
+
