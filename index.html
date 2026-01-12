@@ -222,13 +222,15 @@ body {
                 // 3. 버튼 제어
                 if (myWrapper) myWrapper.style.display = shouldHideAll ? 'none' : 'block';
                 
-                // 설정 버튼은 입력 중에만 숨김 (설정창 열렸을 땐 보여야 닫을 수 있음)
+               // 설정 버튼 제어 (수정됨)
                 if (settingsBtn) {
-                   if (isInputStep) settingsBtn.style.display = 'none';
-                   else {
-                       settingsBtn.style.display = 'block';
-                       settingsBtn.style.zIndex = '999999';
-                   }
+                    // 조건: 입력 중이거나(isInputStep) OR 설정창이 열렸으면(isSettingsOpen) -> 숨김
+                    if (isInputStep || isSettingsOpen) {
+                        settingsBtn.style.display = 'none';
+                    } else {
+                        settingsBtn.style.display = 'block';
+                        settingsBtn.style.zIndex = '999999';
+                    }
                 }
             });
             observer.observe(document.body, { childList: true, subtree: true });
