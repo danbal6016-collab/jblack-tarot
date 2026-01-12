@@ -105,27 +105,58 @@
       }
       .animate-float { animation: float 3s ease-in-out infinite; }
       
-      /* 카드 뒷면 디자인 */
+     /* [최종] Dark Moon Hologram 카드 디자인 */
       .card-back {
-        background: radial-gradient(circle at 50% 40%, #1e1b4b 0%, #0f172a 60%, #000000 100%);
+        /* 배경: 깊은 밤하늘 (완전한 검정 -> 깊은 보라 -> 남색) */
+        background: radial-gradient(circle at 50% 40%, #2e1065 0%, #0f172a 40%, #000000 90%);
         position: relative;
         overflow: hidden;
         border-radius: 12px;
-        border: 1px solid #94a3b8; 
-        box-shadow: inset 0 0 0 2px #0f172a, inset 0 0 0 3px #334155, 0 10px 30px rgba(0,0,0,0.9);
+        
+        /* 테두리: 어두운 곳에서 은은하게 빛나는 앤티크 골드 */
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        box-shadow: 
+            inset 0 0 30px rgba(0, 0, 0, 0.9), /* 깊이감을 주는 내부 그림자 */
+            0 0 10px rgba(88, 28, 135, 0.5);   /* 카드를 감싸는 보라색 오라 */
         transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
+
+      /* [패턴] 중앙의 달 + 별 + 테두리 문양 (SVG로 직접 그림) */
       .card-back::before {
-        content: ""; position: absolute; inset: 6px; 
-        background-repeat: no-repeat; background-position: center; background-size: 90% 90%; opacity: 0.8;
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0.6; /* 은은하게 보이도록 투명도 조절 */
+        background-position: center;
+        background-size: cover;
+        background-repeat: no-repeat;
+        /* 달과 별 문양을 그리는 SVG 코드 */
+        background-image: url("data:image/svg+xml,%3Csvg width='300' height='450' viewBox='0 0 300 450' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='moonGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fbbf24' stop-opacity='0.8'/%3E%3Cstop offset='100%25' stop-color='%23a855f7' stop-opacity='0.4'/%3E%3C/linearGradient%3E%3C/defs%3E%3C!-- 테두리 장식 --%3E%3Crect x='15' y='15' width='270' height='420' rx='10' fill='none' stroke='url(%23moonGrad)' stroke-width='1.5'/%3E%3C!-- 중앙의 초승달 --%3E%3Cpath d='M150 160 A 50 50 0 1 0 150 260 A 40 40 0 1 1 150 160' fill='url(%23moonGrad)' filter='drop-shadow(0 0 5px rgba(251,191,36,0.5))'/%3E%3C!-- 흩뿌려진 별들 --%3E%3Ccircle cx='50' cy='50' r='2' fill='%23fff' opacity='0.5'/%3E%3Ccircle cx='250' cy='400' r='2' fill='%23fff' opacity='0.5'/%3E%3Ccircle cx='200' cy='80' r='1.5' fill='%23fff' opacity='0.4'/%3E%3Ccircle cx='80' cy='350' r='1.5' fill='%23fff' opacity='0.4'/%3E%3Cpath d='M150 100 L152 110 L150 120 L148 110 Z' fill='%23fbbf24' opacity='0.8'/%3E%3Cpath d='M150 300 L152 310 L150 320 L148 310 Z' fill='%23fbbf24' opacity='0.8'/%3E%3C/svg%3E");
       }
-      .card-back.design-0::before, .card-back.design-1::before, .card-back.design-2::before {
-        background-image: url("data:image/svg+xml,%3Csvg width='200' height='300' viewBox='0 0 200 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='silver' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23f1f5f9'/%3E%3Cstop offset='50%25' stop-color='%23cbd5e1'/%3E%3Cstop offset='100%25' stop-color='%2364748b'/%3E%3C/linearGradient%3E%3Cfilter id='glow'%3E%3CfeGaussianBlur stdDeviation='1' result='coloredBlur'/%3E%3CfeMerge%3E%3CfeMergeNode in='coloredBlur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3Cstyle%3Epath, circle, rect, line, polyline %7B fill: none; stroke: url(%23silver); stroke-width: 1.2; stroke-linecap: round; filter: url(%23glow); %7D%3C/style%3E%3Crect x='10' y='10' width='180' height='280' rx='4' stroke-width='1.5'/%3E%3Cpath d='M10 50 Q10 10 50 10' stroke-width='2'/%3E%3Cpath d='M190 50 Q190 10 150 10' stroke-width='2'/%3E%3Cpath d='M10 250 Q10 290 50 290' stroke-width='2'/%3E%3Cpath d='M190 250 Q190 290 150 290' stroke-width='2'/%3E%3Ccircle cx='100' cy='150' r='40' stroke-width='1' opacity='0.3'/%3E%3Cpath d='M100 110 A40 40 0 1 0 100 190 A30 30 0 1 1 100 110' fill='url(%23silver)' stroke='none' opacity='0.8'/%3E%3C/svg%3E");
+
+      /* [홀로그램] 어두운 배경 위를 스쳐가는 신비한 빛 */
+      .card-back::after {
+        content: "";
+        position: absolute;
+        top: -100%; left: -100%;
+        width: 300%; height: 300%;
+        background: linear-gradient(
+            115deg,
+            transparent 45%,
+            rgba(76, 29, 149, 0.4) 48%,   /* 보라색 빛 */
+            rgba(255, 255, 255, 0.3) 50%, /* 하얀색 하이라이트 */
+            rgba(59, 130, 246, 0.4) 52%,  /* 남색 빛 */
+            transparent 55%
+        );
+        transform: rotate(30deg);
+        animation: moonHolo 5s infinite linear;
+        mix-blend-mode: color-dodge; /* 어두운 배경과 섞여서 영롱하게 빛남 */
+        pointer-events: none;
       }
-      .card-back .card-texture {
-        position: absolute; inset: 0;
-        background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
-        opacity: 0.1; z-index: 1; pointer-events: none; mix-blend-mode: overlay;
+
+      @keyframes moonHolo {
+        0% { transform: translateY(-50%) translateX(-50%) rotate(30deg); }
+        100% { transform: translateY(20%) translateX(20%) rotate(30deg); }
       }
     </style>
     
@@ -142,7 +173,7 @@
   </head>
   
   <body>
-    <div style="position: fixed; top: 20px; right: 20px; z-index: 99999;">
+    <div style="position: fixed; top: 20px; right: 80px; z-index: 99999;">
     <button id="main-login-trigger" style="background: #000000; border: 1px solid #d4af37; color: #d4af37; padding: 10px 20px; border-radius: 30px; cursor: pointer; font-family: 'Cinzel', serif; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.8);">
         Login / Sign Up
     </button>
