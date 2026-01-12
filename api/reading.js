@@ -8,23 +8,37 @@ export default async function handler(req, res) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Missing GEMINI_API_KEY" });
 
-    const r = await fetch(
+    const upstream = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }]
-
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
         }),
       }
     );
 
-    const data = await r.json();
-    if (!r.ok) return res.status(500).json({ error: "Upstream error", details: data });
+    const textBody = await upstream.text();
+    let data;
+    try {
+      data = JSON.parse(textBody);
+    } catch {
+      data = { raw: textBody };
+    }
 
-    const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ?? "";
-    return res.status(200).json({ text });
+    if (!upstream.ok) {
+      return res.status(500).json({
+        error: "Upstream error",
+        status: upstream.status,
+        details: data,
+      });
+    }
+
+    const out =
+      data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ?? "";
+
+    return res.status(200).json({ text: out });
   } catch (e) {
     return res.status(500).json({ error: "Server error", details: String(e) });
   }
