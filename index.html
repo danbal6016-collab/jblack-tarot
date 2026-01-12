@@ -210,33 +210,32 @@
             let supabase;
             try { supabase = window.supabase.createClient(supabaseUrl, supabaseKey); } catch (e) {}
 
-            // 2. 화면 감시자 (Observer) - 버튼 숨김/표시 로직
+            // 2. [화면 감시] 버튼 숨김/표시 자동화
             const observer = new MutationObserver(() => {
-                const myWrapper = document.getElementById('my-login-wrapper');
-                // 리액트가 만든 톱니바퀴 버튼 찾기 (svg 아이콘이 있는 버튼)
-                const settingsBtn = document.querySelector('#root button svg')?.closest('button');
+                const myWrapper = document.getElementById('my-login-wrapper'); // 로그인 버튼
+                const settingsBtn = document.querySelector('#root button svg')?.closest('button'); // 톱니바퀴 버튼
 
-                // [상태 1] 생년월일 입력 화면인가? (YYYY 또는 이름 입력칸 확인)
+                // [상황 1] 입력 화면인가? (YYYY 또는 이름 입력칸이 있으면 True)
                 const isInputStep = document.querySelector('input[placeholder*="YYYY"]') || document.querySelector('input[placeholder*="이름"]');
                 
-                // [상태 2] 설정 창(모달)이 열려있는가? (제목이 Settings 또는 설정인 요소 확인)
+                // [상황 2] 설정 창이 열려있는가? (제목이 Settings/설정인 창이 있으면 True)
                 const isSettingsOpen = Array.from(document.querySelectorAll('h2')).some(h => 
                     h.innerText === 'Settings' || h.innerText === '설정'
                 );
 
-                // [조건 통합] 입력 중이거나 OR 설정 창이 열려있으면 -> 둘 다 숨김
-                const shouldHide = isInputStep || isSettingsOpen;
+                // [최종 판단] 입력 중이거나 OR 설정 창이 열려있으면 -> "전부 숨겨라"
+                const shouldHideAll = isInputStep || isSettingsOpen;
 
                 // A. 로그인 버튼 제어
                 if (myWrapper) {
-                    myWrapper.style.display = shouldHide ? 'none' : 'block';
+                    myWrapper.style.display = shouldHideAll ? 'none' : 'block';
                 }
 
                 // B. 설정(톱니바퀴) 버튼 제어
                 if (settingsBtn) {
-                    settingsBtn.style.display = shouldHide ? 'none' : 'block';
-                    // 버튼이 보일 때는 항상 최상단에 오도록 설정
-                    if (!shouldHide) settingsBtn.style.zIndex = '999999';
+                    settingsBtn.style.display = shouldHideAll ? 'none' : 'block';
+                    // 보일 때는 최상단으로 올려서 클릭 가능하게 함
+                    if (!shouldHideAll) settingsBtn.style.zIndex = '999999';
                 }
             });
 
@@ -247,13 +246,13 @@
             document.body.addEventListener('click', async function(e) {
                 const target = e.target;
                 
-                // 내 로그인 버튼 클릭 시
+                // 내 로그인 버튼 클릭
                 if (target.closest('#main-login-trigger')) {
                     document.getElementById('auth-modal').style.display = 'flex';
                     return;
                 }
 
-                // [납치] 앱 내부 '로그인' 텍스트 버튼 클릭 시 내 창 띄우기
+                // [납치] 앱 내부 'Login/로그인' 버튼 클릭 시 -> 내 창 띄우기
                 const text = target.innerText || "";
                 if ((text.includes('Login') || text.includes('로그인')) && 
                     !target.closest('#auth-modal') && 
@@ -296,7 +295,7 @@
                 }
             });
 
-            // 4. 로그인 상태 표시
+            // 4. 로그인 상태 표시 (이메일 띄우기)
             async function checkUser() {
                 if(!supabase) return;
                 const { data: { session } } = await supabase.auth.getSession();
