@@ -6,6 +6,32 @@ import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
 import { getTarotReading, generateTarotImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
+import { useAuth } from "./components/AuthProvider";
+import { continueWithGoogle, signOut } from "./services/auth";
+
+export default function App() {
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+
+  return (
+    <div>
+      {!user ? (
+        <div>
+          <button onClick={() => continueWithGoogle()}>Continue with Google</button>
+          {/* 기존 Login / Signup 버튼도 여기 있을 텐데 user 없을 때만 렌더 */}
+        </div>
+      ) : (
+        <div>
+          <div>Logged in as: {user.email}</div>
+          <button onClick={() => signOut()}>Logout</button>
+        </div>
+      )}
+
+      {/* 나머지 앱 UI */}
+    </div>
+  );
+}
 
 declare const html2canvas: any;
 
