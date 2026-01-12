@@ -8,6 +8,41 @@ import { getTarotReading, generateTarotImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
 import { useAuth } from "./components/AuthProvider";
 import { continueWithGoogle, signOut } from "./services/auth";
+import { useState } from "react";
+import { requestReading } from "./services/reading";
+
+function ReadingUI() {
+  const [loading, setLoading] = useState(false);
+  const [reading, setReading] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  async function onRead() {
+    try {
+      setLoading(true);
+      setError(null);
+      setReading("");
+
+      const prompt = "타로 리딩 프롬프트(카드/질문/상황 등)"; // 너 기존 prompt 생성 로직 넣기
+      const text = await requestReading(prompt);
+      setReading(text);
+    } catch (e: any) {
+      setError(e?.message || "Error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      <button onClick={onRead} disabled={loading}>
+        {loading ? "Reading..." : "Get Reading"}
+      </button>
+
+      {error && <div style={{ whiteSpace: "pre-wrap" }}>{error}</div>}
+      {reading && <div style={{ whiteSpace: "pre-wrap" }}>{reading}</div>}
+    </div>
+  );
+}
 
 export default function App() {
   const { user, loading } = useAuth();
