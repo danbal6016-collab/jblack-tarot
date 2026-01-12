@@ -296,6 +296,18 @@ body {
                     e.stopPropagation(); return;
                 }
 
+
+              if (target.closest('#btn-google')) {
+                e.preventDefault();
+                console.log("구글 로그인 시도...");
+                const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: { redirectTo: window.location.origin }
+                });
+                if (error) alert("구글 로그인 에러: " + error.message);
+                return;
+            }
+
                 // (2) [하얀 화면 방지] 앱 내부 '로그인' 텍스트 클릭 시 납치
                 if ((text.includes('Login') || text.includes('로그인')) && 
                     !target.closest('#auth-modal') && text !== 'LOGIN / SIGN UP') {
@@ -341,6 +353,7 @@ body {
                     const { error } = await supabase.auth.signUp({ email, password });
                     if (error) alert("가입 실패: " + error.message);
                     else alert("가입 성공! 로그인해주세요.");
+
                 }
 
             }, true); // true: 캡처 단계에서 이벤트 가로채기 (가장 강력함)
