@@ -14,6 +14,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Noto+Serif+KR:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
+
+/* [핵심 디자인] 모든 화면의 배경을 '메인 화면'과 똑같이 설정 */
+      html, body, #root {
+        /* 깊은 보라 -> 남색 -> 완전 검정 그라데이션 */
+        background: radial-gradient(circle at 50% 40%, #2e1065 0%, #0f172a 40%, #000000 90%) no-repeat fixed center center !important;
+        background-size: cover !important;
+        color: #e2e8f0;
+        margin: 0; padding: 0;
+        overflow-x: hidden;
+        min-height: 100vh;
+      }
+
+      
       body {
         font-family: 'Noto Serif KR', serif;
         background-color: #000;
