@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from "./components/AuthProvider";
+import { continueWithGoogle, signOut } from "./services/auth";
 import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult } from './types';
 import { CATEGORIES, TAROT_DECK } from './constants';
 import Background from './components/Background';
@@ -6,30 +8,7 @@ import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
 import { getTarotReading, generateTarotImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
-import { useAuth } from "./components/AuthProvider";
-import { continueWithGoogle, signOut } from "./services/auth";
 import { requestReading } from "./services/reading";
-
-function ReadingUI() {
-  const [loading, setLoading] = useState(false);
-  const [reading, setReading] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  async function onRead() {
-    try {
-      setLoading(true);
-      setError(null);
-      setReading("");
-
-      const prompt = "타로 리딩 프롬프트(카드/질문/상황 등)"; // 너 기존 prompt 생성 로직 넣기
-      const text = await requestReading(prompt);
-      setReading(text);
-    } catch (e: any) {
-      setError(e?.message || "Error");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <div>
@@ -39,30 +18,6 @@ function ReadingUI() {
 
       {error && <div style={{ whiteSpace: "pre-wrap" }}>{error}</div>}
       {reading && <div style={{ whiteSpace: "pre-wrap" }}>{reading}</div>}
-    </div>
-  );
-}
-
-export default function App() {
-  const { user, loading } = useAuth();
-
-  if (loading) return null;
-
-  return (
-    <div>
-      {!user ? (
-        <div>
-          <button onClick={() => continueWithGoogle()}>Continue with Google</button>
-          {/* 기존 Login / Signup 버튼도 여기 있을 텐데 user 없을 때만 렌더 */}
-        </div>
-      ) : (
-        <div>
-          <div>Logged in as: {user.email}</div>
-          <button onClick={() => signOut()}>Logout</button>
-        </div>
-      )}
-
-      {/* 나머지 앱 UI */}
     </div>
   );
 }
@@ -316,6 +271,8 @@ const Header: React.FC<{
 // ---------------------------------------------------------------------------
 
 const App: React.FC = () => {
+    const { user: authUser, loading: authLoading } = useAuth();
+  
   const deviceId = getDeviceId();
   // FORCE WELCOME SCREEN on load, check login in background
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
@@ -503,9 +460,16 @@ const App: React.FC = () => {
                 onOpenSettings={() => setShowSettings(true)}
                 onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }}
                 onLogin={() => {
-                   const { ipMap } = getDB();
-                   if(ipMap[deviceId]) setAuthMode('LOGIN'); else setAuthMode('SIGNUP');
-                }}
+  if (authLoading) return;
+  if (authUser) {
+    // 이미 로그인 상태면 로그아웃
+    signOut();
+    return;
+  }
+  // 로그인 안 된 상태면 구글 로그인
+  continueWithGoogle();
+}}
+
               />
           )}
 
