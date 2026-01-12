@@ -187,7 +187,7 @@ body {
         </div>
     </div>
 
- <script>
+<script>
         window.onload = function() {
             const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
             const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvcGNxbnp6dXNnbHd5enRzdGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMzcwMjIsImV4cCI6MjA4MzcxMzAyMn0.FwMj6LIUGDbZE0u8a9KLOAs1p8vFEqt33ZJ57FC2jTs';
@@ -197,19 +197,31 @@ body {
 
             try { 
                 supabase = window.supabase.createClient(supabaseUrl, supabaseKey); 
-                // 로그인 상태 체크
                 supabase.auth.getSession().then(({ data: { session } }) => { isLoggedIn = !!session; });
                 supabase.auth.onAuthStateChange((event, session) => { isLoggedIn = !!session; });
             } catch (e) {}
 
-            // [핵심] 화면 감시자: 버튼 숨김 로직 & 강제 검은 배경
+            // [핵심] 화면 감시자 (광고 제거 & 버튼 제어)
             const observer = new MutationObserver(() => {
                 
-                // 1. 혹시 모를 하얀 배경 강제 삭제
-                document.documentElement.style.backgroundColor = "black";
-                document.body.style.backgroundColor = "black";
+                // 1. [광고 제거] 타로 카드 이미지에서 광고판(QR코드) 감지 시 삭제 시도
+                const images = document.querySelectorAll('img');
+                images.forEach(img => {
+                    // Pollinations 이미지인데 'nologo' 옵션이 없으면 -> 강제로 붙여서 새로고침
+                    if (img.src.includes('pollinations.ai') && !img.src.includes('nologo=true')) {
+                        img.src = img.src + "&nologo=true";
+                    }
+                });
 
-                // 2. 버튼 숨김 조건 확인
+                // 2. 배경 강제 고정
+                const bgStyle = "radial-gradient(circle at center, #1a0b2e 0%, #100c24 40%, #000000 100%) no-repeat fixed center center";
+                if (document.body.style.background !== bgStyle) {
+                     document.body.style.background = bgStyle;
+                     document.body.style.backgroundSize = "cover";
+                     document.documentElement.style.background = bgStyle;
+                }
+
+                // 3. 버튼 숨김 조건 확인
                 const myWrapper = document.getElementById('my-login-wrapper');
                 const settingsBtn = document.querySelector('#root button svg')?.closest('button');
 
@@ -217,79 +229,65 @@ body {
                 const isSettingsOpen = Array.from(document.querySelectorAll('h2')).some(h => h.innerText === 'Settings' || h.innerText === '설정');
                 const isAuthModalOpen = document.getElementById('auth-modal').style.display === 'flex';
 
+                // 조건: 입력 중 OR 설정창 열림 OR 로그인창 열림 OR 이미 로그인됨
                 const shouldHideAll = isInputStep || isSettingsOpen || isAuthModalOpen || isLoggedIn;
 
-                // 3. 버튼 제어
+                // 4. 버튼 제어 (로그인 버튼 & 설정 버튼 둘 다 숨김)
                 if (myWrapper) myWrapper.style.display = shouldHideAll ? 'none' : 'block';
                 
-               // 설정 버튼 제어 (수정됨)
                 if (settingsBtn) {
-                    // 조건: 입력 중이거나(isInputStep) OR 설정창이 열렸으면(isSettingsOpen) -> 숨김
-                    if (isInputStep || isSettingsOpen) {
-                        settingsBtn.style.display = 'none';
-                    } else {
-                        settingsBtn.style.display = 'block';
-                        settingsBtn.style.zIndex = '999999';
-                    }
+                   if (shouldHideAll) { // 설정창 떴을 때도 같이 숨김
+                       settingsBtn.style.display = 'none';
+                   } else {
+                       settingsBtn.style.display = 'block';
+                       settingsBtn.style.zIndex = '999999';
+                   }
                 }
             });
             observer.observe(document.body, { childList: true, subtree: true });
 
-            // [핵심 2] 클릭 이벤트 납치 (Hijack)
+            // [클릭 이벤트] 로그인 납치 및 팝업 제어
             document.body.addEventListener('click', async function(e) {
                 const target = e.target;
                 
-                // 내 버튼 클릭
                 if (target.closest('#main-login-trigger')) {
                     document.getElementById('auth-modal').style.display = 'flex';
                     return;
                 }
-
-                // 🚨 [여기가 중요] 앱 내부의 '로그인' 버튼을 누르면 -> 하얀 화면 가는 걸 막고 -> 내 팝업 띄움
                 const text = target.innerText || "";
                 if ((text.includes('Login') || text.includes('로그인')) && 
                     !target.closest('#auth-modal') && 
                     text !== 'LOGIN / SIGN UP') {
-                    
-                    e.preventDefault(); // 하얀 화면으로 이동 금지!
-                    e.stopPropagation(); // 리액트 이벤트 중단!
-                    document.getElementById('auth-modal').style.display = 'flex'; // 팝업 오픈!
+                    e.preventDefault(); 
+                    e.stopPropagation();
+                    document.getElementById('auth-modal').style.display = 'flex'; 
                     return;
                 }
-
-                // 팝업 닫기
                 if (target.closest('#close-modal') || target.id === 'auth-modal') {
                     document.getElementById('auth-modal').style.display = 'none';
                 }
-
-                // 구글 로그인
                 if (target.closest('#btn-google')) {
                     const { error } = await supabase.auth.signInWithOAuth({
                         provider: 'google', options: { redirectTo: window.location.href }
                     });
-                    if (error) alert('설정 오류: Supabase Redirect URL 설정을 확인하세요.\n' + error.message);
+                    if (error) alert('구글 로그인 오류: Supabase 설정을 확인하세요.\n' + error.message);
                 }
-
-                // 이메일 로그인
                 if (target.closest('#btn-signin')) {
                     const email = document.getElementById('email').value;
                     const password = document.getElementById('password').value;
                     const { error } = await supabase.auth.signInWithPassword({ email, password });
                     if (error) alert("로그인 실패: " + error.message);
-                    else { alert("로그인 성공!"); location.reload(); }
+                    else { alert("성공!"); location.reload(); }
                 }
-
-                // 회원가입
                 if (target.closest('#btn-signup')) {
                     const email = document.getElementById('email').value;
                     const password = document.getElementById('password').value;
                     const { error } = await supabase.auth.signUp({ email, password });
                     if (error) alert("가입 실패: " + error.message);
-                    else alert("가입 성공!");
+                    else alert("가입 성공! 로그인해주세요.");
                 }
             });
 
-            // 상단 버튼 이름 변경 (로그인 시)
             async function checkUser() {
                 if(!supabase) return;
                 const { data: { session } } = await supabase.auth.getSession();
