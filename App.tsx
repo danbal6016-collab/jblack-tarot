@@ -1118,13 +1118,9 @@ const ResultView: React.FC<{
                 setFlipped([true, true, true]); // Auto reveal
                 onReadingComplete(res);
             }).catch(e => {
-                setTimeout(() => {
-                    const safeMessage = "별들이 잠시 침묵을 지키고 있지만, 당신의 운명은 이미 정해져 있습니다.\n\n[내용 분석]\n현재의 혼란스러움은 곧 명확한 길로 이어질 것입니다. 카드는 당신이 가진 내면의 힘을 믿으라고 말합니다. 당신이 생각하는 것보다 상황은 긍정적입니다.\n\n[제니의 조언 한마디]\n쫄지 마세요, 어차피 주인공은 당신이니까.";
-                    setText(safeMessage);
-                    setLoading(false);
-                    setFlipped([true, true, true]);
-                    onReadingComplete(safeMessage);
-                }, 2000);
+                // FAILURE: Show alert and exit
+                alert("Network Error: Offline mode is not supported. Please check your connection.");
+                onRetry(); // Immediately go back
             });
         }
     }, []);

@@ -19,33 +19,56 @@ Object.values(SFX_URLS).forEach(url => {
 });
 
 export const playSound = (type: 'SELECT' | 'REVEAL') => {
-  const url = SFX_URLS[type];
-  
-  // Always create a new Audio instance to ensure overlapping playback works consistently
-  const audio = new Audio(url);
-  audio.volume = 0.5;
-  
-  const playPromise = audio.play();
-  if (playPromise !== undefined) {
-    playPromise.catch(error => {
-      console.warn(`Sound effect '${type}' playback failed:`, error);
-    });
+  try {
+    const url = SFX_URLS[type];
+    
+    // Always create a new Audio instance to ensure overlapping playback works consistently
+    const audio = new Audio(url);
+    audio.volume = 0.5;
+    
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        // Ignore AbortError or NotAllowedError for simple SFX (non-critical)
+        if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+            console.warn(`Sound effect '${type}' playback failed:`, error);
+        }
+      });
+    }
+  } catch (e) {
+    console.warn("Audio creation failed", e);
   }
 };
 
 export const playShuffleLoop = () => {
-  if (!shuffleAudio) {
-    shuffleAudio = new Audio(SFX_URLS.SHUFFLE);
-    shuffleAudio.loop = true; // Loop enabled
-    shuffleAudio.volume = 0.8;
+  try {
+    if (!shuffleAudio) {
+      shuffleAudio = new Audio(SFX_URLS.SHUFFLE);
+      shuffleAudio.loop = true; // Loop enabled
+      shuffleAudio.volume = 0.8;
+    }
+    shuffleAudio.currentTime = 0;
+    const playPromise = shuffleAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(e => {
+        // Ignore interruption errors
+        if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
+           console.warn("Shuffle loop failed", e);
+        }
+      });
+    }
+  } catch (e) {
+    console.warn("Shuffle loop audio error", e);
   }
-  shuffleAudio.currentTime = 0;
-  shuffleAudio.play().catch(e => console.warn("Shuffle loop failed", e));
 };
 
 export const stopShuffleLoop = () => {
   if (shuffleAudio) {
-    shuffleAudio.pause();
-    shuffleAudio.currentTime = 0;
+    try {
+      shuffleAudio.pause();
+      shuffleAudio.currentTime = 0;
+    } catch (e) {
+      // Ignore
+    }
   }
 };
