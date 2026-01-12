@@ -122,7 +122,7 @@ export const getTarotReading = async (
       console.warn("API Failure:", e);
       // Fallback message that acknowledges the error without blaming the user's internet
       return `[내용 분석]
-지금 우주와의 교신 상태가 영 좋지 않습니다. 당신의 운명을 읽어내려는데 주파수가 자꾸 엇나가네요. 이건 네트워크 문제가 아니라, 지금 이 순간 카드가 보여주려는 진실이 너무 무거워서 전송이 지연되는 것 같습니다. 억까라고 생각하지 마시고 잠시 숨 좀 고른 뒤에 다시 물어보세요. 억지로 읽으려다간 데이터가 꼬여서 엉뚱한 소리만 나옵니다.
+spirits are silent today...
 
 [제니의 조언 한마디]
 중요한 건 꺾이지 않는 마음이 아니라, 다시 시도하는 손가락입니다.`;
