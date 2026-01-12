@@ -203,82 +203,69 @@
 
  <script>
         window.onload = function() {
-            // 1. Supabase 연결
             const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
             const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvcGNxbnp6dXNnbHd5enRzdGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMzcwMjIsImV4cCI6MjA4MzcxMzAyMn0.FwMj6LIUGDbZE0u8a9KLOAs1p8vFEqt33ZJ57FC2jTs';
             
             let supabase;
-            let isLoggedIn = false; // 로그인 상태 변수
+            let isLoggedIn = false;
 
             try { 
                 supabase = window.supabase.createClient(supabaseUrl, supabaseKey); 
-                
-                // [중요] 처음 로드될 때 로그인 상태 확인
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                    isLoggedIn = !!session;
-                });
-
-                // [중요] 로그인/로그아웃 상태가 변하면 변수 업데이트
-                supabase.auth.onAuthStateChange((event, session) => {
-                    isLoggedIn = !!session;
-                });
-
+                // 로그인 상태 체크
+                supabase.auth.getSession().then(({ data: { session } }) => { isLoggedIn = !!session; });
+                supabase.auth.onAuthStateChange((event, session) => { isLoggedIn = !!session; });
             } catch (e) {}
 
-            // 2. 화면 감시자 (Observer) - 버튼 숨김 로직
+            // [핵심] 화면 감시자: 버튼 숨김 로직 & 강제 검은 배경
             const observer = new MutationObserver(() => {
+                
+                // 1. 혹시 모를 하얀 배경 강제 삭제
+                document.documentElement.style.backgroundColor = "black";
+                document.body.style.backgroundColor = "black";
+
+                // 2. 버튼 숨김 조건 확인
                 const myWrapper = document.getElementById('my-login-wrapper');
                 const settingsBtn = document.querySelector('#root button svg')?.closest('button');
 
-                // [조건 1] 생년월일/이름 입력 화면인가?
                 const isInputStep = document.querySelector('input[placeholder*="YYYY"]') || document.querySelector('input[placeholder*="이름"]');
-                
-                // [조건 2] 설정 창이나 팝업이 열려있는가?
                 const isSettingsOpen = Array.from(document.querySelectorAll('h2')).some(h => h.innerText === 'Settings' || h.innerText === '설정');
                 const isAuthModalOpen = document.getElementById('auth-modal').style.display === 'flex';
 
-                // --- [A. 로그인 버튼 제어] ---
-                // 숨기는 조건: 입력 중 OR 설정창 열림 OR 로그인창 열림 OR 이미 로그인됨
-                if (myWrapper) {
-                    if (isInputStep || isSettingsOpen || isAuthModalOpen || isLoggedIn) {
-                        myWrapper.style.display = 'none';
-                    } else {
-                        myWrapper.style.display = 'block';
-                    }
-                }
+                const shouldHideAll = isInputStep || isSettingsOpen || isAuthModalOpen || isLoggedIn;
 
-                // --- [B. 설정 버튼(톱니바퀴) 제어] ---
-                // 숨기는 조건: 입력 중일 때만 숨김 (그 외엔 항상 보임)
+                // 3. 버튼 제어
+                if (myWrapper) myWrapper.style.display = shouldHideAll ? 'none' : 'block';
+                
+                // 설정 버튼은 입력 중에만 숨김 (설정창 열렸을 땐 보여야 닫을 수 있음)
                 if (settingsBtn) {
-                    if (isInputStep) {
-                        settingsBtn.style.display = 'none';
-                    } else {
-                        settingsBtn.style.display = 'block';
-                        settingsBtn.style.zIndex = '999999';
-                    }
+                   if (isInputStep) settingsBtn.style.display = 'none';
+                   else {
+                       settingsBtn.style.display = 'block';
+                       settingsBtn.style.zIndex = '999999';
+                   }
                 }
             });
-
             observer.observe(document.body, { childList: true, subtree: true });
 
-            // 3. 클릭 이벤트 (로그인 창 띄우기 & 납치 기능)
+            // [핵심 2] 클릭 이벤트 납치 (Hijack)
             document.body.addEventListener('click', async function(e) {
                 const target = e.target;
                 
-                // 내 로그인 버튼 클릭
+                // 내 버튼 클릭
                 if (target.closest('#main-login-trigger')) {
                     document.getElementById('auth-modal').style.display = 'flex';
                     return;
                 }
 
-                // [납치] 앱 내부 '로그인' 텍스트 버튼 클릭 시 -> 내 창 띄우기
+                // 🚨 [여기가 중요] 앱 내부의 '로그인' 버튼을 누르면 -> 하얀 화면 가는 걸 막고 -> 내 팝업 띄움
                 const text = target.innerText || "";
                 if ((text.includes('Login') || text.includes('로그인')) && 
                     !target.closest('#auth-modal') && 
                     text !== 'LOGIN / SIGN UP') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    document.getElementById('auth-modal').style.display = 'flex';
+                    
+                    e.preventDefault(); // 하얀 화면으로 이동 금지!
+                    e.stopPropagation(); // 리액트 이벤트 중단!
+                    document.getElementById('auth-modal').style.display = 'flex'; // 팝업 오픈!
                     return;
                 }
 
@@ -292,7 +279,7 @@
                     const { error } = await supabase.auth.signInWithOAuth({
                         provider: 'google', options: { redirectTo: window.location.href }
                     });
-                    if (error) alert(error.message);
+                    if (error) alert('설정 오류: Supabase Redirect URL 설정을 확인하세요.\n' + error.message);
                 }
 
                 // 이메일 로그인
@@ -301,7 +288,7 @@
                     const password = document.getElementById('password').value;
                     const { error } = await supabase.auth.signInWithPassword({ email, password });
                     if (error) alert("로그인 실패: " + error.message);
-                    else { alert("성공!"); location.reload(); }
+                    else { alert("로그인 성공!"); location.reload(); }
                 }
 
                 // 회원가입
@@ -310,9 +297,25 @@
                     const password = document.getElementById('password').value;
                     const { error } = await supabase.auth.signUp({ email, password });
                     if (error) alert("가입 실패: " + error.message);
-                    else alert("가입 성공! 로그인해주세요.");
+                    else alert("가입 성공!");
                 }
             });
+
+            // 상단 버튼 이름 변경 (로그인 시)
+            async function checkUser() {
+                if(!supabase) return;
+                const { data: { session } } = await supabase.auth.getSession();
+                const btn = document.getElementById('main-login-trigger');
+                if (session && btn) {
+                    btn.innerHTML = `🔮 ${session.user.email.split('@')[0]}님`;
+                    btn.style.color = '#fbbf24';
+                    btn.onclick = async (e) => {
+                        e.stopPropagation();
+                        if(confirm("로그아웃 하시겠습니까?")) { await supabase.auth.signOut(); location.reload(); }
+                    };
+                }
+            }
+            checkUser();
         };
     </script>
   </body>
