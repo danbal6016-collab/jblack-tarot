@@ -105,7 +105,7 @@
       }
       .animate-float { animation: float 3s ease-in-out infinite; }
       
-    /* [1단계 수정] 카드 뒷면: 움직임 제거 + 어두운 달 디자인 */
+   /* [최종 디자인] 카드 뒷면 - 움직이는 홀로그램 제거 & 어두운 달 디자인 */
       .card-back {
         /* 배경: 깊은 어둠 (검정 -> 깊은 보라 -> 남색) */
         background: radial-gradient(circle at 50% 40%, #2e1065 0%, #0f172a 40%, #000000 90%);
@@ -172,114 +172,114 @@
   </head>
   
   <body>
-   <div style="position: fixed; top: 20px; right: 80px; z-index: 999999; pointer-events: auto;">
+    <div style="position: fixed; top: 20px; right: 80px; z-index: 999999; pointer-events: auto;">
         <button id="main-login-trigger" style="background: rgba(0,0,0,0.7); border: 1px solid #fbbf24; color: #fbbf24; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-family: 'Cinzel', serif; font-weight: bold; font-size: 13px; backdrop-filter: blur(5px); box-shadow: 0 0 15px rgba(251, 191, 36, 0.2);">
             LOGIN / SIGN UP
         </button>
     </div>
 
-    <div id="auth-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999999; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
-        <div style="background: #0f172a; padding: 40px; border-radius: 16px; border: 1px solid #334155; width: 360px; text-align: center; color: white; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5); pointer-events: auto;">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+
+    <div id="auth-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999999; justify-content: center; align-items: center; backdrop-filter: blur(5px); pointer-events: auto;">
+        <div style="background: #0f172a; padding: 40px; border-radius: 16px; border: 1px solid #334155; width: 360px; text-align: center; color: white; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
             <span id="close-modal" style="position: absolute; top: 15px; right: 20px; font-size: 28px; cursor: pointer; color: #64748b;">&times;</span>
             <h2 style="margin-top: 0; margin-bottom: 25px; font-family: 'Cinzel', serif; color: #fbbf24; font-size: 1.5rem;">Mystic Gate</h2>
+
             <input type="email" id="email" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 12px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; outline: none;">
             <input type="password" id="password" placeholder="Password (6+ chars)" style="width: 100%; padding: 12px; margin-bottom: 24px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; outline: none;">
+
             <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 24px;">
                 <button id="btn-signin" style="flex: 1; padding: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">로그인</button>
                 <button id="btn-signup" style="flex: 1; padding: 12px; background: #7c3aed; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">회원가입</button>
             </div>
+
             <div style="display: flex; align-items: center; margin-bottom: 24px; color: #475569;"><hr style="flex: 1; border-color: #334155;"><span style="padding: 0 10px; font-size: 0.8rem;">OR</span><hr style="flex: 1; border-color: #334155;"></div>
+
             <button id="btn-google" style="width: 100%; background: white; color: #1e293b; padding: 12px; border-radius: 25px; font-weight: bold; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 10px;">
                 <img src="https://www.svgrepo.com/show/475656/google-color.svg" width="20"> Continue with Google
             </button>
         </div>
     </div>
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
 
-    <div id="auth-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
-        <div style="background: #0f172a; padding: 40px; border-radius: 16px; border: 1px solid #334155; width: 360px; text-align: center; color: white; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
-            
-            <span id="close-modal" style="position: absolute; top: 15px; right: 20px; font-size: 28px; cursor: pointer; color: #64748b;">&times;</span>
-
-            <h2 style="margin-top: 0; margin-bottom: 25px; font-family: 'Cinzel', serif; color: #fbbf24; font-size: 1.5rem;">Mystic Gate</h2>
-
-            <input type="email" id="email" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 12px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; outline: none;">
-            
-            <input type="password" id="password" placeholder="Password (6+ chars)" style="width: 100%; padding: 12px; margin-bottom: 24px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; outline: none;">
-
-            <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 24px;">
-                <button id="btn-signin" style="flex: 1; padding: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s;">로그인</button>
-                <button id="btn-signup" style="flex: 1; padding: 12px; background: #7c3aed; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s;">회원가입</button>
-            </div>
-
-            <div style="display: flex; align-items: center; margin-bottom: 24px; color: #475569;">
-                <hr style="flex: 1; border-color: #334155;">
-                <span style="padding: 0 10px; font-size: 0.8rem;">OR</span>
-                <hr style="flex: 1; border-color: #334155;">
-            </div>
-
-            <button id="btn-google" style="width: 100%; background: white; color: #1e293b; padding: 12px; border-radius: 25px; font-weight: bold; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 10px; transition: transform 0.1s;">
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" width="20"> Continue with Google
-            </button>
-        </div>
-    </div>
-
-    <script>
-       <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Supabase 초기화
+  <script>
+        window.onload = function() {
             const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
             const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvcGNxbnp6dXNnbHd5enRzdGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMzcwMjIsImV4cCI6MjA4MzcxMzAyMn0.FwMj6LIUGDbZE0u8a9KLOAs1p8vFEqt33ZJ57FC2jTs';
-            const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+            
+            let supabase;
+            try {
+                supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            } catch (err) {
+                console.error("Supabase 로드 실패", err);
+            }
 
-            // 요소 가져오기
-            const modal = document.getElementById('auth-modal');
-            const loginTrigger = document.getElementById('main-login-trigger');
-            const closeBtn = document.getElementById('close-modal');
-            const googleBtn = document.getElementById('btn-google');
-            const signinBtn = document.getElementById('btn-signin');
-            const signupBtn = document.getElementById('btn-signup');
+            // 화면 전체를 감시하다가 버튼이 눌리면 낚아채는 방식 (실패 없음)
+            document.body.addEventListener('click', async function(e) {
+                
+                // 로그인 버튼 열기
+                if (e.target.closest('#main-login-trigger')) {
+                    document.getElementById('auth-modal').style.display = 'flex';
+                }
 
-            // 기능 연결 (버튼이 있을 때만 실행해서 오류 방지)
-            if(loginTrigger) loginTrigger.addEventListener('click', () => { modal.style.display = 'flex'; });
-            if(closeBtn) closeBtn.addEventListener('click', () => { modal.style.display = 'none'; });
-            if(modal) modal.addEventListener('click', (e) => { if(e.target === modal) modal.style.display = 'none'; });
+                // 팝업 닫기
+                if (e.target.closest('#close-modal') || e.target.id === 'auth-modal') {
+                    document.getElementById('auth-modal').style.display = 'none';
+                }
 
-            // 구글 로그인
-            if(googleBtn) googleBtn.addEventListener('click', async () => {
-                const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
-                if (error) alert(error.message);
+                // 구글 로그인
+                if (e.target.closest('#btn-google')) {
+                    const { error } = await supabase.auth.signInWithOAuth({
+                        provider: 'google',
+                        options: { redirectTo: window.location.href }
+                    });
+                    if (error) alert('구글 로그인 에러: ' + error.message);
+                }
+
+                // 이메일 로그인
+                if (e.target.closest('#btn-signin')) {
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+                    if (!email || !password) return alert("이메일과 비번을 입력해주세요.");
+
+                    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                    if (error) alert("로그인 실패: " + error.message);
+                    else { alert("로그인 성공!"); location.reload(); }
+                }
+
+                // 회원가입
+                if (e.target.closest('#btn-signup')) {
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+                    if (!email || !password) return alert("이메일과 비번을 입력해주세요.");
+
+                    const { data, error } = await supabase.auth.signUp({ email, password });
+                    if (error) alert("가입 실패: " + error.message);
+                    else alert("가입 성공! 이제 로그인 버튼을 눌러주세요.");
+                }
             });
 
-            // 이메일 로그인
-            if(signinBtn) signinBtn.addEventListener('click', async () => {
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-                const { error } = await supabase.auth.signInWithPassword({ email, password });
-                if(error) alert(error.message); else { alert('로그인 성공!'); location.reload(); }
-            });
-
-            // 회원가입
-            if(signupBtn) signupBtn.addEventListener('click', async () => {
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-                const { error } = await supabase.auth.signUp({ email, password });
-                if(error) alert(error.message); else alert('가입 성공!');
-            });
-
-            // 로그인 상태 체크 및 버튼 글씨 변경
+            // 로그인 상태 확인
             async function checkUser() {
+                if(!supabase) return;
                 const { data: { session } } = await supabase.auth.getSession();
-                if (session && loginTrigger) {
-                    loginTrigger.innerHTML = `🔮 ${session.user.email.split('@')[0]}님`;
-                    loginTrigger.onclick = async () => {
-                        if(confirm("로그아웃 하시겠습니까?")) { await supabase.auth.signOut(); location.reload(); }
+                const loginBtn = document.getElementById('main-login-trigger');
+                
+                if (session && loginBtn) {
+                    const userEmail = session.user.email.split('@')[0];
+                    loginBtn.innerHTML = `🔮 ${userEmail}님`;
+                    loginBtn.style.color = '#fbbf24';
+                    loginBtn.onclick = async (e) => {
+                        e.stopPropagation();
+                        if(confirm("로그아웃 하시겠습니까?")) {
+                            await supabase.auth.signOut();
+                            location.reload();
+                        }
                     };
                 }
             }
             checkUser();
-        });
+        };
     </script>
   </body>
 </html>
