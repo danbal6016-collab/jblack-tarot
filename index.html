@@ -170,7 +170,7 @@
   </head>
   
   <body>
-    <div id="my-login-wrapper" style="position: fixed; top: 20px; right: 70px; z-index: 999999;">
+    <div id="my-login-wrapper" style="position: fixed; top: 20px; right: 80px; z-index: 999999;">
         <button id="main-login-trigger" style="background: rgba(0,0,0,0.7); border: 1px solid #fbbf24; color: #fbbf24; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-family: 'Cinzel', serif; font-weight: bold; font-size: 13px; backdrop-filter: blur(5px); box-shadow: 0 0 15px rgba(251, 191, 36, 0.2);">
             LOGIN / SIGN UP
         </button>
@@ -183,7 +183,6 @@
         <div style="background: #0f172a; padding: 40px; border-radius: 16px; border: 1px solid #334155; width: 360px; text-align: center; color: white; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
             
             <span id="close-modal" style="position: absolute; top: 15px; right: 20px; font-size: 28px; cursor: pointer; color: #64748b;">&times;</span>
-            
             <h2 style="margin-top: 0; margin-bottom: 25px; font-family: 'Cinzel', serif; color: #fbbf24; font-size: 1.5rem;">Mystic Gate</h2>
 
             <input type="email" id="email" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 12px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; outline: none;">
@@ -202,7 +201,7 @@
         </div>
     </div>
 
- <script>
+    <script>
         window.onload = function() {
             const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
             const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvcGNxbnp6dXNnbHd5enRzdGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMzcwMjIsImV4cCI6MjA4MzcxMzAyMn0.FwMj6LIUGDbZE0u8a9KLOAs1p8vFEqt33ZJ57FC2jTs';
@@ -210,70 +209,83 @@
             let supabase;
             try { supabase = window.supabase.createClient(supabaseUrl, supabaseKey); } catch (e) {}
 
-            // [핵심] 화면을 계속 감시하면서 상황에 맞게 버튼을 끄고 켭니다
+            // [화면 감시] 1. 버튼 숨기기/보이기 제어
             const observer = new MutationObserver(() => {
-                
-                // 1. 옛날 'Login' 글씨가 보이면 강제로 없애버림 (유령 퇴치)
-                const allElements = document.body.getElementsByTagName('*');
-                for (let el of allElements) {
-                    // 내 버튼(#main-login-trigger)이 아닌데 'Login' 글씨를 가진 녀석은 숨김
-                    if (el.innerText === 'Login' && el.id !== 'main-login-trigger') {
-                        el.style.display = 'none'; 
-                    }
-                }
-
-                // 2. 상황에 따라 내 버튼 숨기기/보이기
                 const myWrapper = document.getElementById('my-login-wrapper');
-                
-                // 생년월일 입력칸(YYYY)이나 이름 입력칸이 화면에 있는지 확인
-                const isInputStep = document.querySelector('input[placeholder*="YYYY"]') || document.querySelector('input[placeholder*="이름"]');
-                
-                // 설정창(Settings)이 켜져 있는지 확인
-                const isSettingsOpen = document.querySelector('h2') && document.querySelector('h2').innerText === 'Settings';
+                // #root 안의 svg를 가진 버튼 = 설정 버튼으로 간주
+                const settingsBtn = document.querySelector('#root button svg')?.closest('button');
 
-                if (isInputStep || isSettingsOpen) {
-                    // 입력 중이거나 설정 중이면 -> 버튼 숨김
+                // 생년월일(YYYY) 또는 이름 입력칸이 있으면 '입력 모드'로 판단
+                const isInputStep = document.querySelector('input[placeholder*="YYYY"]') || document.querySelector('input[placeholder*="이름"]');
+
+                if (isInputStep) {
+                    // 입력 화면이면 -> 버튼들 숨김
                     if(myWrapper) myWrapper.style.display = 'none';
+                    if(settingsBtn) settingsBtn.style.display = 'none';
                 } else {
-                    // 그 외(카드 뽑기 등) -> 버튼 보임
+                    // 입력 화면이 아니면 -> 무조건 보이게 함 (설정 버튼 포함)
                     if(myWrapper) myWrapper.style.display = 'block';
+                    if(settingsBtn) settingsBtn.style.display = 'block';
                 }
             });
-
-            // 감시 시작
             observer.observe(document.body, { childList: true, subtree: true });
 
-            // [기능] 버튼 클릭 이벤트 처리
+            // [클릭 이벤트 핸들러]
             document.body.addEventListener('click', async function(e) {
-                if (e.target.closest('#main-login-trigger')) {
+                const target = e.target;
+                
+                // 1. [상단 내 버튼] 클릭 시
+                if (target.closest('#main-login-trigger')) {
                     document.getElementById('auth-modal').style.display = 'flex';
+                    return;
                 }
-                if (e.target.closest('#close-modal') || e.target.id === 'auth-modal') {
+
+                // 2. [납치 기능] 앱 내부의 '로그인 하러가기' 버튼 등을 눌렀을 때 내 창 띄우기
+                // 조건: 텍스트에 Login/로그인이 있고, 내 팝업창 내부가 아니고, 내 상단 버튼이 아닐 때
+                const text = target.innerText || "";
+                if ((text.includes('Login') || text.includes('로그인')) && 
+                    !target.closest('#auth-modal') && 
+                    text !== 'LOGIN / SIGN UP') {
+                        
+                    e.preventDefault();   // 원래 동작 차단
+                    e.stopPropagation();  // 이벤트 전파 차단
+                    document.getElementById('auth-modal').style.display = 'flex'; // 내 창 열기
+                    return;
+                }
+
+                // 3. 팝업 닫기
+                if (target.closest('#close-modal') || target.id === 'auth-modal') {
                     document.getElementById('auth-modal').style.display = 'none';
                 }
-                if (e.target.closest('#btn-google')) {
+
+                // 4. 구글 로그인
+                if (target.closest('#btn-google')) {
                     const { error } = await supabase.auth.signInWithOAuth({
                         provider: 'google', options: { redirectTo: window.location.href }
                     });
                     if (error) alert(error.message);
                 }
-                if (e.target.closest('#btn-signin')) {
+
+                // 5. 이메일 로그인
+                if (target.closest('#btn-signin')) {
                     const email = document.getElementById('email').value;
                     const password = document.getElementById('password').value;
                     const { error } = await supabase.auth.signInWithPassword({ email, password });
                     if (error) alert("로그인 실패: " + error.message);
                     else { alert("성공!"); location.reload(); }
                 }
-                if (e.target.closest('#btn-signup')) {
+
+                // 6. 회원가입
+                if (target.closest('#btn-signup')) {
                     const email = document.getElementById('email').value;
                     const password = document.getElementById('password').value;
                     const { error } = await supabase.auth.signUp({ email, password });
                     if (error) alert("가입 실패: " + error.message);
-                    else alert("가입 성공!");
+                    else alert("가입 성공! 로그인 해주세요.");
                 }
             });
 
-            // 로그인 상태 확인 및 표시
+            // 로그인 상태 UI
             async function checkUser() {
                 if(!supabase) return;
                 const { data: { session } } = await supabase.auth.getSession();
