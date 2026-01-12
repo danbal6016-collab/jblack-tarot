@@ -13,10 +13,6 @@ FORMAT IS CRITICAL:
 (Advice here...)
 `;
 
-// Savage Fallback (에러 날 때 쓰는 문구)
-const generateSavageFallback = (question: string, cards: TarotCard[], userInfo?: UserInfo): string => {
-  return `[내용 분석]\n질문을 보니 답답함이 모니터 뚫고 나오네요. 카드는 최선을 다해 답을 주고 있는데 본인이 안 들을 준비가 되어 계십니다. 지금 상황은 본인이 만든 '가불기'입니다. 인정할 건 인정합시다.\n\n[제니의 조언 한마디]\n정신 차리고 현실 로그인을 권장합니다.`;
-};
 
 // API 호출 함수
 export async function callGemini(prompt: string) {
