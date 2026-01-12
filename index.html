@@ -16,26 +16,26 @@
     <style>
 
 <style>
-      /* [핵심 디자인] 모든 화면의 배경을 '메인 화면'과 똑같이 설정 */
+    body {
+        font-family: 'Noto Serif KR', serif; /* 기본 글씨체 */
+        -webkit-tap-highlight-color: transparent; /* 모바일 터치 시 파란 박스 제거 */
+      }
+      
+      /* 영어/숫자용 특수 폰트 */
+      .font-occult { font-family: 'Cinzel', serif; }
+      
+      /* 2. 배경 및 전체 레이아웃 (첫 번째 코드에서 가져옴 - 이게 진짜 배경) */
       html, body, #root {
         /* 깊은 보라 -> 남색 -> 완전 검정 그라데이션 */
         background: radial-gradient(circle at 50% 40%, #2e1065 0%, #0f172a 40%, #000000 90%) no-repeat fixed center center !important;
         background-size: cover !important;
-        color: #e2e8f0;
+        
+        color: #e2e8f0; /* 글자색 */
         margin: 0; padding: 0;
         overflow-x: hidden;
         min-height: 100vh;
       }
-
-body {
-        font-family: 'Noto Serif KR', serif;
-        background-color: #000;
-        color: #e2e8f0;
-        overflow-x: hidden;
-        -webkit-tap-highlight-color: transparent;
-      }
-      .font-occult { font-family: 'Cinzel', serif; }
-      .font-serif-en { font-family: 'Playfair Display', serif; }
+      
       
     
       
