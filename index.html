@@ -203,62 +203,73 @@
 
     <script>
         window.onload = function() {
+            // 1. Supabase 연결
             const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
             const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvcGNxbnp6dXNnbHd5enRzdGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMzcwMjIsImV4cCI6MjA4MzcxMzAyMn0.FwMj6LIUGDbZE0u8a9KLOAs1p8vFEqt33ZJ57FC2jTs';
             
             let supabase;
             try { supabase = window.supabase.createClient(supabaseUrl, supabaseKey); } catch (e) {}
 
-            // [화면 감시] 1. 버튼 숨기기/보이기 제어
+            // 2. [핵심] 화면 감시자 (Observer) - 버튼 숨김/표시 로직
             const observer = new MutationObserver(() => {
                 const myWrapper = document.getElementById('my-login-wrapper');
-                // #root 안의 svg를 가진 버튼 = 설정 버튼으로 간주
+                // 리액트가 만든 톱니바퀴 버튼 찾기 (svg 아이콘이 있는 버튼)
                 const settingsBtn = document.querySelector('#root button svg')?.closest('button');
 
-                // 생년월일(YYYY) 또는 이름 입력칸이 있으면 '입력 모드'로 판단
+                // [상태 1] 생년월일 입력 화면인가? (YYYY 또는 이름 입력칸 확인)
                 const isInputStep = document.querySelector('input[placeholder*="YYYY"]') || document.querySelector('input[placeholder*="이름"]');
+                
+                // [상태 2] 설정 창(모달)이 열려있는가? (제목이 Settings 또는 설정인 요소 확인)
+                const isSettingsOpen = Array.from(document.querySelectorAll('h2')).some(h => 
+                    h.innerText === 'Settings' || h.innerText === '설정'
+                );
 
-                if (isInputStep) {
-                    // 입력 화면이면 -> 버튼들 숨김
-                    if(myWrapper) myWrapper.style.display = 'none';
-                    if(settingsBtn) settingsBtn.style.display = 'none';
-                } else {
-                    // 입력 화면이 아니면 -> 무조건 보이게 함 (설정 버튼 포함)
-                    if(myWrapper) myWrapper.style.display = 'block';
-                    if(settingsBtn) settingsBtn.style.display = 'block';
+                // [로직 적용] 입력 중이거나 OR 설정 창이 열려있으면 -> 둘 다 숨김
+                const shouldHide = isInputStep || isSettingsOpen;
+
+                // A. 로그인 버튼 제어
+                if (myWrapper) {
+                    myWrapper.style.display = shouldHide ? 'none' : 'block';
+                }
+
+                // B. 설정(톱니바퀴) 버튼 제어
+                if (settingsBtn) {
+                    settingsBtn.style.display = shouldHide ? 'none' : 'block';
+                    // 버튼이 보일 때는 항상 최상단에 오도록 설정
+                    if (!shouldHide) settingsBtn.style.zIndex = '999999';
                 }
             });
+
+            // 감시 시작
             observer.observe(document.body, { childList: true, subtree: true });
 
-            // [클릭 이벤트 핸들러]
+            // 3. 클릭 이벤트 (로그인 창 띄우기 & 납치 기능)
             document.body.addEventListener('click', async function(e) {
                 const target = e.target;
                 
-                // 1. [상단 내 버튼] 클릭 시
+                // 내 로그인 버튼 클릭 시
                 if (target.closest('#main-login-trigger')) {
                     document.getElementById('auth-modal').style.display = 'flex';
                     return;
                 }
 
-                // 2. [납치 기능] 앱 내부의 '로그인 하러가기' 버튼 등을 눌렀을 때 내 창 띄우기
-                // 조건: 텍스트에 Login/로그인이 있고, 내 팝업창 내부가 아니고, 내 상단 버튼이 아닐 때
+                // [납치] 앱 내부 '로그인' 텍스트 버튼 클릭 시 내 창 띄우기
                 const text = target.innerText || "";
                 if ((text.includes('Login') || text.includes('로그인')) && 
                     !target.closest('#auth-modal') && 
                     text !== 'LOGIN / SIGN UP') {
-                        
-                    e.preventDefault();   // 원래 동작 차단
-                    e.stopPropagation();  // 이벤트 전파 차단
-                    document.getElementById('auth-modal').style.display = 'flex'; // 내 창 열기
+                    e.preventDefault();
+                    e.stopPropagation();
+                    document.getElementById('auth-modal').style.display = 'flex';
                     return;
                 }
 
-                // 3. 팝업 닫기
+                // 팝업 닫기
                 if (target.closest('#close-modal') || target.id === 'auth-modal') {
                     document.getElementById('auth-modal').style.display = 'none';
                 }
 
-                // 4. 구글 로그인
+                // 구글 로그인
                 if (target.closest('#btn-google')) {
                     const { error } = await supabase.auth.signInWithOAuth({
                         provider: 'google', options: { redirectTo: window.location.href }
@@ -266,7 +277,7 @@
                     if (error) alert(error.message);
                 }
 
-                // 5. 이메일 로그인
+                // 이메일 로그인
                 if (target.closest('#btn-signin')) {
                     const email = document.getElementById('email').value;
                     const password = document.getElementById('password').value;
@@ -275,17 +286,17 @@
                     else { alert("성공!"); location.reload(); }
                 }
 
-                // 6. 회원가입
+                // 회원가입
                 if (target.closest('#btn-signup')) {
                     const email = document.getElementById('email').value;
                     const password = document.getElementById('password').value;
                     const { error } = await supabase.auth.signUp({ email, password });
                     if (error) alert("가입 실패: " + error.message);
-                    else alert("가입 성공! 로그인 해주세요.");
+                    else alert("가입 성공! 로그인해주세요.");
                 }
             });
 
-            // 로그인 상태 UI
+            // 4. 로그인 상태 표시
             async function checkUser() {
                 if(!supabase) return;
                 const { data: { session } } = await supabase.auth.getSession();
