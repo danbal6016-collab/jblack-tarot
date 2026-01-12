@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="ko">
   <head>
+    <div id="login-container" style="text-align: center; margin-top: 20px;">
+    <button id="google-login-btn" style="background: white; color: black; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer;">
+        G 구글로 로그인하기
+    </button>
+</div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="icon" href="data:,">
     <meta charset="UTF-8" />
     <meta name="referrer" content="no-referrer" />
@@ -184,7 +190,40 @@
 </script>
 </head>
   <body>
+<div id="login-container" style="text-align: center; margin-top: 20px; z-index: 100; position: relative;">
+    <button id="google-login-btn" style="background: white; color: black; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer;">
+        G 구글로 로그인하기
+    </button>
+</div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+    <script>
+    // 1. Supabase 연결 설정 (아까 복사한 값들을 따옴표 안에 넣으세요)
+    const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvcGNxbnp6dXNnbHd5enRzdGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMzcwMjIsImV4cCI6MjA4MzcxMzAyMn0.FwMj6LIUGDbZE0u8a9KLOAs1p8vFEqt33ZJ57FC2jTs';
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+    // 2. 로그인 버튼 누르면 구글 로그인 창 띄우기
+    const loginBtn = document.getElementById('google-login-btn');
+    
+    loginBtn.addEventListener('click', async () => {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.href // 로그인 끝나면 다시 이 사이트로 돌아오기
+            }
+        });
+        if (error) alert('로그인 실패: ' + error.message);
+    });
+
+    // 3. 로그인 상태 확인 (로그인 성공했으면 버튼 숨기고 환영 인사)
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            // 로그인 된 상태
+            document.getElementById('login-container').innerHTML = 
+                `<p style="color:white;">반가워요, ${session.user.email}님! 🔮</p>`;
+        }
+    });
+</script>
   </body>
 </html>
