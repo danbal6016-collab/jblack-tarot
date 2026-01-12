@@ -190,6 +190,11 @@ body {
 
         <input type="email" id="email" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 12px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; outline: none;">
         <input type="password" id="password" placeholder="Password (6+ chars)" style="width: 100%; padding: 12px; margin-bottom: 24px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; outline: none;">
+      <div style="text-align: right; margin-bottom: 20px;">
+    <span id="btn-reset-pw" style="color: #bbb; font-size: 0.8rem; cursor: pointer; text-decoration: underline;">
+        비밀번호를 잊으셨나요?
+    </span>
+</div>
 
         <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 24px;">
             <button id="btn-signin" style="flex: 1; padding: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">로그인</button>
@@ -338,6 +343,31 @@ body {
                 if (target.closest('#close-modal') || target.id === 'auth-modal') {
                     document.getElementById('auth-modal').style.display = 'none';
                 }
+
+
+              // (8) [추가됨] 비밀번호 재설정 이메일 발송
+if (target.closest('#btn-reset-pw')) {
+    const email = document.getElementById('email').value;
+    
+    // 이메일 입력 안 했으면 혼내기
+    if (!email) {
+        alert("이메일 주소를 먼저 입력해주세요!");
+        return;
+    }
+
+    if (!confirm(email + " 주소로 비밀번호 재설정 메일을 보낼까요?")) return;
+
+    // Supabase에 "이 사람한테 메일 보내줘" 명령
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.href // 메일의 링크 누르면 다시 여기로 돌아옴
+    });
+
+    if (error) {
+        alert("에러 발생: " + error.message);
+    } else {
+        alert("이메일을 보냈습니다! 메일함을 확인해주세요.");
+    }
+}
 
                 // (5) 로그인/가입 로직
                 if (target.closest('#btn-signin')) {
