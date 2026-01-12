@@ -55,6 +55,16 @@ body {
       .font-occult { font-family: 'Cinzel', serif; }
 
       .font-serif-en { font-family: 'Playfair Display', serif; }
+
+      /* 로그인 상태일 때 버튼 숨기기 클래스 */
+        body.logged-in #my-login-wrapper {
+            display: none !important;
+        }
+
+        /* 팝업 디자인 보강 */
+        #auth-modal {
+            backdrop-filter: blur(15px) brightness(0.6);
+        }
     
       
       /* 스크롤바 디자인 */
@@ -210,97 +220,88 @@ body {
 </div>
 
 <script>
-    window.onload = function() {
-        const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvcGNxbnp6dXNnbHd5enRzdGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMzcwMjIsImV4cCI6MjA4MzcxMzAyMn0.FwMj6LIUGDbZE0u8a9KLOAs1p8vFEqt33ZJ57FC2jTs';
-        
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        let isLoggedIn = false;
+ const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvcGNxbnp6dXNnbHd5enRzdGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMzcwMjIsImV4cCI6MjA4MzcxMzAyMn0.FwMj6LIUGDbZE0u8a9KLOAs1p8vFEqt33ZJ57FC2jTs';
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // [1 & 2] 로그인 상태 감지 및 버튼 숨기기 자동화
-        async function checkUser() {
-            const { data: { session } } = await supabase.auth.getSession();
-            isLoggedIn = !!session;
-            const myWrapper = document.getElementById('my-login-wrapper');
-            if (myWrapper) {
-                // 로그인 되어 있으면 버튼 숨김, 안 되어 있으면 보여줌
-                myWrapper.style.display = isLoggedIn ? 'none' : 'block';
-            }
+    // [1] 타로 리딩 무한대기 방지 (window에 등록해서 React에서 호출 가능하게 함)
+    window.safeTarotRequest = async (fetchFn) => {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 15000); 
+        try {
+            return await fetchFn(controller.signal);
+        } catch (err) {
+            alert("연결이 불안정합니다. 잠시 후 다시 카드를 뽑아주세요!");
+            throw err;
+        } finally {
+            clearTimeout(id);
         }
+    };
 
-        supabase.auth.onAuthStateChange((event, session) => {
-            checkUser();
-        });
-        checkUser();
+    // [2] 로그인 상태 체크 (버튼 숨기기)
+    async function updateAuthUI() {
+        const { data: { session } } = await supabase.auth.getSession();
+        const wrapper = document.getElementById('my-login-wrapper');
+        if (session) {
+            document.body.classList.add('logged-in');
+            if(wrapper) wrapper.style.display = 'none';
+        } else {
+            document.body.classList.remove('logged-in');
+            if(wrapper) wrapper.style.display = 'block';
+        }
+    }
 
-        // [3] 타로 리딩 연결 오류 방어 (인터넷 연결 안됨 해결)
-        // 이 함수를 타로 리딩 버튼 클릭 시 호출하게 연결하세요.
-        window.safeTarotRequest = async (fn) => {
-            try {
-                return await fn();
-            } catch (err) {
-                console.error("Connection Error:", err);
-                alert("우주의 기운(서버)과 연결이 잠시 불안정합니다. 잠시 후 다시 시도해주세요.");
-            }
+    window.onload = () => {
+        updateAuthUI();
+
+        // 팝업 열기/닫기
+        document.getElementById('main-login-trigger').onclick = () => {
+            document.getElementById('auth-modal').style.display = 'flex';
+        };
+        document.getElementById('close-modal').onclick = () => {
+            document.getElementById('auth-modal').style.display = 'none';
         };
 
-        // [이벤트 가로채기]
-        document.body.addEventListener('click', async function(e) {
-            const target = e.target;
-            
-            // 1. 구글 로그인 활성화 (Continue with Google)
-            if (target.closest('#btn-google')) {
-                e.preventDefault();
-                const { error } = await supabase.auth.signInWithOAuth({
+        // 클릭 이벤트 통합 관리
+        document.body.addEventListener('click', async (e) => {
+            const id = e.target.id || e.target.closest('button')?.id;
+
+            if (id === 'btn-google') {
+                await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: { redirectTo: window.location.origin }
                 });
-                if (error) alert("구글 연결 에러: " + error.message);
-                return;
             }
 
-            // 2. 이메일 로그인 (비밀번호 불일치 에러 처리 포함)
-            if (target.closest('#btn-signin')) {
+            if (id === 'btn-signin') {
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
-                
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
-                
-                if (error) {
-                    // [핵심] 로그인 실패 시 에러 띄우기
-                    if (error.message.includes("credentials")) {
-                        alert("로그인 실패: 이메일이나 비밀번호가 틀렸습니다.");
-                    } else {
-                        alert("로그인 실패: " + error.message);
-                    }
-                } else {
-                    alert("로그인 성공!");
-                    location.reload();
-                }
+                if (error) alert("로그인 실패: 이메일이나 비밀번호를 확인해주세요.");
+                else location.reload();
             }
 
-            // 3. 회원가입 (신규 회원 100코인 지급 로직)
-            if (target.closest('#btn-signup')) {
+            if (id === 'btn-signup') {
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
-
-                const { data, error } = await supabase.auth.signUp({ 
-                    email, 
-                    password,
-                    options: {
-                        data: { coins: 100 } // 유저 메타데이터에 100코인 저장
-                    }
+                const { data, error } = await supabase.auth.signUp({
+                    email, password,
+                    options: { data: { coins: 100 } } // 100코인 지급
                 });
-
-                if (error) {
-                    alert("가입 실패: " + error.message);
-                } else {
-                    alert("가입 성공! 축하 선물로 100코인이 지급되었습니다.");
-                    location.reload();
-                }
+                if (error) alert("가입 실패: " + error.message);
+                else alert("가입 성공! 100코인이 지급되었습니다.");
             }
-        }, true);
+
+            if (id === 'btn-reset-pw') {
+                const email = document.getElementById('email').value;
+                if (!email) return alert("이메일을 먼저 입력해주세요.");
+                const { error } = await supabase.auth.resetPasswordForEmail(email);
+                alert(error ? error.message : "재설정 메일을 보냈습니다.");
+            }
+        });
     };
+
+    supabase.auth.onAuthStateChange(() => updateAuthUI());
 </script>
-  </body>
+</body>
 </html>
