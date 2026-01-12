@@ -251,63 +251,7 @@ const Header: React.FC<{
   </div>
 );
 
-// REAL-ISH GOOGLE LOGIN / AUTH SCREEN
-const AuthScreen: React.FC<{ 
-    initialMode: 'LOGIN' | 'SIGNUP'; 
-    deviceId: string;
-    onComplete: (user: User) => void; 
-    onCancel: () => void;
-    lang: Language;
-}> = ({ initialMode, deviceId, onComplete, onCancel, lang }) => {
-    const t = TRANSLATIONS[lang];
-    const [viewMode, setViewMode] = useState<'LOGIN' | 'SIGNUP'>(initialMode);
-    // Modes: SELECT (Google/Other), EMAIL_INPUT, PW_INPUT, SUCCESS
-    const [step, setStep] = useState<'SELECT' | 'EMAIL_INPUT' | 'PW_INPUT' | 'CREATE_PW' | 'SUCCESS'>('SELECT');
-    
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    
-    const { ipMap, users } = getDB();
 
-    const resetState = (mode: 'LOGIN' | 'SIGNUP') => {
-        setViewMode(mode);
-        setStep('SELECT');
-        setEmail('');
-        setPassword('');
-        setError('');
-    };
-
-    const handleGoogleStart = () => {
-        // Simulating Google Login Flow - User enters their Google Email
-        setStep('EMAIL_INPUT');
-        setError("");
-    };
-
-    const handleEmailSubmit = () => {
-        if (!email.includes('@')) {
-            setError("유효하지 않은 이메일입니다.");
-            return;
-        }
-        setError('');
-        const exists = users.find((u: any) => u.email === email);
-
-        if (viewMode === 'SIGNUP') {
-            if (exists) {
-                setError("이미 존재하는 계정입니다. 로그인을 시도해주세요.");
-                return;
-            }
-            setStep('CREATE_PW');
-        } else {
-            // Login
-            if (!exists) {
-                 // For better UX, we might prompt to signup, but let's strict check
-                 setError("존재하지 않는 계정입니다. 회원가입을 해주세요.");
-                 return;
-            }
-            setStep('PW_INPUT');
-        }
-    };
 
     const handleFinalSubmit = () => {
         const { users, ipMap, guestUsage } = getDB();
