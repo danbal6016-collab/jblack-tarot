@@ -15,17 +15,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Noto+Serif+KR:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
 
-/* [핵심 디자인] 모든 화면의 배경을 '메인 화면'과 똑같이 설정 */
+<style>
+      /* [핵심 디자인] 요청하신 이미지의 색상 그라데이션 적용 */
       html, body, #root {
-        /* 깊은 보라 -> 남색 -> 완전 검정 그라데이션 */
-        background: radial-gradient(circle at 50% 40%, #2e1065 0%, #0f172a 40%, #000000 90%) no-repeat fixed center center !important;
+        /* 더 깊고 어두운 보라색 -> 검은색 그라데이션 */
+        background: radial-gradient(circle at center, #1a0b2e 0%, #100c24 40%, #000000 100%) no-repeat fixed center center !important;
         background-size: cover !important;
         color: #e2e8f0;
         margin: 0; padding: 0;
         overflow-x: hidden;
         min-height: 100vh;
       }
-
       
       body {
         font-family: 'Noto Serif KR', serif;
@@ -137,30 +137,8 @@
         /* 달과 별 문양 SVG */
         background-image: url("data:image/svg+xml,%3Csvg width='300' height='450' viewBox='0 0 300 450' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='moonGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fbbf24' stop-opacity='0.8'/%3E%3Cstop offset='100%25' stop-color='%23a855f7' stop-opacity='0.4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='15' y='15' width='270' height='420' rx='10' fill='none' stroke='url(%23moonGrad)' stroke-width='1.5'/%3E%3Cpath d='M150 160 A 50 50 0 1 0 150 260 A 40 40 0 1 1 150 160' fill='url(%23moonGrad)' filter='drop-shadow(0 0 5px rgba(251,191,36,0.5))'/%3E%3Ccircle cx='50' cy='50' r='2' fill='%23fff' opacity='0.5'/%3E%3Ccircle cx='250' cy='400' r='2' fill='%23fff' opacity='0.5'/%3E%3Ccircle cx='200' cy='80' r='1.5' fill='%23fff' opacity='0.4'/%3E%3Ccircle cx='80' cy='350' r='1.5' fill='%23fff' opacity='0.4'/%3E%3Cpath d='M150 100 L152 110 L150 120 L148 110 Z' fill='%23fbbf24' opacity='0.8'/%3E%3Cpath d='M150 300 L152 310 L150 320 L148 310 Z' fill='%23fbbf24' opacity='0.8'/%3E%3C/svg%3E");
       }
-      /* [홀로그램] 어두운 배경 위를 스쳐가는 신비한 빛 */
-      .card-back::after {
-        content: "";
-        position: absolute;
-        top: -100%; left: -100%;
-        width: 300%; height: 300%;
-        background: linear-gradient(
-            115deg,
-            transparent 45%,
-            rgba(76, 29, 149, 0.4) 48%,   /* 보라색 빛 */
-            rgba(255, 255, 255, 0.3) 50%, /* 하얀색 하이라이트 */
-            rgba(59, 130, 246, 0.4) 52%,  /* 남색 빛 */
-            transparent 55%
-        );
-        transform: rotate(30deg);
-        animation: moonHolo 5s infinite linear;
-        mix-blend-mode: color-dodge; /* 어두운 배경과 섞여서 영롱하게 빛남 */
-        pointer-events: none;
-      }
 
-      @keyframes moonHolo {
-        0% { transform: translateY(-50%) translateX(-50%) rotate(30deg); }
-        100% { transform: translateY(20%) translateX(20%) rotate(30deg); }
-      }
+
     </style>
     
    <script type="importmap">
