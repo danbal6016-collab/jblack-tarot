@@ -280,7 +280,18 @@ body {
                 if (error) alert("로그인 실패: 이메일이나 비밀번호를 확인해주세요.");
                 else location.reload();
             }
-
+// 기존 코드를 이렇게 바꿔보세요
+if (id === 'btn-google') {
+    console.log("구글 버튼 클릭됨"); // 브라우저 개발자 도구(F12)에서 뜨는지 확인용
+    const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            // 이 주소를 실제 주소(예: 'http://localhost:5173')로 직접 써보세요
+            redirectTo: window.location.origin 
+        }
+    });
+    if (error) console.error("구글 로그인 에러:", error.message);
+}
             if (id === 'btn-signup') {
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
