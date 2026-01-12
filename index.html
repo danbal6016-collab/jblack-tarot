@@ -280,19 +280,48 @@ body {
                 if (error) alert("로그인 실패: 이메일이나 비밀번호를 확인해주세요.");
                 else location.reload();
             }
-// 기존 코드를 이렇게 바꿔보세요
+          // [수정] 구글 로그인 버튼 클릭 시
 if (id === 'btn-google') {
-    console.log("구글 버튼 클릭됨"); // 브라우저 개발자 도구(F12)에서 뜨는지 확인용
+    e.preventDefault();
     const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            // 이 주소를 실제 주소(예: 'http://localhost:5173')로 직접 써보세요
-            redirectTo: window.location.origin 
+            // 주소 끝에 / 를 붙이거나 현재 주소를 명확히 전달
+            redirectTo: window.location.origin + '/', 
+            queryParams: {
+                access_type: 'offline',
+                prompt: 'select_account',
+            },
         }
     });
-    if (error) console.error("구글 로그인 에러:", error.message);
+    if (error) alert("구글 로그인 시도 중 에러: " + error.message);
 }
-            if (id === 'btn-signup') {
+
+          // [수정] 기존 updateAuthUI를 더 강력하게 만듭니다.
+async function updateAuthUI() {
+    // 세션을 가져올 때 현재 URL의 토큰을 파싱할 시간을 줍니다.
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    const wrapper = document.getElementById('my-login-wrapper');
+    const modal = document.getElementById('auth-modal');
+
+    if (session && session.user) {
+        console.log("로그인 확인됨:", session.user.email);
+        document.body.classList.add('logged-in');
+        if(wrapper) wrapper.style.display = 'none';
+        if(modal) modal.style.display = 'none'; // 모달도 같이 닫기
+    } else {
+        document.body.classList.remove('logged-in');
+        if(wrapper) wrapper.style.display = 'block';
+    }
+}
+
+// 이 부분이 핵심: 상태가 바뀔 때마다 무조건 UI 업데이트
+supabase.auth.onAuthStateChange((event, session) => {
+    console.log("인증 상태 변경:", event);
+    updateAuthUI();
+});
+    if (id === 'btn-signup') {
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
                 const { data, error } = await supabase.auth.signUp({
