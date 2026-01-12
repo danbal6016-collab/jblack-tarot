@@ -16,24 +16,45 @@
     <style>
 
 <style>
-    body {
-        font-family: 'Noto Serif KR', serif; /* 기본 글씨체 */
-        -webkit-tap-highlight-color: transparent; /* 모바일 터치 시 파란 박스 제거 */
-      }
-      
-      /* 영어/숫자용 특수 폰트 */
-      .font-occult { font-family: 'Cinzel', serif; }
-      
-     /* [핵심 디자인] 요청하신 이미지의 색상 그라데이션 적용 */
+      /* [핵심 디자인] 모든 화면의 배경을 '메인 화면'과 똑같이 설정 */
+
       html, body, #root {
-        /* 더 깊고 어두운 보라색 -> 검은색 그라데이션 */
-        background: radial-gradient(circle at center, #1a0b2e 0%, #100c24 40%, #000000 100%) no-repeat fixed center center !important;
+
+        /* 깊은 보라 -> 남색 -> 완전 검정 그라데이션 */
+
+        background: radial-gradient(circle at 50% 40%, #2e1065 0%, #0f172a 40%, #000000 90%) no-repeat fixed center center !important;
+
         background-size: cover !important;
+
         color: #e2e8f0;
+
         margin: 0; padding: 0;
+
         overflow-x: hidden;
+
         min-height: 100vh;
+
       }
+
+
+
+body {
+
+        font-family: 'Noto Serif KR', serif;
+
+        background-color: #000;
+
+        color: #e2e8f0;
+
+        overflow-x: hidden;
+
+        -webkit-tap-highlight-color: transparent;
+
+      }
+
+      .font-occult { font-family: 'Cinzel', serif; }
+
+      .font-serif-en { font-family: 'Playfair Display', serif; }
     
       
       /* 스크롤바 디자인 */
