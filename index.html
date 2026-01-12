@@ -201,7 +201,7 @@
         </div>
     </div>
 
-    <script>
+   <script>
         window.onload = function() {
             // 1. Supabase 연결
             const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
@@ -210,50 +210,56 @@
             let supabase;
             try { supabase = window.supabase.createClient(supabaseUrl, supabaseKey); } catch (e) {}
 
-            // 2. [핵심] 화면 감시자 (Observer) - 버튼 숨김/표시 로직
+            // 2. 화면 감시자 (Observer) - 버튼 숨김/표시 로직
             const observer = new MutationObserver(() => {
                 const myWrapper = document.getElementById('my-login-wrapper');
-                // 리액트가 만든 톱니바퀴 버튼 찾기 (svg 아이콘이 있는 버튼)
                 const settingsBtn = document.querySelector('#root button svg')?.closest('button');
 
-                // [상태 1] 생년월일 입력 화면인가? (YYYY 또는 이름 입력칸 확인)
+                // [상태 1] 생년월일 입력 화면인가?
                 const isInputStep = document.querySelector('input[placeholder*="YYYY"]') || document.querySelector('input[placeholder*="이름"]');
                 
-                // [상태 2] 설정 창(모달)이 열려있는가? (제목이 Settings 또는 설정인 요소 확인)
+                // [상태 2] 설정 창(톱니바퀴 누름)이 열려있는가?
                 const isSettingsOpen = Array.from(document.querySelectorAll('h2')).some(h => 
                     h.innerText === 'Settings' || h.innerText === '설정'
                 );
 
-                // [로직 적용] 입력 중이거나 OR 설정 창이 열려있으면 -> 둘 다 숨김
-                const shouldHide = isInputStep || isSettingsOpen;
+                // --- 로직 적용 ---
 
-                // A. 로그인 버튼 제어
+                // A. 로그인 버튼 (LOGIN / SIGN UP)
+                // 조건: 입력 중이거나 OR 설정 창이 열려있으면 -> 숨김
                 if (myWrapper) {
-                    myWrapper.style.display = shouldHide ? 'none' : 'block';
+                    if (isInputStep || isSettingsOpen) {
+                        myWrapper.style.display = 'none';
+                    } else {
+                        myWrapper.style.display = 'block';
+                    }
                 }
 
-                // B. 설정(톱니바퀴) 버튼 제어
+                // B. 설정 버튼 (톱니바퀴)
+                // 조건: 입력 중일 때만 숨김 (설정 창 열려있어도 보여야 함)
                 if (settingsBtn) {
-                    settingsBtn.style.display = shouldHide ? 'none' : 'block';
-                    // 버튼이 보일 때는 항상 최상단에 오도록 설정
-                    if (!shouldHide) settingsBtn.style.zIndex = '999999';
+                    if (isInputStep) {
+                        settingsBtn.style.display = 'none';
+                    } else {
+                        settingsBtn.style.display = 'block';
+                        settingsBtn.style.zIndex = '999999'; // 항상 위로
+                    }
                 }
             });
 
-            // 감시 시작
             observer.observe(document.body, { childList: true, subtree: true });
 
             // 3. 클릭 이벤트 (로그인 창 띄우기 & 납치 기능)
             document.body.addEventListener('click', async function(e) {
                 const target = e.target;
                 
-                // 내 로그인 버튼 클릭 시
+                // 내 로그인 버튼
                 if (target.closest('#main-login-trigger')) {
                     document.getElementById('auth-modal').style.display = 'flex';
                     return;
                 }
 
-                // [납치] 앱 내부 '로그인' 텍스트 버튼 클릭 시 내 창 띄우기
+                // 앱 내부 '로그인' 버튼 납치
                 const text = target.innerText || "";
                 if ((text.includes('Login') || text.includes('로그인')) && 
                     !target.closest('#auth-modal') && 
