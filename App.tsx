@@ -8,7 +8,6 @@ import { getTarotReading, generateTarotImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
 import { useAuth } from "./components/AuthProvider";
 import { continueWithGoogle, signOut } from "./services/auth";
-import { useState } from "react";
 import { requestReading } from "./services/reading";
 
 function ReadingUI() {
