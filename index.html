@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Noto+Serif+KR:wght@300;400;600&display=swap" rel="stylesheet">
-    <style>
+ 
 
 <style>
       /* [핵심 디자인] 모든 화면의 배경을 '메인 화면'과 똑같이 설정 */
@@ -55,16 +55,7 @@ body {
       .font-occult { font-family: 'Cinzel', serif; }
 
       .font-serif-en { font-family: 'Playfair Display', serif; }
-
-      /* 로그인 상태일 때 버튼 숨기기 클래스 */
-        body.logged-in #my-login-wrapper {
-            display: none !important;
-        }
-
-        /* 팝업 디자인 보강 */
-        #auth-modal {
-            backdrop-filter: blur(15px) brightness(0.6);
-        }
+       
     
       
       /* 스크롤바 디자인 */
@@ -171,40 +162,16 @@ body {
 
     </style>
     
-   <script type="importmap">
-    {
-      "imports": {
-        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-        "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
-        "react/": "https://esm.sh/react@^19.2.3/",
-        "react": "https://esm.sh/react@^19.2.3"
-      }
-    }
-    </script>
+  
   </head>
   
   <body>
-    <div id="my-login-wrapper" style="position: fixed; top: 20px; right: 60px; z-index: 999999;">
-        <button id="main-login-trigger" style="background: rgba(0,0,0,0.7); border: 1px solid #fbbf24; color: #fbbf24; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-family: 'Cinzel', serif; font-weight: bold; font-size: 13px; backdrop-filter: blur(5px); box-shadow: 0 0 15px rgba(251, 191, 36, 0.2);">
-            LOGIN / SIGN UP
-        </button>
-    </div>
+  
 
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 
-    <div id="auth-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 9999999; justify-content: center; align-items: center; backdrop-filter: blur(10px);">
-    <div style="background: #0f172a; padding: 40px; border-radius: 16px; border: 1px solid #334155; width: 360px; text-align: center; color: white; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
-        <span id="close-modal" style="position: absolute; top: 15px; right: 20px; font-size: 28px; cursor: pointer; color: #64748b;">&times;</span>
-        <h2 style="margin-top: 0; margin-bottom: 25px; font-family: 'Cinzel', serif; color: #fbbf24; font-size: 1.5rem;">Mystic Gate</h2>
-
-        <input type="email" id="email" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 12px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; outline: none;">
-        <input type="password" id="password" placeholder="Password (6+ chars)" style="width: 100%; padding: 12px; margin-bottom: 24px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; outline: none;">
-      <div style="text-align: right; margin-bottom: 20px;">
-    <span id="btn-reset-pw" style="color: #bbb; font-size: 0.8rem; cursor: pointer; text-decoration: underline;">
-        비밀번호를 잊으셨나요?
-    </span>
-</div>
+   
 
         <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 24px;">
             <button id="btn-signin" style="flex: 1; padding: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">로그인</button>
@@ -219,96 +186,6 @@ body {
     </div>
 </div>
 
-<script>
-    const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvcGNxbnp6dXNnbHd5enRzdGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMzcwMjIsImV4cCI6MjA4MzcxMzAyMn0.FwMj6LIUGDbZE0u8a9KLOAs1p8vFEqt33ZJ57FC2jTs';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    // [1] 타로 리딩 무한대기 방지
-    window.safeTarotRequest = async (fetchFn) => {
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), 15000); 
-        try { return await fetchFn(controller.signal); }
-        catch (err) { alert("연결이 불안정합니다."); throw err; }
-        finally { clearTimeout(id); }
-    };
-
-    // [2] UI 업데이트 함수 (하나로 통합)
-    async function updateAuthUI() {
-        const { data: { session } } = await supabase.auth.getSession();
-        const wrapper = document.getElementById('my-login-wrapper');
-        const modal = document.getElementById('auth-modal');
-
-        if (session) {
-            document.body.classList.add('logged-in');
-            if(wrapper) wrapper.style.display = 'none';
-            if(modal) modal.style.display = 'none';
-            console.log("Logged in as:", session.user.email);
-        } else {
-            document.body.classList.remove('logged-in');
-            if(wrapper) wrapper.style.display = 'block';
-        }
-    }
-
-    // [3] 이벤트 리스너 설정
-    window.onload = () => {
-        updateAuthUI();
-
-        // 인증 상태 변화 감지 (구글 로그인 후 돌아올 때 핵심)
-        supabase.auth.onAuthStateChange((event, session) => {
-            console.log("Auth event:", event);
-            updateAuthUI();
-        });
-
-        document.getElementById('main-login-trigger').onclick = () => {
-            document.getElementById('auth-modal').style.display = 'flex';
-        };
-        document.getElementById('close-modal').onclick = () => {
-            document.getElementById('auth-modal').style.display = 'none';
-        };
-
-        document.body.addEventListener('click', async (e) => {
-            const target = e.target.closest('button, span');
-            if (!target) return;
-            const id = target.id;
-
-            if (id === 'btn-google') {
-                await supabase.auth.signInWithOAuth({
-                    provider: 'google',
-                    options: { 
-                        redirectTo: window.location.origin + '/',
-                        queryParams: { prompt: 'select_account' }
-                    }
-                });
-            }
-
-            if (id === 'btn-signin') {
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-                const { error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) alert("이메일 또는 비밀번호가 틀렸습니다.");
-                else location.reload();
-            }
-
-            if (id === 'btn-signup') {
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-                const { error } = await supabase.auth.signUp({
-                    email, password,
-                    options: { data: { coins: 100 } }
-                });
-                if (error) alert(error.message);
-                else alert("가입 성공! 100코인이 지급되었습니다.");
-            }
-
-            if (id === 'btn-reset-pw') {
-                const email = document.getElementById('email').value;
-                if (!email) return alert("이메일을 입력해주세요.");
-                const { error } = await supabase.auth.resetPasswordForEmail(email);
-                alert(error ? error.message : "메일을 확인해주세요.");
-            }
-        });
-    };
-</script>
 </body>
 </html>
