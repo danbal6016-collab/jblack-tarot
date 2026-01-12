@@ -210,184 +210,97 @@ body {
 </div>
 
 <script>
-        window.onload = function() {
-            const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
-            const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvcGNxbnp6dXNnbHd5enRzdGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMzcwMjIsImV4cCI6MjA4MzcxMzAyMn0.FwMj6LIUGDbZE0u8a9KLOAs1p8vFEqt33ZJ57FC2jTs';
-            
-            let supabase;
-            let isLoggedIn = false;
+    window.onload = function() {
+        const supabaseUrl = 'https://eopcqnzzusglwyztstge.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvcGNxbnp6dXNnbHd5enRzdGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMzcwMjIsImV4cCI6MjA4MzcxMzAyMn0.FwMj6LIUGDbZE0u8a9KLOAs1p8vFEqt33ZJ57FC2jTs';
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        let isLoggedIn = false;
 
-            try { 
-                // [1. 연결 강화] 옵션을 추가하여 연결 끊김 방지
-                supabase = window.supabase.createClient(supabaseUrl, supabaseKey, {
-                    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-                });
-
-                // 초기 로그인 상태 체크
-                supabase.auth.getSession().then(({ data: { session } }) => { 
-                    isLoggedIn = !!session; 
-                    updateButtonState(); // 상태 즉시 반영
-                });
-
-                // 로그인/로그아웃 변화 감지
-                supabase.auth.onAuthStateChange((event, session) => { 
-                    isLoggedIn = !!session; 
-                    updateButtonState(); // 상태 즉시 반영
-                });
-            } catch (e) { console.error("Supabase Init Error", e); }
-
-            // [2. 화면 감시자] 버튼 숨김 & 광고 제거 & 배경 고정
-            const observer = new MutationObserver(() => {
-                // A. 광고 제거
-                document.querySelectorAll('img').forEach(img => {
-                    if (img.src.includes('pollinations.ai') && !img.src.includes('nologo=true')) {
-                        img.src = img.src + "&nologo=true";
-                    }
-                });
-
-                // B. 배경 고정
-                const bgStyle = "radial-gradient(circle at center, #1a0b2e 0%, #100c24 40%, #000000 100%) no-repeat fixed center center";
-                if (document.body.style.background !== bgStyle) {
-                     document.body.style.background = bgStyle;
-                     document.body.style.backgroundSize = "cover";
-                     document.documentElement.style.background = bgStyle;
-                }
-
-                updateButtonState();
-            });
-            observer.observe(document.body, { childList: true, subtree: true });
-
-            // [함수] 버튼 상태 관리 (로그인하면 버튼 삭제)
-            function updateButtonState() {
-                const myWrapper = document.getElementById('my-login-wrapper');
-                const settingsBtn = document.querySelector('#root button svg')?.closest('button');
-                
-                // 조건: 입력 중이거나, 설정창 떴거나, 팝업 떴거나
-                const isInputStep = document.querySelector('input[placeholder*="YYYY"]') || document.querySelector('input[placeholder*="이름"]');
-                const isSettingsOpen = Array.from(document.querySelectorAll('h2')).some(h => h.innerText === 'Settings' || h.innerText === '설정');
-                const isAuthModalOpen = document.getElementById('auth-modal').style.display === 'flex';
-
-                // 1. 내 로그인 버튼 제어
-                if (myWrapper) {
-                    // 로그인이 되어있다면? -> 무조건 숨김 ('none')
-                    // 로그인이 안 되어있는데 다른 창이 떴다? -> 숨김
-                    if (isLoggedIn || isInputStep || isSettingsOpen || isAuthModalOpen) {
-                        myWrapper.style.display = 'none';
-                    } else {
-                        myWrapper.style.display = 'block';
-                    }
-                }
-
-                // 2. 설정(톱니바퀴) 버튼 제어
-                if (settingsBtn) {
-                    // 로그인 상태여도 설정 버튼은 보여야 함. 단, 입력 중일 때만 숨김.
-                    if (isInputStep) settingsBtn.style.display = 'none';
-                    else {
-                        settingsBtn.style.display = 'block';
-                        settingsBtn.style.zIndex = '999999';
-                    }
-                }
+        // [1 & 2] 로그인 상태 감지 및 버튼 숨기기 자동화
+        async function checkUser() {
+            const { data: { session } } = await supabase.auth.getSession();
+            isLoggedIn = !!session;
+            const myWrapper = document.getElementById('my-login-wrapper');
+            if (myWrapper) {
+                // 로그인 되어 있으면 버튼 숨김, 안 되어 있으면 보여줌
+                myWrapper.style.display = isLoggedIn ? 'none' : 'block';
             }
+        }
 
-            // [3. 클릭 이벤트 납치 및 결제 방어]
-            // useCapture: true를 사용하여 리액트보다 먼저 이벤트를 가로챕니다.
-            document.body.addEventListener('click', async function(e) {
-                const target = e.target;
-                const text = target.innerText || "";
+        supabase.auth.onAuthStateChange((event, session) => {
+            checkUser();
+        });
+        checkUser();
 
-                // (1) 내 로그인 버튼 클릭
-                if (target.closest('#main-login-trigger')) {
-                    document.getElementById('auth-modal').style.display = 'flex';
-                    e.stopPropagation(); return;
-                }
+        // [3] 타로 리딩 연결 오류 방어 (인터넷 연결 안됨 해결)
+        // 이 함수를 타로 리딩 버튼 클릭 시 호출하게 연결하세요.
+        window.safeTarotRequest = async (fn) => {
+            try {
+                return await fn();
+            } catch (err) {
+                console.error("Connection Error:", err);
+                alert("우주의 기운(서버)과 연결이 잠시 불안정합니다. 잠시 후 다시 시도해주세요.");
+            }
+        };
 
-
-              if (target.closest('#btn-google')) {
+        // [이벤트 가로채기]
+        document.body.addEventListener('click', async function(e) {
+            const target = e.target;
+            
+            // 1. 구글 로그인 활성화 (Continue with Google)
+            if (target.closest('#btn-google')) {
                 e.preventDefault();
-                console.log("구글 로그인 시도...");
                 const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: { redirectTo: window.location.origin }
                 });
-                if (error) alert("구글 로그인 에러: " + error.message);
+                if (error) alert("구글 연결 에러: " + error.message);
                 return;
             }
 
-                // (2) [하얀 화면 방지] 앱 내부 '로그인' 텍스트 클릭 시 납치
-                if ((text.includes('Login') || text.includes('로그인')) && 
-                    !target.closest('#auth-modal') && text !== 'LOGIN / SIGN UP') {
-                    e.preventDefault(); 
-                    e.stopPropagation();
-                    e.stopImmediatePropagation(); // 리액트 이동 차단
-                    document.getElementById('auth-modal').style.display = 'flex'; 
-                    return;
-                }
-
-                // (3) [결제 방어] 돈 안 내고 코인 가져가는 것 방지
-                // 버튼에 '결제', '충전' 등의 단어가 포함되어 있으면 일단 막습니다.
-                /* 주의: 이 코드는 '공짜 지급'을 막는 역할만 합니다. 
-                   실제 결제 기능을 붙이려면 PG사(포트원 등) 스크립트를 여기에 연동해야 합니다.
-                */
-                if (text.includes('결제') || text.includes('충전') || text.includes('Purchase') || text.includes('Coin')) {
-                    // 만약 이것이 '단순 메뉴 이동'이 아니라 '구매 버튼'이라면:
-                    if(target.tagName === 'BUTTON' || target.closest('button')) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        e.stopImmediatePropagation(); // 즉시 멈춤
-                        alert("결제 시스템 점검 중입니다. (실제 결제 연동 필요)");
-                        return;
+            // 2. 이메일 로그인 (비밀번호 불일치 에러 처리 포함)
+            if (target.closest('#btn-signin')) {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                
+                if (error) {
+                    // [핵심] 로그인 실패 시 에러 띄우기
+                    if (error.message.includes("credentials")) {
+                        alert("로그인 실패: 이메일이나 비밀번호가 틀렸습니다.");
+                    } else {
+                        alert("로그인 실패: " + error.message);
                     }
+                } else {
+                    alert("로그인 성공!");
+                    location.reload();
                 }
+            }
 
-                // (4) 팝업 닫기
-                if (target.closest('#close-modal') || target.id === 'auth-modal') {
-                    document.getElementById('auth-modal').style.display = 'none';
+            // 3. 회원가입 (신규 회원 100코인 지급 로직)
+            if (target.closest('#btn-signup')) {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+
+                const { data, error } = await supabase.auth.signUp({ 
+                    email, 
+                    password,
+                    options: {
+                        data: { coins: 100 } // 유저 메타데이터에 100코인 저장
+                    }
+                });
+
+                if (error) {
+                    alert("가입 실패: " + error.message);
+                } else {
+                    alert("가입 성공! 축하 선물로 100코인이 지급되었습니다.");
+                    location.reload();
                 }
-
-
-              // (8) [추가됨] 비밀번호 재설정 이메일 발송
-if (target.closest('#btn-reset-pw')) {
-    const email = document.getElementById('email').value;
-    
-    // 이메일 입력 안 했으면 혼내기
-    if (!email) {
-        alert("이메일 주소를 먼저 입력해주세요!");
-        return;
-    }
-
-    if (!confirm(email + " 주소로 비밀번호 재설정 메일을 보낼까요?")) return;
-
-    // Supabase에 "이 사람한테 메일 보내줘" 명령
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.href // 메일의 링크 누르면 다시 여기로 돌아옴
-    });
-
-    if (error) {
-        alert("에러 발생: " + error.message);
-    } else {
-        alert("이메일을 보냈습니다! 메일함을 확인해주세요.");
-    }
-}
-
-                // (5) 로그인/가입 로직
-                if (target.closest('#btn-signin')) {
-                    const email = document.getElementById('email').value;
-                    const password = document.getElementById('password').value;
-                    const { error } = await supabase.auth.signInWithPassword({ email, password });
-                    if (error) alert("로그인 실패: " + error.message);
-                    else { alert("로그인 성공!"); location.reload(); }
-                }
-                if (target.closest('#btn-signup')) {
-                    const email = document.getElementById('email').value;
-                    const password = document.getElementById('password').value;
-                    const { error } = await supabase.auth.signUp({ email, password });
-                    if (error) alert("가입 실패: " + error.message);
-                    else alert("가입 성공! 로그인해주세요.");
-
-                }
-
-            }, true); // true: 캡처 단계에서 이벤트 가로채기 (가장 강력함)
-        };
-    </script>
+            }
+        }, true);
+    };
+</script>
   </body>
 </html>
