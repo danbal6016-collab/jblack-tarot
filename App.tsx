@@ -11,6 +11,32 @@ import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundSer
 
 
 
+const [selectedPackageId, setSelectedPackageId] = useState<string>("");
+
+onClick={() => {
+  setSelectedAmount(5000);
+  setSelectedCoins(60);
+  setSelectedPackageId("pkg_5000_60");
+  setShopStep("METHOD");
+}}
+
+const handleStripeCheckout = async () => {
+  try {
+    const r = await fetch("/api/create-checkout-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        packageId: selectedPackageId,
+        userId: (user as any).id ?? "", // supabase uid 쓰면 넣기
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Checkout failed");
+    window.location.href = data.url; // ✅ Stripe 결제 페이지로 이동
+  } catch (e: any) {
+    alert(e.message);
+  }
+};
 
 
 
