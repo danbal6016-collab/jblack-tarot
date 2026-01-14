@@ -290,6 +290,7 @@ const App: React.FC = () => {
   const deviceId = getDeviceId();
   // FORCE WELCOME SCREEN on load, check login in background
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
+  const [selectedPackageId, setSelectedPackageId] = useState<string>("");
   const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [] });
   const [authMode, setAuthMode] = useState<'LOGIN'|'SIGNUP'|null>(null);
   const [flashMessage, setFlashMessage] = useState<string | null>(null);
@@ -754,7 +755,7 @@ if (newUser.email !== "Guest" && (newUser as any).id) {
                                      <div className="grid grid-cols-2 gap-6">
                                          {/* PACKAGE 1 */}
                                          <button 
-                                             onClick={() => { setSelectedAmount(5000); setSelectedCoins(60); setShopStep('METHOD'); }}
+                                             onClick={() => { setSelectedAmount(5000); setSelectedCoins(60); setSelectedPackageId("pkg_5000_60"); setShopStep('METHOD'); }}
                                              className="group relative p-6 bg-[#0f0a1e] border border-gray-700 rounded-xl hover:border-yellow-500 hover:shadow-[0_0_20px_rgba(234,179,8,0.3)] transition-all active:scale-95 flex flex-col items-center gap-4 overflow-hidden"
                                          >
                                              <div className="absolute inset-0 bg-yellow-500/5 group-hover:bg-yellow-500/10 transition-colors"></div>
@@ -770,7 +771,7 @@ if (newUser.email !== "Guest" && (newUser as any).id) {
 
                                          {/* PACKAGE 2 */}
                                          <button 
-                                             onClick={() => { setSelectedAmount(10000); setSelectedCoins(150); setShopStep('METHOD'); }}
+                                             onClick={() => { setSelectedAmount(10000); setSelectedCoins(150); setSelectedPackageId("pkg_10000_150");setShopStep('METHOD'); }}
                                              className="group relative p-6 bg-[#0f0a1e] border border-gray-700 rounded-xl hover:border-purple-500 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all active:scale-95 flex flex-col items-center gap-4 overflow-hidden"
                                          >
                                              <div className="absolute inset-0 bg-purple-500/5 group-hover:bg-purple-500/10 transition-colors"></div>
