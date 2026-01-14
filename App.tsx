@@ -10,20 +10,7 @@ import { getTarotReading, generateTarotImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
 import { requestReading } from "./services/reading";
 
-  return (
-    <div>
-      <button onClick={onRead} disabled={loading}>
-        {loading ? "Reading..." : "Get Reading"}
-      </button>
-
-      {error && <div style={{ whiteSpace: "pre-wrap" }}>{error}</div>}
-      {reading && <div style={{ whiteSpace: "pre-wrap" }}>{reading}</div>}
-    </div>
-  );
-}
-
 declare const html2canvas: any;
-
 // ---------------------------------------------------------------------------
 // CONFIG
 // ---------------------------------------------------------------------------
