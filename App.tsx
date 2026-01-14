@@ -10,7 +10,6 @@ import AudioPlayer from './components/AudioPlayer';
 import { getTarotReading, generateTarotImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
 import { requestReading } from "./services/reading";
-export default function App() {
 
   return (
     <div>
