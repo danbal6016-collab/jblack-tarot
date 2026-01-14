@@ -545,7 +545,7 @@ const App: React.FC = () => {
   }
 };
 
-  <button onClick={() => handlePayment("stripe", "pkg_60")}>Apple Pay</button>
+
 
 
   // -------------------------------------------------------------------------
