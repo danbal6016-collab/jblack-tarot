@@ -797,9 +797,27 @@ if (newUser.email !== "Guest" && (newUser as any).id) {
                                      <p className="text-center text-gray-300 font-sans">{TRANSLATIONS[lang].shop_step2}</p>
                                      
                                      <div className="flex flex-col gap-3">
-                                         <button onClick={() => handlePayment('PayPal')} className="w-full py-3 bg-[#003087] hover:bg-[#00256b] rounded font-bold text-white transition-colors">PayPal</button>
-                                         <button onClick={() => handlePayment('Toss')} className="w-full py-3 bg-[#0064FF] hover:bg-[#0050cc] rounded font-bold text-white transition-colors">Toss</button>
-                                         <button onClick={() => handlePayment('Apple Pay')} className="w-full py-3 bg-white hover:bg-gray-200 text-black rounded font-bold transition-colors flex items-center justify-center gap-2"><span className="text-lg"></span> Apple Pay</button>
+                                        <button
+  onClick={() => handlePayment("paypal")}
+  className="w-full py-3 bg-[#003087] hover:bg-[#00256b] rounded font-bold text-white transition-colors"
+>
+  PayPal
+</button>
+
+<button
+  onClick={() => handlePayment("toss")}
+  className="w-full py-3 bg-[#0064FF] hover:bg-[#0050cc] rounded font-bold text-white transition-colors"
+>
+  Toss
+</button>
+
+<button
+  onClick={() => handlePayment("stripe")}
+  className="w-full py-3 bg-white hover:bg-gray-200 text-black rounded font-bold transition-colors flex items-center justify-center gap-2"
+>
+  <span className="text-lg"></span> Apple Pay
+</button>
+
                                      </div>
                                  </div>
                              )}
