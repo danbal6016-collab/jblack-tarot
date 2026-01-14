@@ -128,14 +128,18 @@ const TRANSLATIONS = {
 // ---------------------------------------------------------------------------
 // HELPERS
 // ---------------------------------------------------------------------------
-const getDeviceId = () => {
-  let id = localStorage.getItem('device_id');
-  if (!id) {
-    id = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    localStorage.setItem('device_id', id);
+
+const profileKey = (uid: string) => `tarot_profile_${uid}`;
+
+const loadProfile = (uid: string) => {
+  try {
+    const raw = localStorage.getItem(profileKey(uid));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
   }
-  return id;
 };
+
 
 // Calculate Zodiac Sign from Date string (YYYYMMDD)
 const getZodiacSign = (dateStr: string): string => {
