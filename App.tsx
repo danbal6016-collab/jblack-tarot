@@ -130,6 +130,24 @@ const TRANSLATIONS = {
 // HELPERS
 // ---------------------------------------------------------------------------
 
+
+// Device ID (persists per browser)
+const getDeviceId = () => {
+  const KEY = "tarot_device_id";
+  try {
+    let id = localStorage.getItem(KEY);
+    if (!id) {
+      id = (crypto?.randomUUID?.() ?? `dev_${Math.random().toString(36).slice(2)}_${Date.now()}`);
+      localStorage.setItem(KEY, id);
+    }
+    return id;
+  } catch {
+    // localStorage 막힌 환경 대비
+    return `dev_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+  }
+};
+
+
 const profileKey = (uid: string) => `tarot_profile_${uid}`;
 
 const loadProfile = (uid: string) => {
