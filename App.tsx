@@ -500,7 +500,12 @@ const App: React.FC = () => {
   };
   
   // REALISTIC PAYMENT SIMULATION
-  const handlePayment = async (provider: "paypal" | "toss" | "stripe", packageId: "pkg_60" | "pkg_150") => {
+  const handlePayment = async (provider: "paypal" | "toss" | "stripe") => {
+  if (!selectedPackageId) {
+    alert("패키지를 먼저 선택해주세요.");
+    return;
+  }
+
   setIsProcessingPayment(true);
   try {
     if (user.email === "Guest" || !(user as any).id) {
@@ -508,12 +513,11 @@ const App: React.FC = () => {
       return;
     }
 
-    // 1) 서버에 결제 생성 요청
     const res = await fetch("/api/create-checkout-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        packageId,
+        packageId: selectedPackageId,
         userId: (user as any).id,
         provider,
       }),
@@ -522,7 +526,6 @@ const App: React.FC = () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Payment init failed");
 
-    // 2) 결제 페이지로 이동
     window.location.href = data.url;
   } catch (e: any) {
     alert(e.message);
