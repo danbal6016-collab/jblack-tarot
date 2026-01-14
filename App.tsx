@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from "./src/lib/supabase";
 import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult } from './types';
 import { CATEGORIES, TAROT_DECK } from './constants';
 import Background from './components/Background';
@@ -352,6 +353,11 @@ const App: React.FC = () => {
 }, []);
 
 
+  const saveProfile = (uid: string, data: any) => {
+  localStorage.setItem(profileKey(uid), JSON.stringify(data));
+};
+
+
   const handleStart = () => {
       const { guestUsage } = getDB();
       if (user.email === 'Guest') {
@@ -373,12 +379,8 @@ const App: React.FC = () => {
   };
 
 
-const updatedUser = { ...user, coins: user.coins - 5 };
-setUser(updatedUser);
 
-if (updatedUser.email !== "Guest" && (updatedUser as any).id) {
-  saveProfile((updatedUser as any).id, updatedUser);
-}
+
 
 
   
@@ -526,20 +528,7 @@ if (updatedUser.email !== "Guest" && (updatedUser as any).id) {
 
 
 
-  <button
-  onClick={async () => {
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-    if (error) alert(error.message);
-  }}
-  className="w-full py-3 bg-white text-black font-bold rounded flex items-center justify-center gap-2 hover:bg-gray-200"
->
-  <span className="text-lg">G</span> {t.continue_google}
-</button>
-
+  
   
   if (authMode) {
       return <AuthScreen 
@@ -971,9 +960,21 @@ const AuthScreen: React.FC<{
                         <div className="relative flex justify-center text-xs uppercase"><span className="bg-gray-900 px-2 text-gray-500">Or</span></div>
                     </div>
 
-                  import { supabase } from "./src/lib/supabase"; 
-// App.tsx가 프로젝트 루트에 있으니까 이 경로가 맞을 가능성이 큼
-// (만약 App.tsx가 src 안이면 "./lib/supabase"로 바꿔야 함)
+
+                  <button
+  onClick={async () => {
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    if (error) alert(error.message);
+  }}
+  className="w-full py-3 bg-white text-black font-bold rounded flex items-center justify-center gap-2 hover:bg-gray-200"
+>
+  <span className="text-lg">G</span> {t.continue_google}
+</button>
+
 
                   <button
   onClick={async () => {
