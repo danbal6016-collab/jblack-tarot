@@ -1,4 +1,4 @@
-export default async function handler(req: any, res: any) {
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import Stripe from "stripe";
 
