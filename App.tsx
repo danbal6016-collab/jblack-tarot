@@ -4,7 +4,7 @@ import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Lan
 import { CATEGORIES, TAROT_DECK } from './constants';
 import Background from './components/Background';
 import Logo from './components/Logo';
-import { getDeviceId } from "./src/lib/device";
+import { getDeviceId } from "./src/lib/device.ts";
 import AudioPlayer from './components/AudioPlayer';
 import { getTarotReading, generateTarotImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
