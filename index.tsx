@@ -1,6 +1,15 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import AuthCallback from "./AuthCallback"; // 경로 맞추기
+
+const pathname = window.location.pathname;
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    {pathname.startsWith("/auth/callback") ? <AuthCallback /> : <App />}
+  </React.StrictMode>
+);
 
 // [CRITICAL FIX] Attempt to override global fetch to enforce 'no-referrer' policy safely.
 // This prevents 'API_KEY_HTTP_REFERRER_BLOCKED' errors.
