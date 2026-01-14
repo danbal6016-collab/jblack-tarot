@@ -1,7 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import AuthCallback from "./AuthCallback"; // 경로 맞추기
+import AuthCallback from "./components/AuthCallback";
+
 
 const pathname = window.location.pathname;
 
