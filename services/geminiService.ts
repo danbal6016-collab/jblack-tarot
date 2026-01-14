@@ -86,7 +86,7 @@ export const getTarotReading = async (
           contents: prompt,
           config: {
             systemInstruction: getSystemInstruction(lang),
-            temperature: 1.1, 
+            temperature: 0.9, 
             topP: 0.95,
             topK: 40, 
             maxOutputTokens: 2000, 
