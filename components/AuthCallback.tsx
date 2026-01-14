@@ -1,18 +1,27 @@
 import { useEffect } from "react";
 import { supabase } from "../src/lib/supabase";
 
-
 export default function AuthCallback() {
   useEffect(() => {
-    // URL의 code를 세션으로 교환
-    supabase.auth.exchangeCodeForSession(window.location.href)
-      .then(() => {
-        // 세션 생기면 홈으로 보내기
+    (async () => {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+
+      if (!code) {
+        // code가 없으면 그냥 홈으로
         window.location.replace("/");
-      })
-      .catch(() => {
-        window.location.replace("/");
-      });
+        return;
+      }
+
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+      if (error) {
+        alert(error.message);
+      }
+
+      // 세션 교환 완료 후 홈으로
+      window.location.replace("/");
+    })();
   }, []);
 
   return (
