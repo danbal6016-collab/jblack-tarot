@@ -1186,7 +1186,7 @@ const ResultView: React.FC<{
     const [flipped, setFlipped] = useState([false, false, false]);
     const [isDownloading, setIsDownloading] = useState(false);
     
-    // Ref for capturing the luxurious export image
+
     const captureRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
