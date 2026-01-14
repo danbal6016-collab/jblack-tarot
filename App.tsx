@@ -513,26 +513,6 @@ const App: React.FC = () => {
       return;
     }
 
-    const res = await fetch("/api/create-checkout-session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        packageId: selectedPackageId,
-        userId: (user as any).id,
-        provider,
-      }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Payment init failed");
-
-    window.location.href = data.url;
-  } catch (e: any) {
-    alert(e.message);
-  } finally {
-    setIsProcessingPayment(false);
-  }
-};
 
 
 
@@ -743,7 +723,7 @@ if (newUser.email !== "Guest" && (newUser as any).id) {
                                      <div className="grid grid-cols-2 gap-6">
                                          {/* PACKAGE 1 */}
                                          <button 
-                                             onClick={() => { setSelectedAmount(5000); setSelectedCoins(60); setSelectedPackageId("pkg_5000_60"); setShopStep('METHOD'); }}
+                                             onClick={() => { setSelectedAmount(5000); setSelectedCoins(60); setSelectedPackageId("pkg_60"); setShopStep('METHOD'); }}
                                              className="group relative p-6 bg-[#0f0a1e] border border-gray-700 rounded-xl hover:border-yellow-500 hover:shadow-[0_0_20px_rgba(234,179,8,0.3)] transition-all active:scale-95 flex flex-col items-center gap-4 overflow-hidden"
                                          >
                                              <div className="absolute inset-0 bg-yellow-500/5 group-hover:bg-yellow-500/10 transition-colors"></div>
@@ -759,7 +739,7 @@ if (newUser.email !== "Guest" && (newUser as any).id) {
 
                                          {/* PACKAGE 2 */}
                                          <button 
-                                             onClick={() => { setSelectedAmount(10000); setSelectedCoins(150); setSelectedPackageId("pkg_10000_150");setShopStep('METHOD'); }}
+                                             onClick={() => { setSelectedAmount(10000); setSelectedCoins(150); setSelectedPackageId("pkg_150");setShopStep('METHOD'); }}
                                              className="group relative p-6 bg-[#0f0a1e] border border-gray-700 rounded-xl hover:border-purple-500 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all active:scale-95 flex flex-col items-center gap-4 overflow-hidden"
                                          >
                                              <div className="absolute inset-0 bg-purple-500/5 group-hover:bg-purple-500/10 transition-colors"></div>
@@ -797,26 +777,10 @@ if (newUser.email !== "Guest" && (newUser as any).id) {
                                      <p className="text-center text-gray-300 font-sans">{TRANSLATIONS[lang].shop_step2}</p>
                                      
                                      <div className="flex flex-col gap-3">
-                                        <button
-  onClick={() => handlePayment("paypal")}
-  className="w-full py-3 bg-[#003087] hover:bg-[#00256b] rounded font-bold text-white transition-colors"
->
-  PayPal
-</button>
+                                      <button onClick={() => handlePayment("paypal", selectedPackageId as "pkg_60" | "pkg_150")}>PayPal</button>
+<button onClick={() => handlePayment("toss", selectedPackageId as "pkg_60" | "pkg_150")}>Toss</button>
+<button onClick={() => handlePayment("stripe", selectedPackageId as "pkg_60" | "pkg_150")}>Apple Pay</button>
 
-<button
-  onClick={() => handlePayment("toss")}
-  className="w-full py-3 bg-[#0064FF] hover:bg-[#0050cc] rounded font-bold text-white transition-colors"
->
-  Toss
-</button>
-
-<button
-  onClick={() => handlePayment("stripe")}
-  className="w-full py-3 bg-white hover:bg-gray-200 text-black rounded font-bold transition-colors flex items-center justify-center gap-2"
->
-  <span className="text-lg"></span> Apple Pay
-</button>
 
                                      </div>
                                  </div>
