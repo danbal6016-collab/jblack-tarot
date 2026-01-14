@@ -21,8 +21,6 @@ import { requestReading } from "./services/reading";
       {reading && <div style={{ whiteSpace: "pre-wrap" }}>{reading}</div>}
     </div>
   );
-}
-
 // ---------------------------------------------------------------------------
 // CONFIG
 // ---------------------------------------------------------------------------
