@@ -113,6 +113,37 @@ export const getTarotReading = async (
   }
 };
 
+
+export async function getTarotReading(
+  question: string,
+  cards: { name: string; isReversed: boolean }[],
+  userInfo: any,
+  lang: "ko" | "en"
+) {
+  const res = await fetch("/api/tarot-reading", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, cards, userInfo, lang }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "tarot-reading failed");
+  return data.text as string;
+}
+
+export async function generateTarotImage(cardName: string) {
+  // ✅ 이미지 생성은 느릴 수 있으니 “필요하면” 나중에 분리 추천
+  const res = await fetch("/api/tarot-image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cardName }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "tarot-image failed");
+  return data.url as string;
+}
+
 export const generateTarotImage = async (cardName: string): Promise<string> => {
   const seed = Math.floor(Math.random() * 1000000);
   const encodedName = encodeURIComponent(cardName);
