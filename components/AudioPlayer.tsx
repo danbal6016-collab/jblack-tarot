@@ -106,6 +106,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped }) => {
         if(isMountedRef.current) setCurrentTrackIndex((prev) => (prev + 1) % BGM_PLAYLIST.length);
     }, 1000);
   };
+useEffect(() => {
+  if (!audioRef.current) return;
+  audioRef.current.volume = volume;
+  audioRef.current.muted = userStopped;   // ✅ 추가
+}, [volume, userStopped]);
 
   return (
     <audio 
