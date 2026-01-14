@@ -4,8 +4,8 @@ import { supabase } from "../src/lib/supabase";
 export default function AuthCallback() {
   useEffect(() => {
     (async () => {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
 
       if (!code) {
         window.location.replace("/");
@@ -13,10 +13,7 @@ export default function AuthCallback() {
       }
 
       const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-      if (error) {
-        alert(error.message);
-      }
+      if (error) alert(error.message);
 
       window.location.replace("/");
     })();
