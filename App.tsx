@@ -281,23 +281,76 @@ const App: React.FC = () => {
   const [selectedCoins, setSelectedCoins] = useState<number>(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  // Initialization: Load User AND Skip Welcome if logged in
   useEffect(() => {
-     const { users, ipMap } = getDB();
-     const registeredEmail = ipMap[deviceId];
-     if (registeredEmail) {
-         const found = users.find((u: any) => u.email === registeredEmail);
-         if (found) {
-             setUser(found);
-             // IMMEDIATE REDIRECT if already logged in (Persistent Session)
-             if (found.userInfo && found.userInfo.name) {
-                 setAppState(AppState.CATEGORY_SELECT);
-             } else {
-                 setAppState(AppState.INPUT_INFO);
-             }
-         }
-     }
-  }, []);
+  let mounted = true;
+
+  const applySession = async () => {
+    const { data } = await supabase.auth.getSession();
+    const session = data.session;
+
+    if (!mounted) return;
+
+    if (!session?.user) return; // 로그인 안 됨 → Guest 유지
+
+    const uid = session.user.id;
+    const email = session.user.email ?? "Unknown";
+
+    // 기존 프로필 불러오기 (coins/history/userInfo)
+    const saved = loadProfile(uid);
+
+    const baseUser = saved ?? {
+      id: uid,
+      email,
+      coins: 50, // 최초 로그인 보너스
+      history: [],
+      userInfo: undefined,
+    };
+
+    // email은 최신으로 덮어쓰기
+    const merged = { ...baseUser, id: uid, email };
+
+    setUser(merged);
+
+    // welcome 스킵 로직
+    if (merged.userInfo?.name) setAppState(AppState.CATEGORY_SELECT);
+    else setAppState(AppState.INPUT_INFO);
+  };
+
+  applySession();
+
+  const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const u = session?.user;
+    if (!u) {
+      setUser({ email: "Guest", coins: 0, history: [] });
+      setAppState(AppState.WELCOME);
+      return;
+    }
+
+    const uid = u.id;
+    const email = u.email ?? "Unknown";
+    const saved = loadProfile(uid);
+
+    const baseUser = saved ?? {
+      id: uid,
+      email,
+      coins: 50,
+      history: [],
+      userInfo: undefined,
+    };
+
+    const merged = { ...baseUser, id: uid, email };
+    setUser(merged);
+
+    if (merged.userInfo?.name) setAppState(AppState.CATEGORY_SELECT);
+    else setAppState(AppState.INPUT_INFO);
+  });
+
+  return () => {
+    mounted = false;
+    sub.subscription.unsubscribe();
+  };
+}, []);
+
 
   const handleStart = () => {
       const { guestUsage } = getDB();
@@ -319,6 +372,16 @@ const App: React.FC = () => {
       }
   };
 
+
+const updatedUser = { ...user, coins: user.coins - 5 };
+setUser(updatedUser);
+
+if (updatedUser.email !== "Guest" && (updatedUser as any).id) {
+  saveProfile((updatedUser as any).id, updatedUser);
+}
+
+
+  
   const handleUserInfoSubmit = (info: UserInfo) => {
       // 1. Update State
       const newUser = { ...user, userInfo: info };
@@ -326,12 +389,12 @@ const App: React.FC = () => {
       
       // 2. PERSIST to DB immediately so it's not lost
       if (user.email !== 'Guest') {
-          const { users, ipMap, guestUsage } = getDB();
-          const idx = users.findIndex((u: any) => u.email === user.email);
-          if (idx !== -1) {
-              users[idx] = newUser;
-              saveDB(users, ipMap, guestUsage);
-          }
+          if (user.email !== "Guest" && (user as any).id) {
+  const uid = (user as any).id as string;
+  saveProfile(uid, newUser);
+}
+
+          
       }
 
       setAppState(AppState.CATEGORY_SELECT);
@@ -461,6 +524,23 @@ const App: React.FC = () => {
       );
   }
 
+
+
+  <button
+  onClick={async () => {
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    if (error) alert(error.message);
+  }}
+  className="w-full py-3 bg-white text-black font-bold rounded flex items-center justify-center gap-2 hover:bg-gray-200"
+>
+  <span className="text-lg">G</span> {t.continue_google}
+</button>
+
+  
   if (authMode) {
       return <AuthScreen 
           initialMode={authMode} 
@@ -610,14 +690,13 @@ const App: React.FC = () => {
                         cards: selectedCards,
                         interpretation: text
                     };
-                    const newUser = { ...user, history: [result, ...user.history] };
-                    setUser(newUser);
-                    if(user.email !== 'Guest') {
-                        const { users, ipMap, guestUsage } = getDB();
-                        const idx = users.findIndex((u: any) => u.email === user.email);
-                        if(idx!==-1) users[idx] = newUser;
-                        saveDB(users, ipMap, guestUsage);
-                    }
+                   const newUser = { ...user, history: [result, ...user.history] };
+setUser(newUser);
+
+if (newUser.email !== "Guest" && (newUser as any).id) {
+  saveProfile((newUser as any).id, newUser);
+}
+
                 }}
                 onLogin={() => {
                    const { ipMap } = getDB();
