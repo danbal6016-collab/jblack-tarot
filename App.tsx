@@ -1,3 +1,4 @@
+declare const html2canvas: any;
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from "./components/AuthProvider";
 import { continueWithGoogle, signOut } from "./services/auth";
@@ -21,8 +22,6 @@ import { requestReading } from "./services/reading";
     </div>
   );
 }
-
-declare const html2canvas: any;
 
 // ---------------------------------------------------------------------------
 // CONFIG
