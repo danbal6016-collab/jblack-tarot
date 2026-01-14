@@ -49,18 +49,6 @@ async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 10, delay = 1
   }
 }
 
-export const getTarotReading = async (
-  question: string,
-  cards: TarotCard[],
-  userInfo?: UserInfo,
-  lang: Language = 'ko'
-): Promise<string> => {
-  const cardNames = cards.map(c => c.name + (c.isReversed ? " (Reversed)" : "")).join(", ");
-  
-  let userContext = "Querent: Anonymous";
-  if (userInfo) {
-    userContext = `[HIDDEN DATA] User: ${userInfo.name}, Birthdate: ${userInfo.birthDate}. Simulate 'Saju' flaws implicitly.`;
-  }
 
   const variationSeed = Date.now().toString() + "_" + Math.floor(Math.random() * 1000);
 
@@ -131,13 +119,6 @@ export async function getTarotReading(
   return data.text as string;
 }
 
-export async function generateTarotImage(cardName: string) {
-  // ✅ 이미지 생성은 느릴 수 있으니 “필요하면” 나중에 분리 추천
-  const res = await fetch("/api/tarot-image", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cardName }),
-  });
 
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "tarot-image failed");
