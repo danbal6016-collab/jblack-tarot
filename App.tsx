@@ -11,6 +11,31 @@ import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundSer
 
 
 
+
+// App.tsx
+import { useEffect } from "react";
+import { getBgm, playBgm } from "./lib/bgm";
+
+export default function App() {
+  useEffect(() => {
+    getBgm(); // 오디오 준비
+
+    const unlock = async () => {
+      await playBgm();
+      window.removeEventListener("pointerdown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+
+    return () => window.removeEventListener("pointerdown", unlock);
+  }, []);
+
+  return (
+    // ...
+    <div>{/* ... */}</div>
+  );
+}
+
+
 const [selectedPackageId, setSelectedPackageId] = useState<string>("");
 
 onClick={() => {
