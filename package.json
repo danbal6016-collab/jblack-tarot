@@ -13,14 +13,14 @@
     "@supabase/supabase-js": "^2.39.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "stripe": "^16.0.0"
+    "stripe": "^16.0.0",
+    "@vercel/node": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0",
-    "@vercel/node": "^3.0.0"
+    "vite": "^6.2.0"
   }
 }
 
