@@ -12,7 +12,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Noto+Serif+KR:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
  
 
 <style>
@@ -40,7 +40,8 @@
 
 body {
 
-        font-family: 'Noto Serif KR', serif;
+        /* FONT UPDATE: Apple SD Gothic Neo (Apple Gothic) */
+        font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Dotum', sans-serif;
 
         background-color: #000;
 
@@ -98,30 +99,37 @@ body {
       
       .btn-gold-3d:hover { filter: brightness(1.1); }
 
-      /* [복구됨] 카드 섞기 애니메이션 (CHAOS Mixing) */
-      @keyframes shuffleChaos1 {
-        0%, 100% { transform: translate(0,0) rotate(0deg); z-index: 1; }
-        25% { transform: translate(-250px, -150px) rotate(-45deg); }
-        50% { transform: translate(200px, 200px) rotate(90deg); z-index: 20; }
-        75% { transform: translate(-100px, 50px) rotate(-20deg); }
+      /* [SMOOTH LUXURY] 고급스러운 곡선 움직임 */
+      /* 움직임이 부드럽고 끊기지 않게 cubic-bezier 사용 */
+      /* 카드가 텍스트(z-index: 200)를 가리지 않도록 z-index 조절 (1~50) */
+      
+      @keyframes heavyShuffle1 {
+        0% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 1; }
+        25% { transform: translate(-100px, -40px) rotate(-15deg) scale(0.9); }
+        50% { transform: translate(60px, 80px) rotate(10deg) scale(1); z-index: 40; }
+        75% { transform: translate(-40px, 20px) rotate(-5deg) scale(0.9); }
+        100% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 1; }
       }
-      @keyframes shuffleChaos2 {
-        0%, 100% { transform: translate(0,0) rotate(0deg); z-index: 2; }
-        25% { transform: translate(250px, -200px) rotate(45deg); }
-        50% { transform: translate(-250px, 100px) rotate(-60deg); z-index: 20; }
-        75% { transform: translate(100px, -100px) rotate(25deg); }
+      
+      @keyframes heavyShuffle2 {
+        0% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 2; }
+        30% { transform: translate(80px, -60px) rotate(20deg) scale(1); z-index: 45; }
+        60% { transform: translate(-70px, 50px) rotate(-20deg) scale(0.9); }
+        100% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 2; }
       }
-      @keyframes shuffleChaos3 {
-        0%, 100% { transform: translate(0,0) rotate(0deg); z-index: 3; }
-        25% { transform: translate(-150px, 250px) rotate(-90deg); }
-        50% { transform: translate(250px, -150px) rotate(60deg); z-index: 20; }
-        75% { transform: translate(-50px, -150px) rotate(10deg); }
+      
+      @keyframes heavyShuffle3 {
+        0% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 3; }
+        40% { transform: translate(-60px, 60px) rotate(-30deg) scale(1); z-index: 50; }
+        70% { transform: translate(70px, -30px) rotate(15deg) scale(0.9); }
+        100% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 3; }
       }
-      @keyframes shuffleChaos4 {
-        0%, 100% { transform: translate(0,0) rotate(0deg); z-index: 4; }
-        25% { transform: translate(150px, 150px) rotate(120deg); }
-        50% { transform: translate(-200px, -200px) rotate(-45deg); z-index: 20; }
-        75% { transform: translate(50px, 150px) rotate(-30deg); }
+      
+      @keyframes heavyShuffle4 {
+        0% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 4; }
+        20% { transform: translate(50px, 40px) rotate(45deg) scale(1); z-index: 48; }
+        60% { transform: translate(-90px, -70px) rotate(-25deg) scale(0.9); }
+        100% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 4; }
       }
       
       @keyframes float {
@@ -163,29 +171,23 @@ body {
     </style>
     
   
-  </head>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+  }
+}
+</script>
+</head>
   
   <body>
   
 
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
-
-   
-
-        <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 24px;">
-            <button id="btn-signin" style="flex: 1; padding: 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">로그인</button>
-            <button id="btn-signup" style="flex: 1; padding: 12px; background: #7c3aed; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">회원가입</button>
-        </div>
-
-        <div style="display: flex; align-items: center; margin-bottom: 24px; color: #475569;"><hr style="flex: 1; border-color: #334155;"><span style="padding: 0 10px; font-size: 0.8rem;">OR</span><hr style="flex: 1; border-color: #334155;"></div>
-
-        <button id="btn-google" style="width: 100%; background: white; color: #1e293b; padding: 12px; border-radius: 25px; font-weight: bold; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 10px;">
-            <img src="https://www.svgrepo.com/show/475656/google-color.svg" width="20"> Continue with Google
-        </button>
-    </div>
-</div>
-
 
 </body>
 </html>
