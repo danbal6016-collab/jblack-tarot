@@ -507,31 +507,39 @@ const App: React.FC = () => {
   };
   
   // REALISTIC PAYMENT SIMULATION
-  const handlePayment = (method: string) => {
-      setIsProcessingPayment(true);
-      
-      // Simulate Async Payment Gateway Delay
-      setTimeout(() => {
-          setIsProcessingPayment(false);
-          setShowShop(false);
-          setShopStep('AMOUNT');
-          
-          // Add Coins
-          const updatedUser = { ...user, coins: user.coins + selectedCoins };
-          setUser(updatedUser);
-          
-          if(user.email !== 'Guest') {
-              const { users, ipMap, guestUsage } = getDB();
-              const idx = users.findIndex((u: any) => u.email === user.email);
-              if (idx !== -1) {
-                  users[idx] = updatedUser;
-                  saveDB(users, ipMap, guestUsage);
-              }
-          }
-          
-          alert(`Successfully charged ${selectedCoins} Coins via ${method}!`);
-      }, 2000);
-  };
+  const handlePayment = async (provider: "paypal" | "toss" | "stripe", packageId: "pkg_60" | "pkg_150") => {
+  setIsProcessingPayment(true);
+  try {
+    if (user.email === "Guest" || !(user as any).id) {
+      alert("로그인 후 결제할 수 있어요.");
+      return;
+    }
+
+    // 1) 서버에 결제 생성 요청
+    const res = await fetch("/api/create-checkout-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        packageId,
+        userId: (user as any).id,
+        provider,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Payment init failed");
+
+    // 2) 결제 페이지로 이동
+    window.location.href = data.url;
+  } catch (e: any) {
+    alert(e.message);
+  } finally {
+    setIsProcessingPayment(false);
+  }
+};
+
+  <button onClick={() => handlePayment("stripe", "pkg_60")}>Apple Pay</button>
+
 
   // -------------------------------------------------------------------------
   // RENDER
