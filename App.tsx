@@ -8,6 +8,19 @@ import AudioPlayer from './components/AudioPlayer';
 import { getTarotReading, generateTarotImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
 
+function getDeviceId(): string {
+  const key = "tarot_device_id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
+
+
+
 declare const html2canvas: any;
 
 // ---------------------------------------------------------------------------
