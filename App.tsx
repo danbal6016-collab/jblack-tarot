@@ -825,9 +825,44 @@ if (newUser.email !== "Guest" && (newUser as any).id) {
                      <div className="mb-6">
                          <label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].bgm_control}</label>
                          <div className="flex items-center gap-4">
-                             <button onClick={() => setBgmStopped(!bgmStopped)} className="text-2xl p-2 bg-gray-800 rounded-full hover:bg-gray-700 transition">
-                                 {bgmStopped ? '🔇' : '🔊'}
-                             </button>
+                             <button
+  type="button"
+  title="Drag up/down to change volume. Click to mute/unmute."
+  className="text-2xl p-2 bg-gray-800 rounded-full hover:bg-gray-700 transition select-none touch-none"
+  onClick={() => setBgmStopped((v) => !v)} // 클릭 = mute 토글
+  onWheel={(e) => {
+    e.preventDefault();
+    // 휠 위로 = 볼륨 업 / 아래로 = 볼륨 다운
+    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    setBgmStopped(false);
+    setBgmVolume((v) => clamp01(v + delta));
+  }}
+  onPointerDown={(e) => {
+    // 드래그 시작
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const startY = e.clientY;
+    const startVol = bgmVolume;
+
+    const onMove = (ev: PointerEvent) => {
+      // 위로 드래그하면 커지고, 아래로 드래그하면 작아지게
+      const dy = startY - ev.clientY;
+      const next = clamp01(startVol + dy / 300); // 300px 드래그 = 볼륨 1.0 정도 변화
+      setBgmStopped(false);
+      setBgmVolume(next);
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }}
+>
+  {bgmStopped || bgmVolume === 0 ? "🔇" : "🔊"}
+</button>
+
                              <input 
                                 type="range" 
                                 min="0" max="1" step="0.1" 
