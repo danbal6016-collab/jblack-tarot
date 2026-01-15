@@ -54,25 +54,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const safeLang: Language = lang === "en" ? "en" : "ko";
 
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const ai = new GoogleGenAI({ apiKey });
+const result = await ai.models.generateContent({
+  model: "gemini-1.5-pro",
+  contents: prompt,
+});
+const text = result.text ?? "";
 
-    // ✅ systemInstruction은 "여기" (모델 생성할 때) 넣는다
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-pro",
-      systemInstruction: getSystemInstruction(safeLang),
-    });
-
-    // ✅ prompt는 유저 입력/컨텍스트만 (시스템 지시문은 따로 들어감)
-    const prompt = `
-Output language: ${safeLang === "ko" ? "Korean" : "English"}
-User info (json): ${JSON.stringify(userInfo || {})}
-Question: ${question}
-Cards: ${JSON.stringify(cards)}
-`.trim();
-
-    const text = await withRetry(async () => {
-      const result = await model.generateContent(prompt);
-      return result.response.text();
     }, 2);
 
     return res.status(200).json({ text });
