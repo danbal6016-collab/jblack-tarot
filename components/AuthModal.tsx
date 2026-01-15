@@ -1,4 +1,4 @@
-import { supabase } from "../src/lib/supabase";
+import { supabase } from "../src/lib/supabase.ts";
 
 export function GoogleContinueButton() {
   const signInWithGoogle = async () => {
