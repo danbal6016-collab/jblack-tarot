@@ -500,19 +500,42 @@ const App: React.FC = () => {
   };
   
   // REALISTIC PAYMENT SIMULATION
-  const handlePayment = async (provider: "paypal" | "toss" | "stripe") => {
-  if (!selectedPackageId) {
+const handlePayment = async (
+  provider: "paypal" | "toss" | "stripe",
+  pkgId: "pkg_60" | "pkg_150"
+) => {
+  if (!pkgId) {
     alert("패키지를 먼저 선택해주세요.");
     return;
   }
 
   setIsProcessingPayment(true);
+
   try {
     if (user.email === "Guest" || !(user as any).id) {
       alert("로그인 후 결제할 수 있어요.");
       return;
     }
 
+    // TODO: 실제 결제 로직/리다이렉트 넣을 자리
+    // 지금은 결제 성공 시뮬레이션만:
+    const addedCoins = pkgId === "pkg_60" ? 60 : 150;
+
+    const newUser = { ...user, coins: user.coins + addedCoins };
+    setUser(newUser);
+
+    // 프로필 저장 (supabase 로그인 유저 기준)
+    saveProfile((newUser as any).id, newUser);
+
+    alert(`결제 완료! +${addedCoins} Coins`);
+    setShowShop(false);
+  } catch (e) {
+    console.error(e);
+    alert("결제 처리 중 오류가 발생했습니다.");
+  } finally {
+    setIsProcessingPayment(false);
+  }
+};
 
 
 
