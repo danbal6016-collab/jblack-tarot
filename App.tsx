@@ -349,10 +349,10 @@ useEffect(() => {
     setTimeout(() => setFlashMessage(null), 1200);
   };
 
-  const handleStart = () => {
-    // 지금은 그냥 다음 화면으로
-    setAppState(AppState.CATEGORY_SELECT);
-  };
+ const handleStart = () => {
+  setAppState(AppState.INPUT_INFO);
+};
+
 
   const handleUserInfoSubmit = async (info: UserInfo) => {
     // state 업데이트
