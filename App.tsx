@@ -10,6 +10,8 @@ import { getTarotReading, generateTarotImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
 
 
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+
 
 
 
