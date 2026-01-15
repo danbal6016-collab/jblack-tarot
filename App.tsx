@@ -338,96 +338,58 @@ const App: React.FC = () => {
 
 
 
-  const handleStart = () => {
-      const { guestUsage } = getDB();
-      if (user.email === 'Guest') {
-          if (guestUsage[deviceId]) {
-              // If guest exhausted, force signup
-              alert(TRANSLATIONS[lang].guest_exhausted);
-              setAuthMode('SIGNUP'); 
-          } else {
-              setAppState(AppState.INPUT_INFO);
-          }
-      } else {
-          // Check if logged in user has info. If not, go to INPUT_INFO
-          if (!user.userInfo || !user.userInfo.name) {
-              setAppState(AppState.INPUT_INFO);
-          } else {
-              setAppState(AppState.CATEGORY_SELECT);
-          }
-      }
-  };
+  const handlePayment = async (method: string) => {
+  if (user.email === "Guest") {
+    alert("결제하려면 로그인 필요");
+    setAuthMode("LOGIN");
+    return;
+  }
 
-  const handleUserInfoSubmit = (info: UserInfo) => {
-      // 1. Update State
-      const newUser = { ...user, userInfo: info };
-      setUser(newUser);
-      
-      // 2. PERSIST to DB immediately so it's not lost
-      if (user.email !== 'Guest') {
-          const { users, ipMap, guestUsage } = getDB();
-          const idx = users.findIndex((u: any) => u.email === user.email);
-          if (idx !== -1) {
-              users[idx] = newUser;
-              saveDB(users, ipMap, guestUsage);
-          }
-      }
+  // 선택한 코인 패키지를 packageId로 변환
+  const packageId =
+    selectedAmount === 5000 ? "pkg_5000_60" :
+    selectedAmount === 10000 ? "pkg_10000_150" :
+    null;
 
-      setAppState(AppState.CATEGORY_SELECT);
-  };
+  if (!packageId) {
+    alert("패키지를 먼저 선택해줘");
+    return;
+  }
 
-  const checkEligibility = () => {
-      if (user.email === 'Guest') {
-          const { guestUsage } = getDB();
-          if (guestUsage[deviceId]) {
-              alert(TRANSLATIONS[lang].guest_exhausted);
-              setAuthMode('LOGIN');
-              return false;
-          }
-          return true;
-      }
-      if (user.coins < 5) {
-          alert(TRANSLATIONS[lang].coin_shortage);
-          return false;
-      }
-      return true;
-  };
+  // Apple Pay는 Stripe Checkout로 보냄 (card에 포함)
+  if (method === "Apple Pay") {
+    setIsProcessingPayment(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session.session?.user?.id;
 
-  const handleCardSelect = (indices: number[]) => {
-      // Deduct coins / track usage
-      if (user.email === 'Guest') {
-          const { users, ipMap, guestUsage } = getDB();
-          guestUsage[deviceId] = true;
-          saveDB(users, ipMap, guestUsage);
-      } else {
-          const updatedUser = { ...user, coins: user.coins - 5 };
-          setUser(updatedUser);
-          const { users, ipMap, guestUsage } = getDB();
-          const idx = users.findIndex((u: any) => u.email === user.email);
-          if (idx !== -1) {
-             users[idx] = updatedUser;
-             saveDB(users, ipMap, guestUsage);
-          }
-      }
+      const resp = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId, userId }),
+      });
 
-      const cards: TarotCard[] = indices.map(idx => ({
-          id: idx,
-          name: TAROT_DECK[idx],
-          isReversed: Math.random() < 0.2,
-          imagePlaceholder: '',
-          backDesign: Math.floor(Math.random() * 3)
-      }));
-      setSelectedCards(cards);
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error ?? "Checkout error");
 
-      // Pass user info explicitly for personalization
-      const promise = getTarotReading(selectedQuestion, cards, user.userInfo || undefined, lang);
-      setReadingPromise(promise);
-      setAppState(AppState.RESULT);
-  };
+      window.location.href = json.url; // Stripe 결제창 이동
+    } catch (e: any) {
+      alert(e.message ?? "Payment error");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+    return;
+  }
 
-  const handleAuthComplete = (loggedInUser: User, msg: string) => {
-      setAuthMode(null);
-      setFlashMessage(msg);
+  // Toss는 아래 B-2에서 별도 구현
+  if (method === "Toss") {
+    alert("Toss 결제 연동 코드를 아직 추가해야 해. 아래 B-2대로 하면 됨.");
+    return;
+  }
+
+  alert("지원하지 않는 결제수단");
+};
+
       
       // INHERITANCE LOGIC:
       // If the new logged-in user doesn't have Info, but the current session (guest) did,
@@ -485,9 +447,23 @@ const App: React.FC = () => {
       }, 2000);
   };
 
+
+useEffect(() => {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("checkout") === "success") {
+    alert("결제가 완료되었습니다! 코인이 반영됩니다.");
+    url.searchParams.delete("checkout");
+    window.history.replaceState({}, "", url.toString());
+  }
+}, []);
+
+
   // -------------------------------------------------------------------------
   // RENDER
   // -------------------------------------------------------------------------
+
+
+
 
   if (flashMessage) {
       return (
@@ -839,22 +815,32 @@ const AuthScreen: React.FC<{
     const [error, setError] = useState('');
     const t = TRANSLATIONS[lang];
 
-    const handleSubmit = () => {
-        setError('');
-        if(!email || !password) { setError("Fields required"); return; }
-        
-        const { users, ipMap, guestUsage } = getDB();
-        
-        if (mode === 'LOGIN') {
-            const user = users.find((u: any) => u.email === email);
-            if (user && user.password === password) {
-                // Update IP map for auto-login next time
-                ipMap[deviceId] = email;
-                saveDB(users, ipMap, guestUsage);
-                onComplete(user, t.login_success);
-            } else {
-                setError(t.login_fail_match);
-            }
+    const handleSubmit = async () => {
+  setError("");
+  if (!email || !password) { setError("Fields required"); return; }
+
+  if (mode === "LOGIN") {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setError(error.message);
+    return;
+  }
+
+  // SIGNUP
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) { setError(error.message); return; }
+
+  // 회원가입 직후 profiles 기본 row 보장 (이미 있으면 무시)
+  const uid = data.user?.id;
+  if (uid) {
+    await supabase.from("profiles").upsert({
+      id: uid,
+      email,
+      coins: 50,
+      user_info: null,
+    });
+  }
+};
+
         } else {
             // SIGNUP
             // Check existing
