@@ -1,16 +1,26 @@
-import { supabase } from "../lib/supabase";
+import { supabase } from "../src/lib/supabase";
 
 export function GoogleContinueButton() {
   const signInWithGoogle = async () => {
-    const redirectTo = `${import.meta.env.VITE_SITE_URL}/auth/callback`;
+    // Safe env access for site URL
+    let siteUrl = window.location.origin;
+    try {
+        // @ts-ignore
+        if (typeof process !== "undefined" && process.env && process.env.VITE_SITE_URL) {
+            siteUrl = process.env.VITE_SITE_URL;
+        // @ts-ignore
+        } else if (import.meta && import.meta.env && import.meta.env.VITE_SITE_URL) {
+            // @ts-ignore
+            siteUrl = import.meta.env.VITE_SITE_URL;
+        }
+    } catch(e) {}
+
+    const redirectTo = `${siteUrl}/auth/callback`;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo,
-        // 필요하면 scope 추가 가능:
-        // scopes: "email profile",
-        // queryParams: { access_type: "offline", prompt: "consent" },
       },
     });
 
@@ -21,7 +31,7 @@ export function GoogleContinueButton() {
   };
 
   return (
-    <button onClick={signInWithGoogle}>
+    <button onClick={signInWithGoogle} className="w-full py-3 bg-white text-black font-bold rounded flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors">
       Google 계정으로 계속하기
     </button>
   );

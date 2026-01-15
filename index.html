@@ -1,8 +1,59 @@
 <!DOCTYPE html>
 <html lang="ko">
   <head>
-    <meta charset="UTF-8" />
     <meta name="referrer" content="no-referrer" />
+    <script>
+      // [CRITICAL FIX] Patch fetch and Request to enforce no-referrer policy globally
+      // This must be the first script to run.
+      (function() {
+        try {
+          const OriginalRequest = window.Request;
+          
+          // Factory for suppressing referrer in init options
+          const enforceNoReferrer = (init) => {
+            init = init || {};
+            init.referrerPolicy = 'no-referrer';
+            init.referrer = ''; 
+            return init;
+          };
+
+          // 1. Patch Request constructor
+          window.Request = function(input, init) {
+            return new OriginalRequest(input, enforceNoReferrer(init));
+          };
+          
+          // Restore prototype and static properties
+          window.Request.prototype = OriginalRequest.prototype;
+          Object.getOwnPropertyNames(OriginalRequest).forEach(prop => {
+            if (prop !== 'prototype' && prop !== 'name' && prop !== 'length') {
+              window.Request[prop] = OriginalRequest[prop];
+            }
+          });
+
+          // 2. Patch fetch
+          const originalFetch = window.fetch;
+          window.fetch = function(input, init) {
+            // If input is a string, we can just enforce init
+            if (typeof input === 'string') {
+               return originalFetch(input, enforceNoReferrer(init));
+            }
+            // If input is a Request, we need to clone it with new settings
+            if (input instanceof OriginalRequest || input instanceof window.Request) {
+               const newInit = enforceNoReferrer(init);
+               // Force create a new Request with the correct policy
+               input = new OriginalRequest(input, newInit);
+               return originalFetch(input);
+            }
+            return originalFetch(input, init);
+          };
+          
+          console.log("Fetch and Request patched for strict referrer suppression.");
+        } catch (e) {
+          console.warn('Failed to patch fetch/Request:', e);
+        }
+      })();
+    </script>
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Jennie's Black Tarot</title>
     
@@ -177,7 +228,11 @@ body {
     "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
     "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "stripe": "https://esm.sh/stripe@^20.1.2",
+    "@vercel/node": "https://esm.sh/@vercel/node@^5.5.20",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.90.1",
+    "buffer": "https://esm.sh/buffer@^6.0.3"
   }
 }
 </script>

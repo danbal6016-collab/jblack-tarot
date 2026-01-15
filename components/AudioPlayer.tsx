@@ -32,10 +32,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped }) => {
     if (!isMountedRef.current) return;
     
     // Ignore AbortError (happens when pausing/unloading while loading)
-    if (err.name === 'AbortError') return;
+    if (err && err.name === 'AbortError') return;
     
+    const errorMessage = err?.message || 'Unknown playback error';
+
     // Auto-play policy error
-    if (err.name === 'NotAllowedError') {
+    if (err && err.name === 'NotAllowedError') {
       console.log("Autoplay blocked. Waiting for interaction...");
       const unlockAudio = () => {
         if (!isMountedRef.current) {
@@ -46,7 +48,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped }) => {
         const audio = audioRef.current;
         if (audio && !userStopped) {
           audio.play().catch(e => {
-            if (e.name !== 'AbortError') console.warn("Unlock play failed:", e);
+            const eMsg = e?.message || 'Unknown error';
+            if (e && e.name !== 'AbortError') console.warn("Unlock play failed:", eMsg);
           });
         }
         removeListeners();
@@ -62,7 +65,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped }) => {
       window.addEventListener('touchstart', unlockAudio);
       window.addEventListener('keydown', unlockAudio);
     } else {
-      console.warn("Audio playback error:", err);
+      console.warn("Audio playback error:", errorMessage);
     }
   };
 
@@ -100,17 +103,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped }) => {
 
   const handleError = (e: any) => {
     if (!isMountedRef.current) return;
-    console.warn(`Track ${currentTrackIndex} failed to load. Skipping.`, e);
+    // [CRITICAL FIX] Do not log the full Event object 'e'. 
+    // 'e.target' refers to the HTMLAudioElement which has circular references (React Fiber internals).
+    // Serializing it causes "Converting circular structure to JSON" errors.
+    console.warn(`Track ${currentTrackIndex} failed to load. Skipping.`);
+    
     // Prevent infinite rapid loops if all fail
     setTimeout(() => {
         if(isMountedRef.current) setCurrentTrackIndex((prev) => (prev + 1) % BGM_PLAYLIST.length);
     }, 1000);
   };
-useEffect(() => {
-  if (!audioRef.current) return;
-  audioRef.current.volume = volume;
-  audioRef.current.muted = userStopped;   // ✅ 추가
-}, [volume, userStopped]);
 
   return (
     <audio 

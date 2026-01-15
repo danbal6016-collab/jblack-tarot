@@ -30,13 +30,15 @@ export const playSound = (type: 'SELECT' | 'REVEAL') => {
     if (playPromise !== undefined) {
       playPromise.catch(error => {
         // Ignore AbortError or NotAllowedError for simple SFX (non-critical)
-        if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
-            console.warn(`Sound effect '${type}' playback failed:`, error);
+        if (error && error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+            const msg = error?.message || "Unknown error";
+            console.warn(`Sound effect '${type}' playback failed:`, msg);
         }
       });
     }
-  } catch (e) {
-    console.warn("Audio creation failed", e);
+  } catch (e: any) {
+    const msg = e?.message || "Unknown creation error";
+    console.warn("Audio creation failed", msg);
   }
 };
 
@@ -52,13 +54,15 @@ export const playShuffleLoop = () => {
     if (playPromise !== undefined) {
       playPromise.catch(e => {
         // Ignore interruption errors
-        if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
-           console.warn("Shuffle loop failed", e);
+        if (e && e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
+           const msg = e?.message || "Unknown error";
+           console.warn("Shuffle loop failed", msg);
         }
       });
     }
-  } catch (e) {
-    console.warn("Shuffle loop audio error", e);
+  } catch (e: any) {
+    const msg = e?.message || "Unknown loop error";
+    console.warn("Shuffle loop audio error", msg);
   }
 };
 
