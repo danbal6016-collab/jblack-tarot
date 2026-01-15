@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from "./src/lib/supabase";
+import { supabase } from "./lib/supabase";
 import { GoogleContinueButton } from "./components/AuthModal";
 import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult } from './types';
 import { CATEGORIES, TAROT_DECK } from './constants';
@@ -9,7 +9,7 @@ import AudioPlayer from './components/AudioPlayer';
 import { getTarotReading, generateTarotImage, getFallbackTarotImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
 
-declare const html2canvas: any;
+import html2canvas from "html2canvas";
 
 // ---------------------------------------------------------------------------
 // CONFIG
@@ -160,22 +160,27 @@ const getZodiacSign = (dateStr: string): string => {
 };
 
 // Database simulation
-const getDB = () => {
-    const users = JSON.parse(localStorage.getItem('tarot_users') || '[]');
-    const ipMap = JSON.parse(localStorage.getItem('device_ip_map') || '{}'); // DeviceID -> Email
-    const guestUsage = JSON.parse(localStorage.getItem('guest_usage') || '{}'); // DeviceID -> boolean
-    return { users, ipMap, guestUsage };
+const getGuestUsage = () => {
+  return JSON.parse(localStorage.getItem("guest_usage") || "{}");
 };
 
-const saveDB = (users: any, ipMap: any, guestUsage: any) => {
-    localStorage.setItem('tarot_users', JSON.stringify(users));
-    localStorage.setItem('device_ip_map', JSON.stringify(ipMap));
-    localStorage.setItem('guest_usage', JSON.stringify(guestUsage));
+const saveGuestUsage = (guestUsage: any) => {
+  localStorage.setItem("guest_usage", JSON.stringify(guestUsage));
 };
+
+  // ----------------------------
+  // HANDLERS (MUST be inside App)
+  // ----------------------------
+  
+
+ 
 
 // ---------------------------------------------------------------------------
 // COMPONENTS
 // ---------------------------------------------------------------------------
+
+
+
 
 const GoldCoinIcon: React.FC<{ sizeClass?: string }> = ({ sizeClass = "w-6 h-6" }) => (
     <div className={`${sizeClass} rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 shadow-[0_0_15px_rgba(234,179,8,0.8)] border border-yellow-100 flex items-center justify-center relative overflow-hidden shrink-0`}>
@@ -279,19 +284,22 @@ const App: React.FC = () => {
   const [selectedCoins, setSelectedCoins] = useState<number>(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
- useEffect(() => {
-  let unsub: any = null;
 
+useEffect(() => {
   const load = async () => {
     const { data } = await supabase.auth.getSession();
     const session = data.session;
 
-    if (!session?.user) return;
+    // ✅ 세션 없으면 무조건 Guest + Welcome
+    if (!session?.user) {
+      setUser({ email: "Guest", coins: 0, history: [] });
+      setAppState(AppState.WELCOME);
+      return;
+    }
 
     const uid = session.user.id;
     const email = session.user.email ?? "Unknown";
 
-    // profiles 테이블에서 coins / user_info 가져오기
     const { data: profile } = await supabase
       .from("profiles")
       .select("coins, user_info")
@@ -307,8 +315,8 @@ const App: React.FC = () => {
 
   load();
 
-  // 로그인/로그아웃/구글콜백 후 상태 자동 반영
   const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // ✅ 로그아웃/세션없음 -> Guest + Welcome
     if (!session?.user) {
       setUser({ email: "Guest", coins: 0, history: [] });
       setAppState(AppState.WELCOME);
@@ -331,121 +339,63 @@ const App: React.FC = () => {
     setAppState(userInfo?.name ? AppState.CATEGORY_SELECT : AppState.INPUT_INFO);
   });
 
-  unsub = sub?.subscription;
-
-  return () => unsub?.unsubscribe?.();
+  return () => sub?.subscription?.unsubscribe?.();
 }, []);
 
 
 
-  const handlePayment = async (method: string) => {
-  if (user.email === "Guest") {
-    alert("결제하려면 로그인 필요");
-    setAuthMode("LOGIN");
+
+  const handleAuthComplete = (u: User, msg: string) => {
+    setUser(u);
+    setFlashMessage(msg);
+    setTimeout(() => setFlashMessage(null), 1200);
+  };
+
+  const handleStart = () => {
+    // 지금은 그냥 다음 화면으로
+    setAppState(AppState.CATEGORY_SELECT);
+  };
+
+  const handleUserInfoSubmit = async (info: UserInfo) => {
+    // state 업데이트
+    setUser((prev) => ({ ...prev, userInfo: info }));
+
+    // 로그인 유저면 DB 저장
+    const { data } = await supabase.auth.getSession();
+    const uid = data.session?.user?.id;
+
+    if (uid) {
+      await supabase.from("profiles").update({ user_info: info }).eq("id", uid);
+    }
+
+    setAppState(AppState.CATEGORY_SELECT);
+  };
+
+  const checkEligibility = () => {
+    return true; // 나중에 guest 제한/coin 체크 로직
+  };
+
+   const handleCardSelect = async (indices: number[]) => {
+     if (!selectedQuestion) {
+    alert("질문이 설정되지 않았습니다. 다시 선택해주세요.");
+    setAppState(AppState.CATEGORY_SELECT);
     return;
   }
+    const picked = indices.map((i) => TAROT_DECK[i % TAROT_DECK.length]);
+    setSelectedCards(picked);
+
+    const promise = getTarotReading(selectedQuestion, picked, user.userInfo ?? null, lang);
+    setReadingPromise(promise);
+
+    setAppState(AppState.RESULT);
+  };
 
   // 선택한 코인 패키지를 packageId로 변환
-  const packageId =
-    selectedAmount === 5000 ? "pkg_5000_60" :
-    selectedAmount === 10000 ? "pkg_10000_150" :
-    null;
-
-  if (!packageId) {
-    alert("패키지를 먼저 선택해줘");
-    return;
-  }
-
-  // Apple Pay는 Stripe Checkout로 보냄 (card에 포함)
-  if (method === "Apple Pay") {
-    setIsProcessingPayment(true);
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      const userId = session.session?.user?.id;
-
-      const resp = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageId, userId }),
-      });
-
-      const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? "Checkout error");
-
-      window.location.href = json.url; // Stripe 결제창 이동
-    } catch (e: any) {
-      alert(e.message ?? "Payment error");
-    } finally {
-      setIsProcessingPayment(false);
-    }
-    return;
-  }
-
-  // Toss는 아래 B-2에서 별도 구현
-  if (method === "Toss") {
-    alert("Toss 결제 연동 코드를 아직 추가해야 해. 아래 B-2대로 하면 됨.");
-    return;
-  }
-
-  alert("지원하지 않는 결제수단");
-};
-
-      
-      // INHERITANCE LOGIC:
-      // If the new logged-in user doesn't have Info, but the current session (guest) did,
-      // copy it over so they don't have to re-type.
-      if ((!loggedInUser.userInfo || !loggedInUser.userInfo.name) && user.userInfo) {
-          loggedInUser.userInfo = user.userInfo;
-          
-          // Update DB immediately
-          const { users, ipMap, guestUsage } = getDB();
-          const idx = users.findIndex((u: any) => u.email === loggedInUser.email);
-          if (idx !== -1) {
-              users[idx] = loggedInUser;
-              saveDB(users, ipMap, guestUsage);
-          }
-      }
-
-      // Show flash message for 3 seconds then proceed
-      setTimeout(() => {
-          setFlashMessage(null);
-          setUser(loggedInUser);
-          // Always redirect to CATEGORY_SELECT if info exists, otherwise INPUT_INFO
-          // Also skipping WELCOME entirely as requested
-          if (loggedInUser.userInfo && loggedInUser.userInfo.name) {
-              setAppState(AppState.CATEGORY_SELECT);
-          } else {
-              setAppState(AppState.INPUT_INFO);
-          }
-      }, 3000);
-  };
   
-  // REALISTIC PAYMENT SIMULATION
-  const handlePayment = (method: string) => {
-      setIsProcessingPayment(true);
+
       
-      // Simulate Async Payment Gateway Delay
-      setTimeout(() => {
-          setIsProcessingPayment(false);
-          setShowShop(false);
-          setShopStep('AMOUNT');
-          
-          // Add Coins
-          const updatedUser = { ...user, coins: user.coins + selectedCoins };
-          setUser(updatedUser);
-          
-          if(user.email !== 'Guest') {
-              const { users, ipMap, guestUsage } = getDB();
-              const idx = users.findIndex((u: any) => u.email === user.email);
-              if (idx !== -1) {
-                  users[idx] = updatedUser;
-                  saveDB(users, ipMap, guestUsage);
-              }
-          }
-          
-          alert(`Successfully charged ${selectedCoins} Coins via ${method}!`);
-      }, 2000);
-  };
+     
+
 
 
 useEffect(() => {
@@ -456,6 +406,56 @@ useEffect(() => {
     window.history.replaceState({}, "", url.toString());
   }
 }, []);
+
+
+  const handlePayment = async (method: string) => {
+  if (user.email === "Guest") {
+    alert("결제하려면 로그인 필요");
+    setAuthMode("LOGIN");
+    return;
+  }
+
+  const packageId =
+    selectedAmount === 5000 ? "pkg_5000_60" :
+    selectedAmount === 10000 ? "pkg_10000_150" :
+    null;
+
+  if (!packageId) {
+    alert("패키지를 먼저 선택해줘");
+    return;
+  }
+
+  if (method === "Apple Pay") {
+    setIsProcessingPayment(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const userId = data.session?.user?.id;
+
+      const resp = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId, userId }),
+      });
+
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error ?? "Checkout error");
+
+      window.location.href = json.url;
+    } catch (e: any) {
+      alert(e.message ?? "Payment error");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+    return;
+  }
+
+  if (method === "Toss") {
+    alert("Toss 결제 연동 코드를 아직 추가해야 해.");
+    return;
+  }
+
+  alert("지원하지 않는 결제수단");
+};
 
 
   // -------------------------------------------------------------------------
@@ -497,10 +497,8 @@ useEffect(() => {
                 lang={lang} 
                 onOpenSettings={() => setShowSettings(true)}
                 onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }}
-                onLogin={() => {
-                   const { ipMap } = getDB();
-                   if(ipMap[deviceId]) setAuthMode('LOGIN'); else setAuthMode('SIGNUP');
-                }}
+               onLogin={() => setAuthMode("LOGIN")}
+
               />
           )}
 
@@ -511,10 +509,8 @@ useEffect(() => {
                     lang={lang} 
                     onOpenSettings={() => setShowSettings(true)}
                     onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }}
-                    onLogin={() => {
-                        const { ipMap } = getDB();
-                        if(ipMap[deviceId]) setAuthMode('LOGIN'); else setAuthMode('SIGNUP');
-                    }}
+                  onLogin={() => setAuthMode("LOGIN")}
+
                 />
                 
                 <Logo size="large" />
@@ -609,37 +605,28 @@ useEffect(() => {
               <CardSelection onSelectCards={handleCardSelect} lang={lang} />
           )}
 
-          {appState === AppState.RESULT && (
-              <ResultView 
-                question={selectedQuestion}
-                selectedCards={selectedCards}
-                isLoggedIn={user.email !== 'Guest'}
-                onRetry={() => setAppState(AppState.CATEGORY_SELECT)}
-                userInfo={user.userInfo || null}
-                lang={lang}
-                readingPromise={readingPromise}
-                onReadingComplete={(text) => {
-                    const result: ReadingResult = {
-                        date: new Date().toISOString(),
-                        question: selectedQuestion,
-                        cards: selectedCards,
-                        interpretation: text
-                    };
-                    const newUser = { ...user, history: [result, ...user.history] };
-                    setUser(newUser);
-                    if(user.email !== 'Guest') {
-                        const { users, ipMap, guestUsage } = getDB();
-                        const idx = users.findIndex((u: any) => u.email === user.email);
-                        if(idx!==-1) users[idx] = newUser;
-                        saveDB(users, ipMap, guestUsage);
-                    }
-                }}
-                onLogin={() => {
-                   const { ipMap } = getDB();
-                   if(ipMap[deviceId]) setAuthMode('LOGIN'); else setAuthMode('SIGNUP');
-                }}
-              />
-          )}
+        {appState === AppState.RESULT && (
+  <ResultView
+    question={selectedQuestion}
+    selectedCards={selectedCards}
+    isLoggedIn={user.email !== "Guest"}
+    onRetry={() => setAppState(AppState.CATEGORY_SELECT)}
+    userInfo={user.userInfo || null}
+    lang={lang}
+    readingPromise={readingPromise}
+    onReadingComplete={(text) => {
+      const result: ReadingResult = {
+        date: new Date().toISOString(),
+        question: selectedQuestion,
+        cards: selectedCards,
+        interpretation: text,
+      };
+      setUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] }));
+    }}
+    onLogin={() => setAuthMode("LOGIN")}
+  />
+)}
+
 
           {/* SHOP MODAL */}
           {showShop && (
@@ -819,15 +806,18 @@ const AuthScreen: React.FC<{
   setError("");
   if (!email || !password) { setError("Fields required"); return; }
 
-  if (mode === "LOGIN") {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message);
-    return;
-  }
-
-  // SIGNUP
-  const { data, error } = await supabase.auth.signUp({ email, password });
+ if (mode === "LOGIN") {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) { setError(error.message); return; }
+  onCancel(); // ✅ 로그인 성공 -> 모달 닫기
+  return;
+}
+
+const { data, error } = await supabase.auth.signUp({ email, password });
+if (error) { setError(error.message); return; }
+
+onCancel(); // ✅ 회원가입 성공 -> 모달 닫기
+
 
   // 회원가입 직후 profiles 기본 row 보장 (이미 있으면 무시)
   const uid = data.user?.id;
@@ -841,28 +831,8 @@ const AuthScreen: React.FC<{
   }
 };
 
-        } else {
-            // SIGNUP
-            // Check existing
-            if (users.find((u: any) => u.email === email)) {
-                setError("Email already exists");
-                return;
-            }
-            
-            const newUser: User = {
-                email,
-                password, 
-                coins: 50, // Welcome bonus
-                history: []
-            };
-            
-            users.push(newUser);
-            ipMap[deviceId] = email;
-            saveDB(users, ipMap, guestUsage);
-            
-            onComplete(newUser, t.signup_success);
-        }
-    };
+     
+
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md animate-fade-in p-4">
@@ -1092,7 +1062,7 @@ const ResultView: React.FC<{
     const [flipped, setFlipped] = useState([false, false, false]);
     const [isDownloading, setIsDownloading] = useState(false);
     
-    // Ref for capturing the luxurious export image
+    
     const captureRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
