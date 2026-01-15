@@ -9,8 +9,6 @@ import AudioPlayer from './components/AudioPlayer';
 import { getTarotReading, generateTarotImage, getFallbackTarotImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
 
-import html2canvas from "html2canvas";
-
 // ---------------------------------------------------------------------------
 // CONFIG
 // ---------------------------------------------------------------------------
