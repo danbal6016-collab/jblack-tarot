@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from "./src/lib/supabase";
+import { GoogleContinueButton } from "./components/AuthModal";
 import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult } from './types';
 import { CATEGORIES, TAROT_DECK } from './constants';
 import Background from './components/Background';
@@ -277,23 +279,64 @@ const App: React.FC = () => {
   const [selectedCoins, setSelectedCoins] = useState<number>(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  // Initialization: Load User AND Skip Welcome if logged in
-  useEffect(() => {
-     const { users, ipMap } = getDB();
-     const registeredEmail = ipMap[deviceId];
-     if (registeredEmail) {
-         const found = users.find((u: any) => u.email === registeredEmail);
-         if (found) {
-             setUser(found);
-             // IMMEDIATE REDIRECT if already logged in (Persistent Session)
-             if (found.userInfo && found.userInfo.name) {
-                 setAppState(AppState.CATEGORY_SELECT);
-             } else {
-                 setAppState(AppState.INPUT_INFO);
-             }
-         }
-     }
-  }, []);
+ useEffect(() => {
+  let unsub: any = null;
+
+  const load = async () => {
+    const { data } = await supabase.auth.getSession();
+    const session = data.session;
+
+    if (!session?.user) return;
+
+    const uid = session.user.id;
+    const email = session.user.email ?? "Unknown";
+
+    // profiles 테이블에서 coins / user_info 가져오기
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("coins, user_info")
+      .eq("id", uid)
+      .maybeSingle();
+
+    const coins = profile?.coins ?? 0;
+    const userInfo = profile?.user_info ?? undefined;
+
+    setUser({ email, coins, history: [], userInfo });
+    setAppState(userInfo?.name ? AppState.CATEGORY_SELECT : AppState.INPUT_INFO);
+  };
+
+  load();
+
+  // 로그인/로그아웃/구글콜백 후 상태 자동 반영
+  const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    if (!session?.user) {
+      setUser({ email: "Guest", coins: 0, history: [] });
+      setAppState(AppState.WELCOME);
+      return;
+    }
+
+    const uid = session.user.id;
+    const email = session.user.email ?? "Unknown";
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("coins, user_info")
+      .eq("id", uid)
+      .maybeSingle();
+
+    const coins = profile?.coins ?? 0;
+    const userInfo = profile?.user_info ?? undefined;
+
+    setUser({ email, coins, history: [], userInfo });
+    setAppState(userInfo?.name ? AppState.CATEGORY_SELECT : AppState.INPUT_INFO);
+  });
+
+  unsub = sub?.subscription;
+
+  return () => unsub?.unsubscribe?.();
+}, []);
+
+
 
   const handleStart = () => {
       const { guestUsage } = getDB();
@@ -888,7 +931,8 @@ const AuthScreen: React.FC<{
                         <div className="relative flex justify-center text-xs uppercase"><span className="bg-gray-900 px-2 text-gray-500">Or</span></div>
                     </div>
 
-    
+    <GoogleContinueButton />
+
                 </div>
             </div>
         </div>
