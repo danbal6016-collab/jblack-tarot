@@ -888,16 +888,7 @@ const AuthScreen: React.FC<{
                         <div className="relative flex justify-center text-xs uppercase"><span className="bg-gray-900 px-2 text-gray-500">Or</span></div>
                     </div>
 
-                    <button 
-                        onClick={() => {
-                            // User requested google button removal in previous turn, but text in this prompt implies usage.
-                            // I will keep the button but make it strictly enforce email/pass logic simulation if clicked
-                             alert("Please use Email/Password Login as per system design.");
-                        }}
-                        className="w-full py-3 bg-white text-black font-bold rounded flex items-center justify-center gap-2 hover:bg-gray-200"
-                    >
-                        <span className="text-lg">G</span> {t.continue_google}
-                    </button>
+    
                 </div>
             </div>
         </div>
