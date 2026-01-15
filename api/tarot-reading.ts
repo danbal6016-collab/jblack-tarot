@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { GoogleGenAI } from "@google/genai";
 
-
+// 네가 중요하다고 한 persona 유지
 type Language = "ko" | "en";
 
 const getSystemInstruction = (lang: Language) => `
@@ -13,7 +13,7 @@ STRICT RULES - DO NOT IGNORE:
 1. NO EMOJIS ALLOWED: Do not use ANY emojis. Keep it text-only and dry.
 2. NO INTROS/OUTROS: IMMEDIATELY start the analysis.
 3. TONE & STYLE: Savage, Witty, Internet Slang (알빠노, 누칼협, 뇌절, 억까, 가불기, 폼 미쳤다).
-4. IMPLICIT PERSONALITY ANALYSIS: Use the birthdate implicitly. NEVER mention "Saju" or "Birthdate" explicitly.
+4. IMPLICIT PERSONALITY ANALYSIS: Use the provided info to infer flaws. NEVER mention "Saju", "Birthdate" explicitly.
 5. UNIQUE READINGS: Every reading must be unique.
 
 FORMAT:
@@ -45,26 +45,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { question, cards, userInfo, lang } = (req.body || {}) as {
       question?: string;
-      cards?: { name: string; isReversed: boolean }[];
+      cards?: { name: string; isReversed?: boolean }[];
       userInfo?: any;
       lang?: Language;
     };
 
     if (!question || !cards) return res.status(400).json({ error: "Missing question/cards" });
 
-    const safeLang: Language = lang === "en" ? "en" : "ko";
+    const language: Language = lang === "en" ? "en" : "ko";
 
     const ai = new GoogleGenAI({ apiKey });
-const result = await ai.models.generateContent({
-  model: "gemini-1.5-pro",
-  contents: prompt,
-});
-const text = result.text ?? "";
 
+    const variationSeed = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+    const prompt = `
+ID: ${variationSeed}
+
+User info: ${JSON.stringify(userInfo || {})}
+Q: "${question}"
+Cards: ${JSON.stringify(cards)}
+
+TASK: Analyze realistically. No emojis. Minimum 10 sentences. Cynical & witty.
+
+OUTPUT FORMAT:
+[내용 분석]
+...
+[제니의 조언 한마디]
+...
+`.trim();
+
+    const text = await withRetry(async () => {
+      const result = await ai.models.generateContent({
+        model: "gemini-1.5-pro",
+        contents: prompt,
+        config: {
+          systemInstruction: getSystemInstruction(language),
+          temperature: 0.9,
+          topP: 0.95,
+          topK: 40,
+          maxOutputTokens: 2000,
+        },
+      });
+
+      // @google/genai는 result.text가 보통 들어옴
+      const out = result.text ?? "";
+      if (!out) throw new Error("Empty response");
+      return out;
     }, 2);
 
     return res.status(200).json({ text });
   } catch (e: any) {
+    console.error(e);
     return res.status(500).json({ error: e?.message || "Unknown error" });
   }
 }
