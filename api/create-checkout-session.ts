@@ -1,3 +1,4 @@
+
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import Stripe from "stripe";
@@ -38,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         {
           price_data: {
             currency: "krw",
-            product_data: { name: `Jennie's Black Tarot - ${pkg.name}` },
+            product_data: { name: `Black Tarot - ${pkg.name}` },
             unit_amount: pkg.amount,
           },
           quantity: 1,

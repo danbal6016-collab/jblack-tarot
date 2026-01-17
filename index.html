@@ -1,61 +1,10 @@
 <!DOCTYPE html>
 <html lang="ko">
   <head>
-    <meta name="referrer" content="no-referrer" />
-    <script>
-      // [CRITICAL FIX] Patch fetch and Request to enforce no-referrer policy globally
-      // This must be the first script to run.
-      (function() {
-        try {
-          const OriginalRequest = window.Request;
-          
-          // Factory for suppressing referrer in init options
-          const enforceNoReferrer = (init) => {
-            init = init || {};
-            init.referrerPolicy = 'no-referrer';
-            init.referrer = ''; 
-            return init;
-          };
-
-          // 1. Patch Request constructor
-          window.Request = function(input, init) {
-            return new OriginalRequest(input, enforceNoReferrer(init));
-          };
-          
-          // Restore prototype and static properties
-          window.Request.prototype = OriginalRequest.prototype;
-          Object.getOwnPropertyNames(OriginalRequest).forEach(prop => {
-            if (prop !== 'prototype' && prop !== 'name' && prop !== 'length') {
-              window.Request[prop] = OriginalRequest[prop];
-            }
-          });
-
-          // 2. Patch fetch
-          const originalFetch = window.fetch;
-          window.fetch = function(input, init) {
-            // If input is a string, we can just enforce init
-            if (typeof input === 'string') {
-               return originalFetch(input, enforceNoReferrer(init));
-            }
-            // If input is a Request, we need to clone it with new settings
-            if (input instanceof OriginalRequest || input instanceof window.Request) {
-               const newInit = enforceNoReferrer(init);
-               // Force create a new Request with the correct policy
-               input = new OriginalRequest(input, newInit);
-               return originalFetch(input);
-            }
-            return originalFetch(input, init);
-          };
-          
-          console.log("Fetch and Request patched for strict referrer suppression.");
-        } catch (e) {
-          console.warn('Failed to patch fetch/Request:', e);
-        }
-      })();
-    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Jennie's Black Tarot</title>
+    <meta name="referrer" content="no-referrer" />
+    <title>Black Tarot</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -64,59 +13,37 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
- 
-
-<style>
-      /* [핵심 디자인] 모든 화면의 배경을 '메인 화면'과 똑같이 설정 */
-
+    
+    <!-- P0: Performance Optimization - Preload Critical Assets -->
+    <link rel="preload" as="image" href="https://www.transparenttextures.com/patterns/stardust.png">
+    
+    <style>
+      /* [핵심 디자인] 요청하신 대로 남색을 훨씬 어둡게(#0f0826) 하고 그라데이션을 자연스럽게 조정 */
       html, body, #root {
-
-        /* 깊은 보라 -> 남색 -> 완전 검정 그라데이션 */
-
-        background: radial-gradient(circle at 50% 40%, #2e1065 0%, #0f172a 40%, #000000 90%) no-repeat fixed center center !important;
-
+        background: radial-gradient(circle at center, #3b0764 0%, #240a40 25%, #0f0826 55%, #000000 85%) no-repeat fixed center center !important;
         background-size: cover !important;
-
         color: #e2e8f0;
-
         margin: 0; padding: 0;
-
         overflow-x: hidden;
-
         min-height: 100vh;
-
       }
 
-
-
-body {
-
-        /* FONT UPDATE: Apple SD Gothic Neo (Apple Gothic) */
+      body {
         font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Dotum', sans-serif;
-
         background-color: #000;
-
         color: #e2e8f0;
-
         overflow-x: hidden;
-
         -webkit-tap-highlight-color: transparent;
-
       }
 
       .font-occult { font-family: 'Cinzel', serif; }
-
       .font-serif-en { font-family: 'Playfair Display', serif; }
        
-    
-      
-      /* 스크롤바 디자인 */
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: #020617; }
       ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 3px; }
       ::-webkit-scrollbar-thumb:hover { background: #7c3aed; }
 
-      /* [복구됨] 황금색 텍스트 & 버튼 스타일 */
       .text-gold-gradient {
         background: linear-gradient(to bottom, #fef9c3 0%, #facc15 50%, #854d0e 100%);
         -webkit-background-clip: text;
@@ -127,60 +54,72 @@ body {
 
       .btn-gold-3d {
         position: relative;
-        background: linear-gradient(to bottom, #eab308, #a16207);
-        color: #fefce8;
+        background: linear-gradient(to bottom, #fef9c3 0%, #facc15 50%, #854d0e 100%);
+        color: #3f1d0b; 
         font-family: 'Cinzel', serif;
-        font-size: 1.25rem;
+        font-size: 1rem; 
+        font-weight: 800;
         letter-spacing: 0.1em;
-        padding: 1rem 3rem;
+        padding: 0.8rem 2.5rem; 
         text-transform: uppercase;
         border: 1px solid #fef08a;
         border-radius: 4px;
-        box-shadow: 0 6px 0 #713f12, 0 15px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.4);
-        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-        transition: all 0.1s ease;
-        transform: translateY(0);
+        box-shadow: 0 4px 15px rgba(250, 204, 21, 0.3);
+        text-shadow: none;
+        transition: transform 0.2s, filter 0.2s;
         z-index: 10;
+        overflow: hidden;
+        will-change: transform;
       }
 
       .btn-gold-3d:active {
-        transform: translateY(6px);
-        box-shadow: 0 0 0 #713f12, inset 0 2px 5px rgba(0,0,0,0.5);
+        transform: scale(0.98);
+        filter: brightness(0.9);
       }
       
-      .btn-gold-3d:hover { filter: brightness(1.1); }
+      .btn-gold-3d:hover { 
+        filter: brightness(1.15);
+        box-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
+      }
+      
+      /* --- SHUFFLE ANIMATIONS ("Washing" the cards) --- */
+      @keyframes wash1 {
+        0% { transform: translate(0,0) rotate(0deg); z-index: 10; }
+        25% { transform: translate(-80px, -40px) rotate(-45deg); z-index: 20; }
+        50% { transform: translate(40px, 60px) rotate(90deg); z-index: 5; }
+        75% { transform: translate(70px, -20px) rotate(180deg); z-index: 30; }
+        100% { transform: translate(0,0) rotate(360deg); z-index: 10; }
+      }
+      @keyframes wash2 {
+        0% { transform: translate(0,0) rotate(0deg); z-index: 12; }
+        33% { transform: translate(90px, 90px) rotate(120deg); z-index: 40; }
+        66% { transform: translate(-90px, -20px) rotate(-60deg); z-index: 8; }
+        100% { transform: translate(0,0) rotate(0deg); z-index: 12; }
+      }
+      @keyframes wash3 {
+        0% { transform: translate(0,0) rotate(0deg); z-index: 15; }
+        20% { transform: translate(-60px, 80px) rotate(60deg); z-index: 2; }
+        60% { transform: translate(60px, -80px) rotate(-120deg); z-index: 50; }
+        100% { transform: translate(0,0) rotate(0deg); z-index: 15; }
+      }
+      @keyframes wash4 {
+        0% { transform: translate(0,0) rotate(0deg); z-index: 20; }
+        40% { transform: translate(-100px, 10px) rotate(-180deg); z-index: 1; }
+        80% { transform: translate(20px, 100px) rotate(45deg); z-index: 45; }
+        100% { transform: translate(0,0) rotate(0deg); z-index: 20; }
+      }
+      @keyframes wash5 {
+        0% { transform: translate(0,0) rotate(0deg); z-index: 25; }
+        50% { transform: translate(0, -120px) rotate(360deg); z-index: 60; }
+        100% { transform: translate(0,0) rotate(720deg); z-index: 25; }
+      }
 
-      /* [SMOOTH LUXURY] 고급스러운 곡선 움직임 */
-      /* 움직임이 부드럽고 끊기지 않게 cubic-bezier 사용 */
-      /* 카드가 텍스트(z-index: 200)를 가리지 않도록 z-index 조절 (1~50) */
-      
-      @keyframes heavyShuffle1 {
-        0% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 1; }
-        25% { transform: translate(-100px, -40px) rotate(-15deg) scale(0.9); }
-        50% { transform: translate(60px, 80px) rotate(10deg) scale(1); z-index: 40; }
-        75% { transform: translate(-40px, 20px) rotate(-5deg) scale(0.9); }
-        100% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 1; }
-      }
-      
-      @keyframes heavyShuffle2 {
-        0% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 2; }
-        30% { transform: translate(80px, -60px) rotate(20deg) scale(1); z-index: 45; }
-        60% { transform: translate(-70px, 50px) rotate(-20deg) scale(0.9); }
-        100% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 2; }
-      }
-      
-      @keyframes heavyShuffle3 {
-        0% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 3; }
-        40% { transform: translate(-60px, 60px) rotate(-30deg) scale(1); z-index: 50; }
-        70% { transform: translate(70px, -30px) rotate(15deg) scale(0.9); }
-        100% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 3; }
-      }
-      
-      @keyframes heavyShuffle4 {
-        0% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 4; }
-        20% { transform: translate(50px, 40px) rotate(45deg) scale(1); z-index: 48; }
-        60% { transform: translate(-90px, -70px) rotate(-25deg) scale(0.9); }
-        100% { transform: translate(0,0) rotate(0deg) scale(0.85); z-index: 4; }
+      /* Rug Texture */
+      .rug-texture {
+        background-color: #2e0b49;
+        background-image: radial-gradient(#4c1d95 1px, transparent 1px);
+        background-size: 20px 20px;
+        box-shadow: inset 0 0 80px #000;
       }
       
       @keyframes float {
@@ -189,35 +128,40 @@ body {
       }
       .animate-float { animation: float 3s ease-in-out infinite; }
       
-   /* [최종 디자인] 카드 뒷면 - 움직이는 홀로그램 제거 & 어두운 달 디자인 */
       .card-back {
-        /* 배경: 깊은 어둠 (검정 -> 깊은 보라 -> 남색) */
-        background: radial-gradient(circle at 50% 40%, #2e1065 0%, #0f172a 40%, #000000 90%);
+        /* [DESIGN UPDATE] Deep Purple Galaxy for Main Color */
+        background: radial-gradient(circle at 50% 40%, #581c87 0%, #3b0764 40%, #1e1b4b 80%, #000000 100%);
         position: relative;
         overflow: hidden;
         border-radius: 12px;
         
-        /* 테두리: 은은한 앤티크 골드 */
-        border: 1px solid rgba(251, 191, 36, 0.3);
+        /* [DESIGN UPDATE] Holographic/Gold Border Glow */
+        border: 1px solid rgba(250, 204, 21, 0.4);
         box-shadow: 
-            inset 0 0 30px rgba(0, 0, 0, 0.9),
-            0 0 10px rgba(88, 28, 135, 0.5);
+            inset 0 0 40px rgba(0, 0, 0, 0.8), 
+            0 0 10px rgba(192, 132, 252, 0.3);
         transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        transform: translateZ(0);
+        will-change: transform;
       }
 
-      /* [패턴] 중앙의 달 + 별 + 테두리 문양 (정지 화면) */
+      /* [DESIGN UPDATE] Intricate SVG: Sun Rays, Crescent Moon, Stars */
       .card-back::before {
         content: "";
         position: absolute;
         inset: 0;
-        opacity: 0.6;
+        opacity: 0.95; 
         background-position: center;
         background-size: cover;
         background-repeat: no-repeat;
-        /* 달과 별 문양 SVG */
-        background-image: url("data:image/svg+xml,%3Csvg width='300' height='450' viewBox='0 0 300 450' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='moonGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fbbf24' stop-opacity='0.8'/%3E%3Cstop offset='100%25' stop-color='%23a855f7' stop-opacity='0.4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='15' y='15' width='270' height='420' rx='10' fill='none' stroke='url(%23moonGrad)' stroke-width='1.5'/%3E%3Cpath d='M150 160 A 50 50 0 1 0 150 260 A 40 40 0 1 1 150 160' fill='url(%23moonGrad)' filter='drop-shadow(0 0 5px rgba(251,191,36,0.5))'/%3E%3Ccircle cx='50' cy='50' r='2' fill='%23fff' opacity='0.5'/%3E%3Ccircle cx='250' cy='400' r='2' fill='%23fff' opacity='0.5'/%3E%3Ccircle cx='200' cy='80' r='1.5' fill='%23fff' opacity='0.4'/%3E%3Ccircle cx='80' cy='350' r='1.5' fill='%23fff' opacity='0.4'/%3E%3Cpath d='M150 100 L152 110 L150 120 L148 110 Z' fill='%23fbbf24' opacity='0.8'/%3E%3Cpath d='M150 300 L152 310 L150 320 L148 310 Z' fill='%23fbbf24' opacity='0.8'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg width='300' height='450' viewBox='0 0 300 450' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='gold' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fde68a'/%3E%3Cstop offset='50%25' stop-color='%23d97706'/%3E%3Cstop offset='100%25' stop-color='%2392400e'/%3E%3C/linearGradient%3E%3ClinearGradient id='moonGrad' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23e9d5ff'/%3E%3Cstop offset='100%25' stop-color='%23a855f7'/%3E%3C/linearGradient%3E%3Cfilter id='glow'%3E%3CfeGaussianBlur stdDeviation='1.5' result='coloredBlur'/%3E%3CfeMerge%3E%3CfeMergeNode in='coloredBlur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3C!-- Double Border --%3E%3Crect x='12' y='12' width='276' height='426' rx='12' fill='none' stroke='url(%23gold)' stroke-width='2' filter='url(%23glow)'/%3E%3Crect x='24' y='24' width='252' height='402' rx='8' fill='none' stroke='url(%23gold)' stroke-width='1' opacity='0.6'/%3E%3C!-- Corner Sunbursts --%3E%3Cpath d='M12 80 L60 60 L12 40' stroke='url(%23gold)' stroke-width='1.5' fill='none' opacity='0.8'/%3E%3Cpath d='M80 12 L60 60 L40 12' stroke='url(%23gold)' stroke-width='1.5' fill='none' opacity='0.8'/%3E%3Cpath d='M288 80 L240 60 L288 40' stroke='url(%23gold)' stroke-width='1.5' fill='none' opacity='0.8'/%3E%3Cpath d='M220 12 L240 60 L260 12' stroke='url(%23gold)' stroke-width='1.5' fill='none' opacity='0.8'/%3E%3Cpath d='M12 370 L60 390 L12 410' stroke='url(%23gold)' stroke-width='1.5' fill='none' opacity='0.8'/%3E%3Cpath d='M80 438 L60 390 L40 438' stroke='url(%23gold)' stroke-width='1.5' fill='none' opacity='0.8'/%3E%3Cpath d='M288 370 L240 390 L288 410' stroke='url(%23gold)' stroke-width='1.5' fill='none' opacity='0.8'/%3E%3Cpath d='M220 438 L240 390 L260 438' stroke='url(%23gold)' stroke-width='1.5' fill='none' opacity='0.8'/%3E%3C!-- Central Moon --%3E%3Cpath d='M150 145 A 65 65 0 1 0 150 295 A 50 50 0 1 1 150 145' fill='url(%23moonGrad)' filter='url(%23glow)' opacity='0.95'/%3E%3C!-- Stars --%3E%3Ccircle cx='150' cy='110' r='2.5' fill='%23fff' filter='url(%23glow)'/%3E%3Ccircle cx='150' cy='330' r='2.5' fill='%23fff' filter='url(%23glow)'/%3E%3Ccircle cx='80' cy='225' r='1.5' fill='%23fff' opacity='0.6'/%3E%3Ccircle cx='220' cy='225' r='1.5' fill='%23fff' opacity='0.6'/%3E%3Cpath d='M150 80 L153 95 L150 110 L147 95 Z' fill='url(%23gold)' opacity='0.8'/%3E%3Cpath d='M150 330 L153 345 L150 360 L147 345 Z' fill='url(%23gold)' opacity='0.8'/%3E%3C/svg%3E");
       }
 
+      /* Hover Effects */
+      .card-container:hover .card-back {
+          filter: brightness(1.2) contrast(1.1);
+          box-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
+      }
 
     </style>
     
@@ -229,20 +173,19 @@ body {
     "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
     "stripe": "https://esm.sh/stripe@^20.1.2",
     "@vercel/node": "https://esm.sh/@vercel/node@^5.5.20",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.90.1",
-    "buffer": "https://esm.sh/buffer@^6.0.3"
+    "buffer": "https://esm.sh/buffer@^6.0.3",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1"
   }
 }
 </script>
 </head>
   
   <body>
-  
-
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
-
 </body>
 </html>

@@ -1,44 +1,49 @@
 
 // Sound Effects Service
-// Using hosted assets for reliable playback
+// Completely refreshed sound set using Google Actions Library to guarantee no "No!" hotlink voices.
 
 const SFX_URLS = {
-  // Updated to a longer, more satisfying card shuffling/fanning sound
-  SHUFFLE: "https://cdn.freesound.org/previews/240/240776_4107740-lq.mp3", 
-  SELECT: "https://assets.mixkit.co/active_storage/sfx/2578/2578-preview.m4a",  // Magical chime/click
-  REVEAL: "https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.m4a",  // Card flip/slide
+  // A clear paper shuffling sound (loopable)
+  SHUFFLE: "https://actions.google.com/sounds/v1/office/paper_shuffling.ogg",
+  
+  // A clean, sharp click for UI interactions
+  SELECT: "https://actions.google.com/sounds/v1/ui/button_click.ogg",  
+  
+  // A fast whoosh for card reveals
+  REVEAL: "https://actions.google.com/sounds/v1/foley/whoosh_fast.ogg",  
+  
+  // A deeper swoosh for the start of shuffling
+  SWOOSH: "https://actions.google.com/sounds/v1/foley/swoosh_2.ogg",
 };
 
 // Singleton for shuffle audio to allow looping control
 let shuffleAudio: HTMLAudioElement | null = null;
 
-// Preload to cache the files in browser
-Object.values(SFX_URLS).forEach(url => {
-  const audio = new Audio(url);
-  audio.preload = 'auto';
-});
+// Preload
+try {
+  Object.values(SFX_URLS).forEach(url => {
+    const audio = new Audio(url);
+    audio.preload = 'auto';
+  });
+} catch(e) { /* Ignore audio support errors */ }
 
-export const playSound = (type: 'SELECT' | 'REVEAL') => {
+export const playSound = (type: 'SELECT' | 'REVEAL' | 'SWOOSH') => {
   try {
     const url = SFX_URLS[type];
-    
-    // Always create a new Audio instance to ensure overlapping playback works consistently
     const audio = new Audio(url);
-    audio.volume = 0.5;
     
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        // Ignore AbortError or NotAllowedError for simple SFX (non-critical)
-        if (error && error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
-            const msg = error?.message || "Unknown error";
-            console.warn(`Sound effect '${type}' playback failed:`, msg);
-        }
-      });
+    // Volume adjustments for specific sounds
+    if (type === 'SELECT') audio.volume = 0.5;
+    if (type === 'REVEAL') audio.volume = 0.4;
+    if (type === 'SWOOSH') audio.volume = 0.6; 
+    
+    // Play ignoring errors (user interaction requirements)
+    const p = audio.play();
+    if (p !== undefined) {
+        p.catch(() => {});
     }
-  } catch (e: any) {
-    const msg = e?.message || "Unknown creation error";
-    console.warn("Audio creation failed", msg);
+  } catch (e) {
+    // Ignore
   }
 };
 
@@ -46,23 +51,20 @@ export const playShuffleLoop = () => {
   try {
     if (!shuffleAudio) {
       shuffleAudio = new Audio(SFX_URLS.SHUFFLE);
-      shuffleAudio.loop = true; // Loop enabled
-      shuffleAudio.volume = 0.8;
+      shuffleAudio.loop = true;
+      shuffleAudio.volume = 0.7; 
     }
-    shuffleAudio.currentTime = 0;
-    const playPromise = shuffleAudio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(e => {
-        // Ignore interruption errors
-        if (e && e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
-           const msg = e?.message || "Unknown error";
-           console.warn("Shuffle loop failed", msg);
+    
+    // Check if already playing to avoid overlap
+    if (shuffleAudio.paused) {
+        shuffleAudio.currentTime = 0;
+        const p = shuffleAudio.play();
+        if (p !== undefined) {
+            p.catch(() => {});
         }
-      });
     }
-  } catch (e: any) {
-    const msg = e?.message || "Unknown loop error";
-    console.warn("Shuffle loop audio error", msg);
+  } catch (e) {
+    // Ignore
   }
 };
 

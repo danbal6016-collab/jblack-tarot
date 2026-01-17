@@ -1,4 +1,59 @@
-import { CategoryKey, QuestionCategory } from './types';
+
+import { CategoryKey, QuestionCategory, UserTier, Country, BGM, Skin } from './types';
+
+// --- COUNTRIES (Top 50 Selection) ---
+export const COUNTRIES: Country[] = [
+  { code: 'KR', nameEn: 'South Korea', nameKo: '대한민국', timezone: 'Asia/Seoul' },
+  { code: 'US', nameEn: 'United States', nameKo: '미국', timezone: 'America/New_York' },
+  { code: 'JP', nameEn: 'Japan', nameKo: '일본', timezone: 'Asia/Tokyo' },
+  { code: 'CN', nameEn: 'China', nameKo: '중국', timezone: 'Asia/Shanghai' },
+  { code: 'GB', nameEn: 'United Kingdom', nameKo: '영국', timezone: 'Europe/London' },
+  { code: 'FR', nameEn: 'France', nameKo: '프랑스', timezone: 'Europe/Paris' },
+  { code: 'DE', nameEn: 'Germany', nameKo: '독일', timezone: 'Europe/Berlin' },
+  { code: 'CA', nameEn: 'Canada', nameKo: '캐나다', timezone: 'America/Toronto' },
+  { code: 'AU', nameEn: 'Australia', nameKo: '호주', timezone: 'Australia/Sydney' },
+  { code: 'IT', nameEn: 'Italy', nameKo: '이탈리아', timezone: 'Europe/Rome' },
+  { code: 'ES', nameEn: 'Spain', nameKo: '스페인', timezone: 'Europe/Madrid' },
+  { code: 'CH', nameEn: 'Switzerland', nameKo: '스위스', timezone: 'Europe/Zurich' },
+  { code: 'NL', nameEn: 'Netherlands', nameKo: '네덜란드', timezone: 'Europe/Amsterdam' },
+  { code: 'SE', nameEn: 'Sweden', nameKo: '스웨덴', timezone: 'Europe/Stockholm' },
+  { code: 'SG', nameEn: 'Singapore', nameKo: '싱가포르', timezone: 'Asia/Singapore' },
+  { code: 'HK', nameEn: 'Hong Kong', nameKo: '홍콩', timezone: 'Asia/Hong_Kong' },
+  { code: 'TW', nameEn: 'Taiwan', nameKo: '대만', timezone: 'Asia/Taipei' },
+  { code: 'IN', nameEn: 'India', nameKo: '인도', timezone: 'Asia/Kolkata' },
+  { code: 'BR', nameEn: 'Brazil', nameKo: '브라질', timezone: 'America/Sao_Paulo' },
+  { code: 'RU', nameEn: 'Russia', nameKo: '러시아', timezone: 'Europe/Moscow' },
+].sort((a, b) => a.nameEn.localeCompare(b.nameEn));
+
+// --- BGM LIST (Reliable Sources) ---
+export const BGMS: BGM[] = [
+  {
+    id: 'dreamy',
+    name: 'Dreamy Void',
+    category: 'DEFAULT',
+    // "Fluidscape"
+    url: "https://ia800301.us.archive.org/5/items/Fluidscape/Fluidscape.mp3"
+  }
+];
+
+// --- SKINS ---
+export const SKINS: Skin[] = [
+  { id: 'default', name: 'Classic Black', cost: 0, type: 'BASIC', cssClass: 'design-0' },
+  { id: 'lux_1', name: 'Golden Baroque', cost: 50, type: 'LUXURY', cssClass: 'design-1' },
+  { id: 'lux_2', name: 'Emerald Velvet', cost: 50, type: 'LUXURY', cssClass: 'design-2' },
+  { id: 'lux_3', name: 'Royal Crimson', cost: 50, type: 'LUXURY', cssClass: 'design-3' },
+  { id: 'idol_1', name: 'K-Idol All Black 1', cost: 150, type: 'IDOL', cssClass: 'design-idol-1' },
+  { id: 'idol_2', name: 'K-Idol All Black 2', cost: 150, type: 'IDOL', cssClass: 'design-idol-2' },
+];
+
+export const TIER_THRESHOLDS = {
+  BRONZE: 0,
+  SILVER: 400,
+  GOLD: 1000,
+  PLATINUM: 3000
+};
+
+export const ATTENDANCE_REWARDS = [50, 20, 20, 20, 20, 20, 20, 20, 20, 50];
 
 export const CATEGORIES: QuestionCategory[] = [
   {
@@ -114,6 +169,23 @@ export const CATEGORIES: QuestionCategory[] = [
       '이 관계가 발전하려면 무엇이 필요한가?',
       '이 관계는 나에게 어떤 영향을 끼칠까?'
     ]
+  },
+  // --- SPECIAL TIERS ---
+  {
+    id: 'FACE',
+    label: '관상',
+    icon: '👁️',
+    questions: [], // Special UI
+    minTier: UserTier.SILVER,
+    cost: 100
+  },
+  {
+    id: 'LIFE',
+    label: '인생',
+    icon: '🧬',
+    questions: [], // Special UI
+    minTier: UserTier.SILVER,
+    cost: 150
   }
 ];
 

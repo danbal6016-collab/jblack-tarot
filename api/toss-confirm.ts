@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { Buffer } from "buffer";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,

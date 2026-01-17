@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from "./src/lib/supabase";
 import { GoogleContinueButton } from "./components/AuthModal";
-import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult } from './types';
-import { CATEGORIES, TAROT_DECK } from './constants';
+import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult, UserTier, Country, BGM, Skin } from './types';
+import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTENDANCE_REWARDS } from './constants';
 import Background from './components/Background';
 import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
-import { getTarotReading, generateTarotImage, getFallbackTarotImage } from './services/geminiService';
+import { getTarotReading, generateTarotImage, getFallbackTarotImage, getFaceReading, getLifeReading, getCompatibilityReading, getPartnerLifeReading } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
+import html2canvas from 'html2canvas';
 
 // ---------------------------------------------------------------------------
-// CONFIG
+// CONFIG & TRANSLATIONS
 // ---------------------------------------------------------------------------
 const TRANSLATIONS = {
   ko: {
@@ -21,52 +22,60 @@ const TRANSLATIONS = {
     name_label: "이름 (Name)",
     name_ph: "이름",
     birth_label: "생년월일 (Birthdate)",
-    birth_ph: "YYYYMMDD (예: 19970327)",
-    zodiac_ph: "별자리를 선택하세요",
-    warning_change: "한 번 입력한 정보는 바꿀 수 없습니다. 계속하시겠습니까?",
-    select_cat_title: "오늘의 타로를 선택하세요",
+    birth_ph: "YYYYMMDD",
+    country_ph: "국가 선택 (Country)",
+    select_cat_title: "오늘의 타로를 선택하세요.",
     shuffling: "운명을 섞는 중...",
-    select_cards_title: "카드 세 장을 선택하세요",
-    result_question: "Question",
-    retry_paid: "타로 다시 보기 (-5 Black Coin)",
-    retry_free: "운명을 다시 확인하시겠습니까?",
-    login_btn: "로그인 하러 가기",
-    login_btn_again: "타로 보러 가기",
-    share: "결과 다운로드 하기", 
-    settings_title: "Settings",
-    bgm_control: "BGM Settings",
-    language_control: "Language",
-    history_btn: "나의 타로 기록 보기",
-    shop_title: "Dark Treasury",
-    guest: "Guest",
-    auth_title_login: "Login",
-    auth_title_signup: "Sign Up",
-    continue_google: "Google 계정으로 계속하기",
-    use_other: "다른 계정 사용",
-    email_ph: "이메일 입력",
-    pw_ph: "비밀번호",
-    create_pw_ph: "비밀번호 생성",
+    select_cards_title: "당신의 운명을 선택하세요",
+    result_question: "질문",
+    share: "결과 저장 & 공유", 
+    settings_title: "설정",
+    bgm_control: "배경음악 설정",
+    language_control: "언어 (Language)",
+    tier_info: "나의 등급",
+    attendance: "출석체크",
+    skin_shop: "카드 스킨",
+    profile_edit: "프로필 수정",
+    logout: "로그아웃",
+    delete_account: "계정 탈퇴",
+    delete_confirm: "모든 데이터가 삭제됩니다. 진행하시겠습니까?",
+    attendance_popup: "출석체크 완료!",
+    reward_popup: "등급 보상 지급!",
+    face_reading_title: "관상 (Physiognomy)",
+    face_reading_desc: "연락 할까 말까 고민하는 시간도 아까워요. 그 사람이 당신이 찾던 그 이인지, 지금 확인해 보세요.",
+    face_upload_btn: "사진 업로드 (-100 Coin)",
+    face_guide: "인물의 얼굴이 잘 보이는 사진을 업로드 하세요.",
+    life_reading_title: "인생 (Life Path)",
+    life_reading_desc: "당신이 언제, 무엇으로 떼돈을 벌까요? 당신의 숨겨진 재능과 황금기, 미래 배우자까지 확인하세요.",
+    life_input_btn: "생시 입력 (-150 Coin)",
+    life_guide: "당신의 생시를 알려주세요.",
+    downloading: "초고속 저장 중...",
+    time_label: "현재 시간",
+    tier_benefit_silver: "매달 1일 보유 코인 1.5배",
+    tier_benefit_gold: "매달 1일 보유 코인 2.0배",
+    tier_benefit_platinum: "매달 1일 보유 코인 3.0배",
+    no_benefit: "혜택 없음",
+    guest_exhausted: "게스트 횟수가 소진되었습니다.",
+    coin_shortage: "코인이 부족합니다.",
+    shop_title: "블랙코인 상점",
+    shop_subtitle: "마음 속 고민의 운명적인 해답을 찾아 보세요.",
+    shop_pkg_1: "4,900원 / 60 Coins",
+    shop_pkg_2: "7,900원 / 110 Coins",
+    shop_pkg_3: "15,500원 / 220 Coins",
     next: "다음",
-    complete: "완료",
-    signup_success: "회원가입이 완료되었습니다!",
-    login_success: "로그인이 완료되었습니다!",
-    login_fail_match: "비밀번호와 이메일이 일치하지 않습니다",
-    guest_exhausted: "Guest 운명 확인은 단 한 번뿐입니다. 더 깊은 답을 원하신다면 회원가입을 해주세요.",
-    device_limit_msg: "이 기기에서는 이미 계정이 생성되었습니다.",
-    coin_shortage: "Black Coin이 부족합니다.",
-    input_placeholder: "구체적인 고민을 적어주세요.",
-    confirm: "확인",
-    shop_step1: "충전할 패키지를 선택하세요",
-    shop_step2: "결제 수단을 선택하세요",
-    payment_link_desc: "결제 페이지로 이동합니다...",
-    reveal_hint: "카드를 터치하여 운명을 확인하세요",
-    forgot_pw: "비밀번호를 잊어버렸습니까?",
-    forgot_pw_alert: "비밀번호 찾기 기능은 아직 지원되지 않습니다.",
-    guest_continue_prompt: "계속 운명을 확인하려면?",
-    downloading: "저장 중...",
-    shop_best: "마음 속 고민의 운명적인 해답을 찾아 보세요.",
-    shop_pkg_1: "5,000₩ / 60 Coins",
-    shop_pkg_2: "10,000₩ / 150 Coins"
+    custom_q_ph: "구체적인 고민을 입력해 주세요.",
+    history: "타로 히스토리",
+    no_history: "기록이 없습니다.",
+    limit_reached: "오늘의 리딩 횟수를 모두 소진했습니다.",
+    solution_lock: "실질적인 해결책 보기 (-10 Coin)",
+    secret_compat: "당신과 그 사람의 은밀한 궁합 (-150 Coin)",
+    partner_life: "그 사람의 타고난 인생 팔자 (-120 Coin)",
+    partner_birth_ph: "상대방 생년월일 (YYYYMMDD)",
+    pay_title: "결제 수단 선택",
+    pay_cancel: "취소",
+    pay_confirm: "결제하기",
+    guest_lock_msg: "계속하려면 로그인이 필요합니다.",
+    guest_lock_btn: "로그인 하러 가기"
   },
   en: {
     welcome_sub: "Cards don't lie.",
@@ -76,52 +85,60 @@ const TRANSLATIONS = {
     name_label: "Name",
     name_ph: "Name",
     birth_label: "Birthdate",
-    birth_ph: "YYYYMMDD (e.g. 19970327)",
-    zodiac_ph: "Select Zodiac Sign",
-    warning_change: "Information cannot be changed once entered. Continue?",
+    birth_ph: "YYYYMMDD",
+    country_ph: "Select Country",
     select_cat_title: "Select Theme",
     shuffling: "Shuffling...",
-    select_cards_title: "Select 3 Cards",
+    select_cards_title: "Select Your Fate",
     result_question: "Question",
-    retry_paid: "Read Again (-5 Black Coin)",
-    retry_free: "Retry?",
-    login_btn: "Go to Login",
-    login_btn_again: "Read Tarot",
-    share: "Download Result", 
+    share: "Save & Share", 
     settings_title: "Settings",
     bgm_control: "BGM",
     language_control: "Language",
-    history_btn: "History",
-    shop_title: "Treasury",
-    guest: "Guest",
-    auth_title_login: "Login",
-    auth_title_signup: "Sign Up",
-    continue_google: "Continue with Google",
-    use_other: "Use another account",
-    email_ph: "Enter Email",
-    pw_ph: "Password",
-    create_pw_ph: "Create Password",
-    next: "Next",
-    complete: "Complete",
-    signup_success: "Sign up complete!",
-    login_success: "Login complete!",
-    login_fail_match: "Password and Email do not match",
+    tier_info: "My Tier",
+    attendance: "Attendance",
+    skin_shop: "Card Skins",
+    profile_edit: "Edit Profile",
+    logout: "Logout",
+    delete_account: "Delete Account",
+    delete_confirm: "All data will be wiped. Proceed?",
+    attendance_popup: "Attendance Checked!",
+    reward_popup: "Monthly Reward!",
+    face_reading_title: "Physiognomy",
+    face_reading_desc: "Stop wasting time guessing. Check if they are the one.",
+    face_upload_btn: "Upload Photo (-100 Coin)",
+    face_guide: "Upload a clear photo of the face.",
+    life_reading_title: "Life Path",
+    life_reading_desc: "When will you make a fortune? Hidden talents, golden age, future spouse.",
+    life_input_btn: "Enter Time (-150 Coin)",
+    life_guide: "Enter your birth time.",
+    downloading: "Saving Fast...",
+    time_label: "Local Time",
+    tier_benefit_silver: "1.5x Coins monthly",
+    tier_benefit_gold: "2.0x Coins monthly",
+    tier_benefit_platinum: "3.0x Coins monthly",
+    no_benefit: "No benefits",
     guest_exhausted: "Guest limit reached.",
-    device_limit_msg: "Account already exists on this device.",
-    coin_shortage: "Not enough Black Coins.",
-    input_placeholder: "Describe your worry.",
-    confirm: "Confirm",
-    shop_step1: "Select Package",
-    shop_step2: "Select Payment Method",
-    payment_link_desc: "Redirecting to payment...",
-    reveal_hint: "Touch cards to reveal your fate",
-    forgot_pw: "Forgot Password?",
-    forgot_pw_alert: "Password recovery not supported yet.",
-    guest_continue_prompt: "To continue checking your fate?",
-    downloading: "Saving...",
-    shop_best: "Find the fated answer to your heart's worry.",
-    shop_pkg_1: "5,000₩ / 60 Coins",
-    shop_pkg_2: "10,000₩ / 150 Coins"
+    coin_shortage: "Not enough coins.",
+    shop_title: "Black Coin Shop",
+    shop_subtitle: "Find the fateful answer to your heart's trouble.",
+    shop_pkg_1: "₩4,900 / 60 Coins",
+    shop_pkg_2: "₩7,900 / 110 Coins",
+    shop_pkg_3: "₩15,500 / 220 Coins",
+    next: "Next",
+    custom_q_ph: "Enter your specific concern here.",
+    history: "Reading History",
+    no_history: "No records found.",
+    limit_reached: "Daily reading limit reached.",
+    solution_lock: "Unlock Practical Solution (-10 Coin)",
+    secret_compat: "Secret Compatibility (-150 Coin)",
+    partner_life: "Partner's Life Path (-120 Coin)",
+    partner_birth_ph: "Partner Birthdate (YYYYMMDD)",
+    pay_title: "Select Payment Method",
+    pay_cancel: "Cancel",
+    pay_confirm: "Pay Now",
+    guest_lock_msg: "Login required to continue.",
+    guest_lock_btn: "Go to Login"
   }
 };
 
@@ -137,48 +154,16 @@ const getDeviceId = () => {
   return id;
 };
 
-// Calculate Zodiac Sign from Date string (YYYYMMDD)
-const getZodiacSign = (dateStr: string): string => {
-    if (!dateStr || dateStr.length !== 8) return "Unknown";
-    const month = parseInt(dateStr.substring(4, 6));
-    const day = parseInt(dateStr.substring(6, 8));
-
-    if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return "Aquarius (물병자리)";
-    if ((month === 2 && day >= 19) || (month === 3 && day <= 20)) return "Pisces (물고기자리)";
-    if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return "Aries (양자리)";
-    if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return "Taurus (황소자리)";
-    if ((month === 5 && day >= 21) || (month === 6 && day <= 21)) return "Gemini (쌍둥이자리)";
-    if ((month === 6 && day >= 22) || (month === 7 && day <= 22)) return "Cancer (게자리)";
-    if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return "Leo (사자자리)";
-    if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return "Virgo (처녀자리)";
-    if ((month === 9 && day >= 23) || (month === 10 && day <= 23)) return "Libra (천칭자리)";
-    if ((month === 10 && day >= 24) || (month === 11 && day <= 22)) return "Scorpio (전갈자리)";
-    if ((month === 11 && day >= 23) || (month === 12 && day <= 21)) return "Sagittarius (사수자리)";
-    return "Capricorn (염소자리)";
+const calculateTier = (spent: number): UserTier => {
+  if (spent >= TIER_THRESHOLDS.PLATINUM) return UserTier.PLATINUM;
+  if (spent >= TIER_THRESHOLDS.GOLD) return UserTier.GOLD;
+  if (spent >= TIER_THRESHOLDS.SILVER) return UserTier.SILVER;
+  return UserTier.BRONZE;
 };
-
-// Database simulation
-const getGuestUsage = () => {
-  return JSON.parse(localStorage.getItem("guest_usage") || "{}");
-};
-
-const saveGuestUsage = (guestUsage: any) => {
-  localStorage.setItem("guest_usage", JSON.stringify(guestUsage));
-};
-
-  // ----------------------------
-  // HANDLERS (MUST be inside App)
-  // ----------------------------
-  
-
- 
 
 // ---------------------------------------------------------------------------
 // COMPONENTS
 // ---------------------------------------------------------------------------
-
-
-
 
 const GoldCoinIcon: React.FC<{ sizeClass?: string }> = ({ sizeClass = "w-6 h-6" }) => (
     <div className={`${sizeClass} rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 shadow-[0_0_15px_rgba(234,179,8,0.8)] border border-yellow-100 flex items-center justify-center relative overflow-hidden shrink-0`}>
@@ -191,17 +176,12 @@ const TypewriterText: React.FC<{ text: string }> = ({ text }) => {
     const [visibleCount, setVisibleCount] = useState(0);
     useEffect(() => {
         setVisibleCount(0);
-        // Corrected: Reverted to natural speed (20ms) as requested
-        const timer = setInterval(() => setVisibleCount(p => p < text.length ? p + 1 : p), 20); 
+        const timer = setInterval(() => setVisibleCount(p => p < text.length ? p + 2 : p), 15); 
         return () => clearInterval(timer);
     }, [text]);
-    
-    // Highlight headers logic for simple visual distinction
-    const formattedText = text.substring(0, visibleCount);
-    
     return (
         <div className="whitespace-pre-line leading-relaxed font-sans text-lg text-gray-200">
-            {formattedText}
+            {text.substring(0, visibleCount)}
         </div>
     );
 };
@@ -212,35 +192,35 @@ const Header: React.FC<{
     onOpenSettings: () => void; 
     onOpenShop: () => void;
     onLogin: () => void;
-}> = ({ user, lang, onOpenSettings, onOpenShop, onLogin }) => (
+    openProfile: () => void;
+}> = ({ user, lang, onOpenSettings, onOpenShop, onLogin, openProfile }) => (
   <div className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-4 py-3 bg-gradient-to-b from-black/95 to-transparent pointer-events-none transition-all">
     <div className="flex items-center gap-2 pointer-events-auto">
-      {/* Black Coin Icon - STRICTLY HIDDEN FOR GUESTS */}
       {user.email !== 'Guest' && (
-          <div className="flex items-center gap-3 bg-black/60 px-4 py-2 rounded-full border border-yellow-600/30 backdrop-blur-md shadow-lg animate-fade-in">
-              <span className="text-gray-300 font-bold font-sans text-sm hidden md:inline">Black Coin</span>
+          <div className="flex items-center gap-3 bg-black/60 px-4 py-2 rounded-full border border-yellow-600/30 backdrop-blur-md shadow-lg animate-fade-in cursor-pointer hover:bg-black/80" onClick={openProfile}>
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                  user.tier === UserTier.PLATINUM ? 'bg-purple-500 text-white' :
+                  user.tier === UserTier.GOLD ? 'bg-yellow-500 text-black' :
+                  user.tier === UserTier.SILVER ? 'bg-gray-400 text-black' : 'bg-stone-700 text-gray-300'
+              }`}>{user.tier}</span>
               <div className="flex items-center gap-2">
                  <GoldCoinIcon />
                  <span className="text-yellow-100 font-mono font-bold text-lg">{user.coins.toLocaleString()}</span>
               </div>
-              {/* Charge Button */}
               <button 
-                onClick={onOpenShop}
+                onClick={(e) => { e.stopPropagation(); onOpenShop(); }}
                 className="w-6 h-6 flex items-center justify-center bg-yellow-700 hover:bg-yellow-500 rounded-full text-white text-xs font-extrabold border border-yellow-300 shadow-[0_0_8px_gold] transition-all hover:scale-110 active:scale-95"
-                title="Charge Coins"
               >
                   +
               </button>
-              <span className="text-gray-400 text-xs md:text-sm font-sans border-l border-gray-600 pl-3 ml-1">{user.email} 님</span>
+              <span className="text-gray-400 text-xs md:text-sm font-sans border-l border-gray-600 pl-3 ml-1 hidden sm:inline">{user.userInfo?.name || user.email}</span>
           </div>
       )}
     </div>
     <div className="flex items-center gap-4 pointer-events-auto">
-      {/* Settings Gear Button */}
       <button 
         onClick={onOpenSettings}
         className="text-gray-400 hover:text-purple-400 transition-colors p-2"
-        title={TRANSLATIONS[lang].settings_title}
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -252,242 +232,512 @@ const Header: React.FC<{
 );
 
 // ---------------------------------------------------------------------------
+// VIEW COMPONENTS
+// ---------------------------------------------------------------------------
+
+const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Language }> = ({ onSubmit, lang }) => {
+  const [name, setName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [country, setCountry] = useState(COUNTRIES[0]);
+
+  const handleSubmit = () => {
+    if (!name || birthDate.length < 8) return alert("Please check inputs");
+    onSubmit({
+      name,
+      birthDate,
+      country: country.nameEn,
+      timezone: country.timezone,
+      zodiacSign: 'Unknown'
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-4 w-full">
+      <input 
+        value={name} onChange={e=>setName(e.target.value)} 
+        placeholder={TRANSLATIONS[lang].name_ph}
+        className="p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 outline-none"
+      />
+      <input 
+        value={birthDate} onChange={e=>setBirthDate(e.target.value)} 
+        placeholder={TRANSLATIONS[lang].birth_ph}
+        className="p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 outline-none"
+      />
+      <select 
+         value={country.code} onChange={e => setCountry(COUNTRIES.find(c=>c.code===e.target.value)||COUNTRIES[0])}
+         className="p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 outline-none"
+      >
+        {COUNTRIES.map(c => <option key={c.code} value={c.code}>{lang==='ko'?c.nameKo:c.nameEn}</option>)}
+      </select>
+      <button onClick={handleSubmit} className="p-4 bg-purple-600 hover:bg-purple-500 rounded font-bold text-white transition-colors">
+        {TRANSLATIONS[lang].next}
+      </button>
+    </div>
+  );
+};
+
+const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string }> = ({ onComplete, lang }) => {
+  useEffect(() => {
+    playShuffleLoop();
+    const t = setTimeout(() => {
+      stopShuffleLoop();
+      onComplete();
+    }, 7000); // 7 seconds shuffle
+    return () => {
+      stopShuffleLoop();
+      clearTimeout(t);
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md">
+       {/* Tarot Rug */}
+       <div className="absolute w-[90vw] h-[90vw] max-w-[500px] max-h-[500px] bg-[#2e0b49] rounded-full border-4 border-yellow-600/50 shadow-[0_0_80px_rgba(76,29,149,0.5)] flex items-center justify-center overflow-hidden rug-texture">
+          {/* Decorative Circle in Rug */}
+          <div className="absolute w-[80%] h-[80%] border-2 border-dashed border-yellow-600/30 rounded-full animate-spin-slow"></div>
+       </div>
+
+      <div className="relative w-40 h-64">
+        {/* Render a denser deck stack (50 cards) with "Washing" animation */}
+        {Array.from({length: 50}).map((_, i) => (
+             <div key={i} className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#2e1065] to-black border border-[#fbbf24]/30 shadow-2xl card-back" 
+                  style={{
+                      zIndex: i,
+                      // Randomize wash animation type and speed for chaotic "shashashak" effect
+                      animation: `wash${(i % 5) + 1} ${2 + (i % 3) * 0.5}s ease-in-out infinite ${i * 0.1}s alternate`
+                  }}>
+             </div>
+        ))}
+      </div>
+      <p className="mt-12 text-xl font-occult text-purple-200 animate-pulse tracking-[0.2em] z-10">{TRANSLATIONS[lang].shuffling}</p>
+    </div>
+  );
+};
+
+const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang: Language; skin: string }> = ({ onSelectCards, lang }) => {
+  const [selected, setSelected] = useState<number[]>([]);
+  
+  const handleSelect = (i: number) => {
+    if (selected.includes(i)) return;
+    playSound('SELECT');
+    const newSel = [...selected, i];
+    setSelected(newSel);
+    if (newSel.length === 3) {
+      setTimeout(() => onSelectCards(newSel), 500);
+    }
+  };
+
+  return (
+    <div className="min-h-screen pt-24 pb-12 px-2 flex flex-col items-center z-10 relative overflow-y-auto">
+      <h2 className="text-2xl text-purple-100 mb-8 font-occult drop-shadow-[0_0_10px_rgba(168,85,247,0.8)] sticky top-0 bg-black/80 py-4 w-full text-center z-20 backdrop-blur-md">{TRANSLATIONS[lang].select_cards_title}</h2>
+      {/* Show ALL cards in the deck */}
+      <div className="flex flex-wrap justify-center gap-1.5 max-w-7xl px-2 pb-20 perspective-1000">
+        {TAROT_DECK.map((_, i) => (
+          <div 
+            key={i} 
+            onClick={() => handleSelect(i)}
+            className={`
+              w-14 h-24 sm:w-16 sm:h-28 md:w-20 md:h-32 rounded-lg transition-all duration-300 cursor-pointer shadow-lg transform-style-3d
+              ${selected.includes(i) 
+                ? 'ring-2 ring-yellow-400 -translate-y-6 z-30 shadow-[0_0_20px_gold] brightness-125' 
+                : 'hover:-translate-y-2 hover:shadow-[0_0_15px_rgba(139,92,246,0.6)] brightness-75 hover:brightness-100'}
+            `}
+          >
+             <div className="w-full h-full rounded-lg card-back"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ResultView: React.FC<{
+  question: string;
+  selectedCards: TarotCard[];
+  isLoggedIn: boolean;
+  onRetry: () => void;
+  userInfo: UserInfo | null;
+  lang: Language;
+  readingPromise: Promise<string> | null;
+  onReadingComplete: (text: string) => void;
+  user: User;
+  spendCoins: (amount: number) => boolean;
+}> = ({ question, selectedCards, onRetry, lang, readingPromise, onReadingComplete }) => {
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [revealed, setRevealed] = useState<boolean[]>([false,false,false]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if(readingPromise) {
+      readingPromise.then(t => {
+        setText(t);
+        setLoading(false);
+        onReadingComplete(t);
+      }).catch(e => {
+        setText("Error: " + e.message);
+        setLoading(false);
+      });
+    }
+  }, [readingPromise]);
+
+  const toggleReveal = (i: number) => {
+    if(!revealed[i]) {
+        playSound('REVEAL');
+        const newR = [...revealed];
+        newR[i] = true;
+        setRevealed(newR);
+    }
+  };
+  
+  const handleCapture = async () => {
+      if(ref.current) {
+          const canvas = await html2canvas(ref.current);
+          const link = document.createElement('a');
+          link.download = 'tarot.png';
+          link.href = canvas.toDataURL();
+          link.click();
+      }
+  };
+
+  return (
+    <div className="min-h-screen pt-24 pb-12 px-4 flex flex-col items-center z-10 relative overflow-y-auto">
+       <div ref={ref} className="bg-black/80 p-6 rounded-xl border border-purple-900/30 max-w-3xl w-full text-center">
+         <h2 className="text-xl text-purple-200 mb-6">"{question}"</h2>
+         <div className="flex justify-center gap-4 mb-8">
+           {selectedCards.map((c, i) => (
+             <div key={i} onClick={() => toggleReveal(i)} className="cursor-pointer perspective-1000 group">
+                <div className={`w-20 h-32 md:w-32 md:h-48 relative transition-transform duration-500 transform-style-3d ${revealed[i] ? 'rotate-y-180' : ''}`}>
+                   <div className="absolute inset-0 backface-hidden bg-gray-900 border border-gray-700 rounded-lg flex items-center justify-center">?</div>
+                   <div className="absolute inset-0 backface-hidden rotate-y-180 bg-black border border-yellow-600 rounded-lg overflow-hidden">
+                      <img src={c.imagePlaceholder} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} />
+                      <div className="absolute bottom-0 w-full bg-black/70 text-[10px] text-yellow-500 p-1 truncate">{c.name}</div>
+                   </div>
+                </div>
+             </div>
+           ))}
+         </div>
+         <div className="bg-gray-900/50 p-6 rounded min-h-[100px] text-left text-gray-200 leading-relaxed text-sm md:text-base whitespace-pre-line">
+            {loading ? <span className="animate-pulse">Reading...</span> : <TypewriterText text={text} />}
+         </div>
+       </div>
+       <div className="flex gap-4 mt-6">
+         <button onClick={onRetry} className="px-6 py-3 bg-gray-700 rounded text-white">{TRANSLATIONS[lang].next}</button>
+         <button onClick={handleCapture} className="px-6 py-3 bg-purple-700 rounded text-white">{TRANSLATIONS[lang].share}</button>
+       </div>
+    </div>
+  );
+};
+
+const AuthForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    const [isSignup, setIsSignup] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [msg, setMsg] = useState('');
+
+    const handleAuth = async () => {
+        if(!email || !password) return alert("Please fill in all fields.");
+        setLoading(true);
+        setMsg('');
+        
+        try {
+            if (isSignup) {
+                const { error } = await supabase.auth.signUp({ email, password });
+                if (error) throw error;
+                setMsg("Confirmation email sent! Please check your inbox.");
+            } else {
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                onClose();
+            }
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="flex flex-col gap-4">
+             <div className="flex w-full mb-4 bg-gray-800 rounded p-1">
+                <button onClick={() => setIsSignup(false)} className={`flex-1 py-2 rounded text-sm font-bold transition-all ${!isSignup ? 'bg-purple-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>LOGIN</button>
+                <button onClick={() => setIsSignup(true)} className={`flex-1 py-2 rounded text-sm font-bold transition-all ${isSignup ? 'bg-purple-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>SIGN UP</button>
+            </div>
+            
+            <input className="p-3 bg-black border border-gray-700 rounded text-white focus:border-purple-500 outline-none transition-colors" placeholder="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} />
+            <input className="p-3 bg-black border border-gray-700 rounded text-white focus:border-purple-500 outline-none transition-colors" placeholder="Password" type="password" value={password} onChange={e=>setPassword(e.target.value)} />
+            
+            {msg && <p className="text-green-400 text-xs text-center">{msg}</p>}
+
+            <button onClick={handleAuth} disabled={loading} className="w-full py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors mt-2">
+                {loading ? 'Processing...' : (isSignup ? 'Sign Up' : 'Login')}
+            </button>
+
+            <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-700"></div></div>
+                <div className="relative flex justify-center"><span className="bg-gray-900 px-2 text-gray-500 text-xs uppercase">Or continue with</span></div>
+            </div>
+
+            <GoogleContinueButton />
+        </div>
+    );
+};
+
+// ---------------------------------------------------------------------------
 // MAIN APP
 // ---------------------------------------------------------------------------
 
 const App: React.FC = () => {
   const deviceId = getDeviceId();
-  // FORCE WELCOME SCREEN on load, check login in background
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
-  const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [] });
-  const [authMode, setAuthMode] = useState<'LOGIN'|'SIGNUP'|null>(null);
-  const [flashMessage, setFlashMessage] = useState<string | null>(null);
   
-  // Selection State
+  const [user, setUser] = useState<User>({ 
+      email: 'Guest', 
+      coins: 0, 
+      history: [], 
+      totalSpent: 0, 
+      tier: UserTier.BRONZE,
+      attendanceDay: 1,
+      ownedSkins: ['default'],
+      currentSkin: 'default',
+      readingsToday: 0,
+      loginDates: []
+  });
+  
+  const [authMode, setAuthMode] = useState<'LOGIN'|'SIGNUP'|null>(null);
+  
   const [selectedCategory, setSelectedCategory] = useState<QuestionCategory | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<string>('');
+  const [customQuestion, setCustomQuestion] = useState<string>(''); 
   const [selectedCards, setSelectedCards] = useState<TarotCard[]>([]);
   const [readingPromise, setReadingPromise] = useState<Promise<string> | null>(null);
   
-  // Settings & Shop
   const [lang, setLang] = useState<Language>('ko'); 
   const [bgmVolume, setBgmVolume] = useState(0.5);
   const [bgmStopped, setBgmStopped] = useState(false);
+  const [currentBgm, setCurrentBgm] = useState<BGM>(BGMS[0]);
+  
   const [showSettings, setShowSettings] = useState(false);
   const [showShop, setShowShop] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showGuestBlock, setShowGuestBlock] = useState(false);
   
-  // Shop State
+  const [faceImage, setFaceImage] = useState<string | null>(null);
+  const [birthTime, setBirthTime] = useState({h: '12', m: '00'});
+
   const [shopStep, setShopStep] = useState<'AMOUNT' | 'METHOD'>('AMOUNT');
-  const [selectedAmount, setSelectedAmount] = useState<number>(0);
-  const [selectedCoins, setSelectedCoins] = useState<number>(0);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [pendingPackage, setPendingPackage] = useState<{amount: number, coins: number} | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'TOSS' | 'PAYPAL' | 'APPLE'>('TOSS');
 
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data } = await supabase.auth.getSession();
+      const today = new Date().toISOString().split('T')[0];
+      
+      if (!data.session?.user) {
+         setUser(prev => ({ ...prev, email: "Guest", lastLoginDate: today }));
+         setAppState(AppState.WELCOME);
+         return;
+      }
+      
+      const u = data.session.user;
+      
+      // Update User State
+      setUser(prev => {
+          let newLoginDates = [...(prev.loginDates || [])];
+          if (!newLoginDates.includes(today)) newLoginDates.push(today);
+          
+          let newTier = calculateTier(prev.totalSpent);
+          
+          return {
+            ...prev,
+            email: u.email || "User",
+            tier: newTier,
+            lastLoginDate: today,
+            loginDates: newLoginDates,
+            readingsToday: prev.lastReadingDate === today ? prev.readingsToday : 0,
+            lastReadingDate: today
+        };
+      });
+      
+      setAppState(AppState.INPUT_INFO);
+    };
+    checkUser();
+  }, []);
 
-useEffect(() => {
-  const load = async () => {
-    const { data } = await supabase.auth.getSession();
-    const session = data.session;
-
-    // ✅ 세션 없으면 무조건 Guest + Welcome
-    if (!session?.user) {
-      setUser({ email: "Guest", coins: 0, history: [] });
-      setAppState(AppState.WELCOME);
-      return;
-    }
-
-    const uid = session.user.id;
-    const email = session.user.email ?? "Unknown";
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("coins, user_info")
-      .eq("id", uid)
-      .maybeSingle();
-
-    const coins = profile?.coins ?? 0;
-    const userInfo = profile?.user_info ?? undefined;
-
-    setUser({ email, coins, history: [], userInfo });
-    setAppState(userInfo?.name ? AppState.CATEGORY_SELECT : AppState.INPUT_INFO);
+  const handleStart = () => {
+      // Ensure BGM plays by toggling mute momentarily or trusting the dummy interaction
+      const dummyAudio = new Audio();
+      dummyAudio.play().catch(()=>{}); 
+      setBgmStopped(false);
+      setAppState(AppState.INPUT_INFO);
   };
 
-  load();
-
-  const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-    // ✅ 로그아웃/세션없음 -> Guest + Welcome
-    if (!session?.user) {
-      setUser({ email: "Guest", coins: 0, history: [] });
-      setAppState(AppState.WELCOME);
-      return;
-    }
-
-    const uid = session.user.id;
-    const email = session.user.email ?? "Unknown";
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("coins, user_info")
-      .eq("id", uid)
-      .maybeSingle();
-
-    const coins = profile?.coins ?? 0;
-    const userInfo = profile?.user_info ?? undefined;
-
-    setUser({ email, coins, history: [], userInfo });
-    setAppState(userInfo?.name ? AppState.CATEGORY_SELECT : AppState.INPUT_INFO);
-  });
-
-  return () => sub?.subscription?.unsubscribe?.();
-}, []);
-
-
-
-
-  const handleAuthComplete = (u: User, msg: string) => {
-    setUser(u);
-    setFlashMessage(msg);
-    setTimeout(() => setFlashMessage(null), 1200);
-  };
-
- const handleStart = () => {
-  setAppState(AppState.INPUT_INFO);
-};
-
-
-  const handleUserInfoSubmit = async (info: UserInfo) => {
-    // state 업데이트
+  const handleUserInfoSubmit = (info: UserInfo) => {
     setUser((prev) => ({ ...prev, userInfo: info }));
-
-    // 로그인 유저면 DB 저장
-    const { data } = await supabase.auth.getSession();
-    const uid = data.session?.user?.id;
-
-    if (uid) {
-      await supabase.from("profiles").update({ user_info: info }).eq("id", uid);
-    }
-
     setAppState(AppState.CATEGORY_SELECT);
   };
-
-  const checkEligibility = () => {
-    return true; // 나중에 guest 제한/coin 체크 로직
+  
+  const spendCoins = (amount: number): boolean => {
+      if (user.email === 'Guest') {
+          return true; // Guests don't spend coins initially (they have free readings), but for paywalled features they are blocked
+      }
+      if (user.coins < amount) {
+          if (confirm(TRANSLATIONS[lang].coin_shortage)) {
+              setShowShop(true);
+              setShopStep('AMOUNT');
+          }
+          return false;
+      }
+      setUser(prev => ({
+          ...prev,
+          coins: prev.coins - amount,
+          // totalSpent usually tracks money spent, not coins used
+      }));
+      return true;
   };
 
-   const handleCardSelect = async (indices: number[]) => {
-     if (!selectedQuestion) {
-    alert("질문이 설정되지 않았습니다. 다시 선택해주세요.");
-    setAppState(AppState.CATEGORY_SELECT);
-    return;
-  }
-    const picked = indices.map((i) => TAROT_DECK[i % TAROT_DECK.length]);
+  const initiatePayment = (amount: number, coins: number) => {
+      if (user.email === 'Guest') {
+          alert("Please login to purchase coins.");
+          return;
+      }
+      setPendingPackage({ amount, coins });
+      setShopStep('METHOD');
+  };
+
+  const processPayment = () => {
+    if (!pendingPackage) return;
+    
+    // Simulating Redirect/Processing for various providers
+    setTimeout(() => {
+        const confirmMsg = `Payment Successful via ${selectedPaymentMethod}!`;
+        alert(confirmMsg);
+        
+        setUser(prev => ({ 
+            ...prev, 
+            coins: prev.coins + pendingPackage.coins, 
+            totalSpent: prev.totalSpent + pendingPackage.amount, // Total KRW Spent
+            tier: calculateTier(prev.totalSpent + pendingPackage.amount) 
+        }));
+        
+        setPendingPackage(null);
+        setShopStep('AMOUNT');
+        setShowShop(false);
+    }, 1500);
+  };
+
+  const handleCategorySelect = (cat: QuestionCategory) => {
+      if (cat.minTier && cat.minTier !== UserTier.BRONZE && user.tier === UserTier.BRONZE) {
+          const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
+          const userIdx = tiers.indexOf(user.tier);
+          const reqIdx = tiers.indexOf(cat.minTier);
+          if (userIdx < reqIdx) {
+              alert(`Only for ${cat.minTier} or above.`);
+              return;
+          }
+      }
+      
+      setSelectedCategory(cat);
+      
+      if (cat.id === 'FACE') {
+          setAppState(AppState.FACE_UPLOAD);
+      } else if (cat.id === 'LIFE') {
+          setAppState(AppState.LIFE_INPUT);
+      } else {
+          setCustomQuestion('');
+          // FIXED: Ensure we go to Question Select
+          setAppState(AppState.QUESTION_SELECT);
+      }
+  };
+
+  const handleQuestionSelect = (q: string) => {
+      setSelectedQuestion(q); 
+      setAppState(AppState.SHUFFLING);
+  };
+
+  const handleCustomQuestionSubmit = () => {
+      if(!customQuestion.trim()) return;
+      setSelectedQuestion(customQuestion);
+      setAppState(AppState.SHUFFLING);
+  };
+
+  // Special Readings
+  const startFaceReading = () => {
+      if (!faceImage) return;
+      if (!spendCoins(100)) return;
+      setSelectedQuestion("Physiognomy Analysis");
+      setSelectedCards([]); 
+      const promise = getFaceReading(faceImage, user.userInfo!, lang);
+      setReadingPromise(promise);
+      setAppState(AppState.RESULT);
+  };
+  
+  const startLifeReading = () => {
+      if (!spendCoins(150)) return;
+      const updatedUserInfo = { ...user.userInfo!, birthTime: `${birthTime.h}:${birthTime.m}` };
+      setSelectedQuestion("Life Path Analysis");
+      setSelectedCards([]);
+      const promise = getLifeReading(updatedUserInfo, lang);
+      setReadingPromise(promise);
+      setAppState(AppState.RESULT);
+  };
+
+  const handleCardSelect = async (indices: number[]) => {
+     // STRICT GUEST CHECK: ONE TIME DEVICE ONLY (P0)
+     if (user.email === 'Guest') {
+         const hasUsed = localStorage.getItem('black_tarot_guest_used');
+         if (hasUsed) {
+             setShowGuestBlock(true);
+             return;
+         }
+         // Mark as used immediately to prevent hacks
+         localStorage.setItem('black_tarot_guest_used', 'true');
+     } else {
+         // Daily Limit Check for logged in users
+         let limit = 5; // Bronze
+         if (user.tier === UserTier.SILVER) limit = 20;
+         if (user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) limit = 9999;
+         
+         if (user.readingsToday >= limit) {
+             alert(TRANSLATIONS[lang].limit_reached);
+             setAppState(AppState.CATEGORY_SELECT);
+             return;
+         }
+         
+         // Base Cost for Reading
+         if (!spendCoins(5)) return;
+     }
+
+     if (!selectedQuestion) return;
+    
+    // Pick Cards
+    const picked: TarotCard[] = indices.map((i) => {
+        const cardIndex = i % TAROT_DECK.length;
+        return {
+            id: cardIndex,
+            name: TAROT_DECK[cardIndex],
+            isReversed: Math.random() < 0.3,
+            imagePlaceholder: getFallbackTarotImage(cardIndex),
+            backDesign: 0
+        };
+    });
+    
+    // Increment Count
+    setUser(prev => ({ ...prev, readingsToday: prev.readingsToday + 1 }));
+
     setSelectedCards(picked);
-
-    const promise = getTarotReading(selectedQuestion, picked, user.userInfo ?? null, lang);
+    // Pass user history for personalization
+    const promise = getTarotReading(selectedQuestion, picked, user.userInfo!, lang, user.history);
     setReadingPromise(promise);
-
     setAppState(AppState.RESULT);
   };
 
-  // 선택한 코인 패키지를 packageId로 변환
-  
-
-      
-     
-
-
-
-useEffect(() => {
-  const url = new URL(window.location.href);
-  if (url.searchParams.get("checkout") === "success") {
-    alert("결제가 완료되었습니다! 코인이 반영됩니다.");
-    url.searchParams.delete("checkout");
-    window.history.replaceState({}, "", url.toString());
-  }
-}, []);
-
-
-  const handlePayment = async (method: string) => {
-  if (user.email === "Guest") {
-    alert("결제하려면 로그인 필요");
-    setAuthMode("LOGIN");
-    return;
-  }
-
-  const packageId =
-    selectedAmount === 5000 ? "pkg_5000_60" :
-    selectedAmount === 10000 ? "pkg_10000_150" :
-    null;
-
-  if (!packageId) {
-    alert("패키지를 먼저 선택해줘");
-    return;
-  }
-
-  if (method === "Apple Pay") {
-    setIsProcessingPayment(true);
-    try {
-      const { data } = await supabase.auth.getSession();
-      const userId = data.session?.user?.id;
-
-      const resp = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageId, userId }),
-      });
-
-      const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error ?? "Checkout error");
-
-      window.location.href = json.url;
-    } catch (e: any) {
-      alert(e.message ?? "Payment error");
-    } finally {
-      setIsProcessingPayment(false);
-    }
-    return;
-  }
-
-  if (method === "Toss") {
-    alert("Toss 결제 연동 코드를 아직 추가해야 해.");
-    return;
-  }
-
-  alert("지원하지 않는 결제수단");
-};
-
-
-  // -------------------------------------------------------------------------
-  // RENDER
-  // -------------------------------------------------------------------------
-
-
-
-
-  if (flashMessage) {
-      return (
-          <div className="fixed inset-0 z-[300] bg-black flex flex-col items-center justify-center animate-fade-in">
-              <Logo size="large" />
-              <div className="text-3xl font-occult text-gold-gradient mt-8 animate-pulse text-center px-4">
-                  {flashMessage}
-              </div>
-          </div>
-      );
-  }
-
-  if (authMode) {
-      return <AuthScreen 
-          initialMode={authMode} 
-          deviceId={deviceId} 
-          onComplete={handleAuthComplete} 
-          onCancel={() => setAuthMode(null)} 
-          lang={lang} 
-      />;
-  }
-
   return (
-      <div className="relative min-h-screen text-white font-sans overflow-hidden select-none">
+      <div className={`relative min-h-screen text-white font-sans overflow-hidden select-none ${SKINS.find(s=>s.id===user.currentSkin)?.cssClass}`}>
           <Background />
-          <AudioPlayer volume={bgmVolume} userStopped={bgmStopped} />
+          <AudioPlayer volume={bgmVolume} userStopped={bgmStopped} currentTrack={currentBgm.url} />
           
           {appState !== AppState.WELCOME && appState !== AppState.INPUT_INFO && (
               <Header 
@@ -495,36 +745,40 @@ useEffect(() => {
                 lang={lang} 
                 onOpenSettings={() => setShowSettings(true)}
                 onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }}
-               onLogin={() => setAuthMode("LOGIN")}
-
+                onLogin={() => setAuthMode("LOGIN")}
+                openProfile={() => setShowProfile(true)}
               />
+          )}
+
+          {/* GUEST BLOCK MODAL */}
+          {showGuestBlock && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in p-6">
+                  <div className="bg-gray-900 border border-purple-500 p-8 rounded text-center max-w-sm w-full shadow-[0_0_50px_rgba(168,85,247,0.5)]">
+                      <h2 className="text-2xl font-bold text-white mb-4">STOP</h2>
+                      <p className="text-gray-300 mb-8 leading-relaxed">{TRANSLATIONS[lang].guest_lock_msg}</p>
+                      <button 
+                          onClick={() => { setShowGuestBlock(false); setAuthMode('LOGIN'); }}
+                          className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded shadow-[0_0_20px_rgba(147,51,234,0.5)] transition-all hover:scale-105"
+                      >
+                          {TRANSLATIONS[lang].guest_lock_btn}
+                      </button>
+                  </div>
+              </div>
           )}
 
           {appState === AppState.WELCOME && (
               <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center animate-fade-in relative z-10">
-                <Header 
-                    user={user} 
-                    lang={lang} 
-                    onOpenSettings={() => setShowSettings(true)}
-                    onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }}
-                  onLogin={() => setAuthMode("LOGIN")}
-
-                />
-                
+                <Header user={user} lang={lang} onOpenSettings={() => setShowSettings(true)} onOpenShop={() => setShowShop(true)} onLogin={() => setAuthMode("LOGIN")} openProfile={() => setShowProfile(true)} />
                 <Logo size="large" />
-                <p className="font-serif-en text-xl italic mb-12 text-gold-gradient font-bold tracking-widest uppercase drop-shadow-md">
-                  {TRANSLATIONS[lang].welcome_sub}
-                </p>
-                <button onClick={handleStart} className="btn-gold-3d mb-8">
-                  {TRANSLATIONS[lang].enter}
-                </button>
+                <p className="font-serif-en text-sm md:text-base italic mb-12 text-gold-gradient font-bold tracking-widest uppercase drop-shadow-sm opacity-90">{TRANSLATIONS[lang].welcome_sub}</p>
+                <button onClick={handleStart} className="btn-gold-3d mb-8">{TRANSLATIONS[lang].enter}</button>
               </div>
           )}
 
           {appState === AppState.INPUT_INFO && (
               <div className="flex flex-col items-center justify-center min-h-screen p-6 relative z-10 animate-fade-in">
                 <Logo size="small" />
-                <div className="w-full max-w-md bg-black/60 border border-purple-900/50 p-8 rounded-lg backdrop-blur-sm">
+                <div className="w-full max-w-md bg-black/60 border-wine-gradient p-8 rounded-lg backdrop-blur-sm">
                     <h2 className="text-2xl font-occult text-purple-200 mb-2 text-center">{TRANSLATIONS[lang].info_title}</h2>
                     <p className="text-gray-400 text-sm mb-8 text-center">{TRANSLATIONS[lang].info_desc}</p>
                     <UserInfoForm onSubmit={handleUserInfoSubmit} lang={lang} />
@@ -533,182 +787,136 @@ useEffect(() => {
           )}
 
           {appState === AppState.CATEGORY_SELECT && (
-              <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20">
-                 <h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center">
-                   {TRANSLATIONS[lang].select_cat_title}
-                 </h2>
+              <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10">
+                 <h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center" style={{ fontFamily: "'Apple SD Gothic Neo', sans-serif" }}>{TRANSLATIONS[lang].select_cat_title}</h2>
                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full">
-                   {CATEGORIES.map((cat) => (
-                     <button
-                       key={cat.id}
-                       onClick={() => { if(checkEligibility()) { setSelectedCategory(cat); setAppState(AppState.QUESTION_SELECT); } }}
-                       className="relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 bg-gradient-to-br from-[#1a103c] to-[#000000] border border-purple-500/50 shadow-[0_6px_0_#4c1d95] hover:-translate-y-1 hover:shadow-[0_8px_0_#4c1d95] hover:border-purple-400 active:translate-y-1 active:shadow-none backdrop-blur-sm group"
-                     >
-                       <span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span>
-                       <span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{cat.label}</span>
-                     </button>
-                   ))}
+                   {CATEGORIES.map((cat) => {
+                       const locked = cat.minTier && cat.minTier !== UserTier.BRONZE && user.tier === UserTier.BRONZE; 
+                       return (
+                         <button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group ${locked ? 'bg-gray-900 opacity-60' : 'bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]'}`}>
+                           {locked && <span className="absolute top-2 right-2 text-xs text-gray-400">🔒 {cat.minTier}</span>}
+                           <span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span>
+                           <span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{lang === 'en' ? cat.id : cat.label}</span>
+                         </button>
+                       );
+                   })}
                  </div>
               </div>
           )}
 
+          {/* FIXED: Added Question Select View */}
           {appState === AppState.QUESTION_SELECT && selectedCategory && (
-              <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in">
-                  <button onClick={() => setAppState(AppState.CATEGORY_SELECT)} className="absolute top-24 left-4 text-gray-400">Back</button>
-                  <span className="text-6xl mb-4">{selectedCategory.icon}</span>
-                  <div className="w-full max-w-xl space-y-3">
-                      {selectedCategory.questions.map((q, idx) => (
-                          <button 
-                              key={idx}
-                              onClick={() => { if(checkEligibility()) { setSelectedQuestion(q); setAppState(AppState.SHUFFLING); } }}
-                              className="w-full text-left p-4 bg-gray-900/50 border border-gray-700 hover:border-purple-500 rounded text-gray-200 font-sans"
-                          >
-                              {q}
-                          </button>
-                      ))}
-                      
-                      {/* CUSTOM INPUT FIELD */}
-                      <div className="mt-6 pt-4 border-t border-gray-700 flex flex-col gap-2">
-                          <input 
-                             type="text" 
-                             className="w-full p-3 bg-black/50 border border-gray-600 rounded text-white focus:border-purple-500 outline-none"
-                             placeholder={TRANSLATIONS[lang].input_placeholder}
-                             id="custom-q-input"
-                             onKeyDown={(e) => {
-                                 if (e.key === 'Enter') {
-                                     const val = e.currentTarget.value;
-                                     if(val && checkEligibility()) { setSelectedQuestion(val); setAppState(AppState.SHUFFLING); }
-                                 }
-                             }}
-                          />
-                          <button 
-                             onClick={() => {
-                                 const input = document.getElementById('custom-q-input') as HTMLInputElement;
-                                 if(input && input.value && checkEligibility()) { setSelectedQuestion(input.value); setAppState(AppState.SHUFFLING); }
-                             }}
-                             className="w-full py-3 bg-purple-900/80 hover:bg-purple-800 text-white rounded font-bold"
-                          >
-                             {TRANSLATIONS[lang].confirm}
-                          </button>
-                      </div>
-                  </div>
-              </div>
+             <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20">
+                 <h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{selectedCategory.label}</h2>
+                 <div className="w-full max-w-xl space-y-3">
+                     {selectedCategory.questions.map((q, i) => (
+                         <button key={i} onClick={() => handleQuestionSelect(q)} className="w-full p-4 text-left bg-black/60 border border-purple-900/50 rounded hover:bg-purple-900/30 hover:border-purple-500 transition-all text-gray-200 text-sm md:text-base">
+                             {q}
+                         </button>
+                     ))}
+                     <div className="relative mt-6 pt-4 border-t border-gray-800">
+                         <input 
+                            className="w-full p-4 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 focus:outline-none"
+                            placeholder={TRANSLATIONS[lang].custom_q_ph}
+                            value={customQuestion}
+                            onChange={(e) => setCustomQuestion(e.target.value)}
+                         />
+                         <button onClick={handleCustomQuestionSubmit} className="absolute right-2 top-6 bottom-2 px-4 bg-purple-900 rounded text-xs font-bold hover:bg-purple-700 mt-4 mb-2">OK</button>
+                     </div>
+                 </div>
+                 <button onClick={() => setAppState(AppState.CATEGORY_SELECT)} className="mt-8 text-gray-500 underline text-sm">Back</button>
+             </div>
           )}
 
           {appState === AppState.SHUFFLING && (
-              <ShufflingAnimation onComplete={() => setAppState(AppState.CARD_SELECT)} lang={lang} />
+              <ShufflingAnimation onComplete={() => setAppState(AppState.CARD_SELECT)} lang={lang} skin={user.currentSkin} />
           )}
 
           {appState === AppState.CARD_SELECT && (
-              <CardSelection onSelectCards={handleCardSelect} lang={lang} />
+              <CardSelection onSelectCards={handleCardSelect} lang={lang} skin={user.currentSkin} />
           )}
 
         {appState === AppState.RESULT && (
-  <ResultView
-    question={selectedQuestion}
-    selectedCards={selectedCards}
-    isLoggedIn={user.email !== "Guest"}
-    onRetry={() => setAppState(AppState.CATEGORY_SELECT)}
-    userInfo={user.userInfo || null}
-    lang={lang}
-    readingPromise={readingPromise}
-    onReadingComplete={(text) => {
-      const result: ReadingResult = {
-        date: new Date().toISOString(),
-        question: selectedQuestion,
-        cards: selectedCards,
-        interpretation: text,
-      };
-      setUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] }));
-    }}
-    onLogin={() => setAuthMode("LOGIN")}
-  />
-)}
-
+          <ResultView
+            question={selectedQuestion}
+            selectedCards={selectedCards}
+            isLoggedIn={user.email !== "Guest"}
+            onRetry={() => setAppState(AppState.CATEGORY_SELECT)}
+            userInfo={user.userInfo || null}
+            lang={lang}
+            readingPromise={readingPromise}
+            onReadingComplete={(text) => {
+              const result: ReadingResult = {
+                date: new Date().toISOString(),
+                question: selectedQuestion,
+                cards: selectedCards,
+                interpretation: text,
+              };
+              setUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] }));
+            }}
+            user={user}
+            spendCoins={spendCoins}
+          />
+        )}
 
           {/* SHOP MODAL */}
           {showShop && (
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4">
-                 <div className="bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-black border border-yellow-500/50 p-8 rounded-lg max-w-lg w-full shadow-[0_0_50px_rgba(234,179,8,0.2)]">
-                     <div className="flex justify-between items-center mb-6 pb-2 border-b border-yellow-800/50">
-                         <h3 className="text-2xl font-occult text-gold-gradient tracking-widest">{TRANSLATIONS[lang].shop_title}</h3>
-                         {!isProcessingPayment && (
-                            <button onClick={() => setShowShop(false)} className="text-gray-400 hover:text-white transition-colors">✕</button>
-                         )}
-                     </div>
+                 <div className="bg-gray-900 border-wine-gradient p-6 rounded-lg max-w-lg w-full relative overflow-hidden">
+                     <button onClick={() => { setShowShop(false); setShopStep('AMOUNT'); }} className="absolute top-4 right-4 text-white hover:text-gray-300">✕</button>
                      
-                     {isProcessingPayment ? (
-                         <div className="flex flex-col items-center justify-center py-10 space-y-6">
-                             <div className="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(234,179,8,0.5)]"></div>
-                             <p className="text-yellow-100 font-sans text-lg animate-pulse">Connecting to Dark Treasury...</p>
-                         </div>
+                     {shopStep === 'AMOUNT' ? (
+                        <>
+                            <div className="text-center mb-6">
+                                <h2 className="text-2xl text-gold-gradient font-bold mb-2">{TRANSLATIONS[lang].shop_title}</h2>
+                                <p className="text-sm text-gray-400 italic">"{TRANSLATIONS[lang].shop_subtitle}"</p>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4">
+                                <button onClick={() => initiatePayment(4900, 60)} className="flex justify-between items-center p-4 bg-gray-800 rounded hover:bg-gray-700 border border-gray-700 transition-colors">
+                                    <span className="font-bold text-white">{TRANSLATIONS[lang].shop_pkg_1}</span>
+                                    <span className="text-yellow-400">Buy</span>
+                                </button>
+                                <button onClick={() => initiatePayment(7900, 110)} className="flex justify-between items-center p-4 bg-gray-800 rounded hover:bg-gray-700 border border-gray-700 border-l-4 border-l-yellow-500 transition-colors shadow-[0_0_10px_rgba(234,179,8,0.2)]">
+                                    <span className="font-bold text-white">{TRANSLATIONS[lang].shop_pkg_2}</span>
+                                    <span className="text-yellow-400 font-bold">Best</span>
+                                </button>
+                                <button onClick={() => initiatePayment(15500, 220)} className="flex justify-between items-center p-4 bg-gray-800 rounded hover:bg-gray-700 border border-gray-700 transition-colors">
+                                    <span className="font-bold text-white">{TRANSLATIONS[lang].shop_pkg_3}</span>
+                                    <span className="text-yellow-400">Buy</span>
+                                </button>
+                            </div>
+                        </>
                      ) : (
                          <>
-                             {shopStep === 'AMOUNT' && (
-                                 <div className="space-y-8">
-                                     <div className="grid grid-cols-2 gap-6">
-                                         {/* PACKAGE 1 */}
-                                         <button 
-                                             onClick={() => { setSelectedAmount(5000); setSelectedCoins(60); setShopStep('METHOD'); }}
-                                             className="group relative p-6 bg-[#0f0a1e] border border-gray-700 rounded-xl hover:border-yellow-500 hover:shadow-[0_0_20px_rgba(234,179,8,0.3)] transition-all active:scale-95 flex flex-col items-center gap-4 overflow-hidden"
-                                         >
-                                             <div className="absolute inset-0 bg-yellow-500/5 group-hover:bg-yellow-500/10 transition-colors"></div>
-                                             <div className="relative">
-                                                 <GoldCoinIcon sizeClass="w-20 h-20" />
-                                             </div>
-                                             <div className="flex flex-col items-center text-center">
-                                                 <p className="text-yellow-100 font-occult text-sm mb-2 h-10 flex items-center">{TRANSLATIONS[lang].shop_best}</p>
-                                                 <span className="text-xl font-bold text-white tracking-widest mt-2">{TRANSLATIONS[lang].shop_pkg_1}</span>
-                                             </div>
-                                             <span className="absolute top-2 right-2 text-[10px] bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded-full border border-yellow-500/30 font-bold uppercase tracking-wider">Best Choice</span>
-                                         </button>
-
-                                         {/* PACKAGE 2 */}
-                                         <button 
-                                             onClick={() => { setSelectedAmount(10000); setSelectedCoins(150); setShopStep('METHOD'); }}
-                                             className="group relative p-6 bg-[#0f0a1e] border border-gray-700 rounded-xl hover:border-purple-500 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all active:scale-95 flex flex-col items-center gap-4 overflow-hidden"
-                                         >
-                                             <div className="absolute inset-0 bg-purple-500/5 group-hover:bg-purple-500/10 transition-colors"></div>
-                                             <div className="relative">
-                                                <GoldCoinIcon sizeClass="w-20 h-20" />
-                                                <span className="absolute -top-1 -right-2 text-2xl animate-pulse">✨</span>
-                                             </div>
-                                             <div className="flex flex-col items-center text-center">
-                                                  <p className="text-purple-200 font-occult text-sm mb-2 h-10 flex items-center">Unlock deeper mysteries of the void.</p>
-                                                 <span className="text-xl font-bold text-white tracking-widest mt-2">{TRANSLATIONS[lang].shop_pkg_2}</span>
-                                             </div>
-                                         </button>
-                                     </div>
-                                 </div>
-                             )}
-
-                             {shopStep === 'METHOD' && (
-                                 <div className="space-y-6">
-                                     <div className="flex items-center justify-between">
-                                        <button onClick={() => setShopStep('AMOUNT')} className="text-sm text-gray-500 hover:text-white flex items-center gap-1">← Back</button>
-                                        <div className="text-right">
-                                            <div className="text-xs text-gray-400">Total Payment</div>
-                                            <span className="text-xl text-yellow-100 font-bold font-sans">₩{selectedAmount.toLocaleString()}</span>
-                                        </div>
-                                     </div>
-                                     
-                                     <div className="bg-black/40 p-6 rounded-lg border border-yellow-500/20 text-center shadow-inner">
-                                         <span className="text-gray-400 text-sm">You receive: </span>
-                                         <div className="flex items-center justify-center gap-2 mt-2">
-                                             <GoldCoinIcon />
-                                             <span className="text-2xl text-yellow-400 font-bold font-occult">{selectedCoins} Coins</span>
-                                         </div>
-                                     </div>
-
-                                     <p className="text-center text-gray-300 font-sans">{TRANSLATIONS[lang].shop_step2}</p>
-                                     
-                                     <div className="flex flex-col gap-3">
-                                         <button onClick={() => handlePayment('PayPal')} className="w-full py-3 bg-[#003087] hover:bg-[#00256b] rounded font-bold text-white transition-colors">PayPal</button>
-                                         <button onClick={() => handlePayment('Toss')} className="w-full py-3 bg-[#0064FF] hover:bg-[#0050cc] rounded font-bold text-white transition-colors">Toss</button>
-                                         <button onClick={() => handlePayment('Apple Pay')} className="w-full py-3 bg-white hover:bg-gray-200 text-black rounded font-bold transition-colors flex items-center justify-center gap-2"><span className="text-lg"></span> Apple Pay</button>
-                                     </div>
-                                 </div>
-                             )}
+                            <div className="text-center mb-6">
+                                <h2 className="text-2xl text-gold-gradient font-bold mb-2">{TRANSLATIONS[lang].pay_title}</h2>
+                                <p className="text-sm text-gray-400">{pendingPackage?.coins} Coins / ₩{pendingPackage?.amount.toLocaleString()}</p>
+                            </div>
+                            <div className="flex flex-col gap-3">
+                                <button 
+                                    onClick={() => setSelectedPaymentMethod('TOSS')} 
+                                    className={`p-4 rounded border flex items-center justify-center font-bold ${selectedPaymentMethod === 'TOSS' ? 'bg-blue-600/30 border-blue-500 text-blue-200' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
+                                >
+                                    Toss Payments
+                                </button>
+                                <button 
+                                    onClick={() => setSelectedPaymentMethod('PAYPAL')} 
+                                    className={`p-4 rounded border flex items-center justify-center font-bold ${selectedPaymentMethod === 'PAYPAL' ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
+                                >
+                                    PayPal
+                                </button>
+                                <button 
+                                    onClick={() => setSelectedPaymentMethod('APPLE')} 
+                                    className={`p-4 rounded border flex items-center justify-center font-bold ${selectedPaymentMethod === 'APPLE' ? 'bg-gray-100/20 border-white text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
+                                >
+                                    Apple Pay
+                                </button>
+                                
+                                <div className="flex gap-2 mt-4">
+                                    <button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-gray-700 text-gray-300 rounded font-bold hover:bg-gray-600">{TRANSLATIONS[lang].pay_cancel}</button>
+                                    <button onClick={processPayment} className="flex-1 py-3 bg-gradient-to-r from-yellow-600 to-yellow-500 text-black font-bold rounded hover:from-yellow-500 hover:to-yellow-400">{TRANSLATIONS[lang].pay_confirm}</button>
+                                </div>
+                            </div>
                          </>
                      )}
                  </div>
@@ -718,583 +926,56 @@ useEffect(() => {
           {/* SETTINGS MODAL */}
           {showSettings && (
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-                 <div className="bg-gray-900 border border-purple-500/50 p-6 rounded-lg max-w-sm w-full mx-4 shadow-2xl">
-                     <h3 className="text-xl font-occult text-purple-200 mb-6 border-b border-gray-700 pb-2">{TRANSLATIONS[lang].settings_title}</h3>
-                     
-                     <div className="mb-6">
-                         <label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].bgm_control}</label>
-                         <div className="flex items-center gap-4">
-                             <button onClick={() => setBgmStopped(!bgmStopped)} className="text-2xl p-2 bg-gray-800 rounded-full hover:bg-gray-700 transition">
-                                 {bgmStopped ? '🔇' : '🔊'}
-                             </button>
-                             <input 
-                                type="range" 
-                                min="0" max="1" step="0.1" 
-                                value={bgmVolume} 
-                                onChange={(e) => setBgmVolume(parseFloat(e.target.value))}
-                                className="w-full accent-purple-500 cursor-pointer"
-                             />
-                         </div>
+                 <div className="bg-gray-900 border-wine-gradient p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl">
+                     <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-occult text-purple-200">{TRANSLATIONS[lang].settings_title}</h3>
+                        <button onClick={() => setShowSettings(false)} className="text-gray-400">✕</button>
                      </div>
-
-                     {/* Language Control */}
+                     
                      <div className="mb-6">
                          <label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].language_control}</label>
                          <div className="flex gap-2">
-                             <button 
-                                onClick={() => setLang('ko')}
-                                className={`flex-1 py-2 rounded border transition-all ${lang === 'ko' ? 'bg-purple-900 border-purple-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
-                             >
-                                 Korean
-                             </button>
-                             <button 
-                                onClick={() => setLang('en')}
-                                className={`flex-1 py-2 rounded border transition-all ${lang === 'en' ? 'bg-purple-900 border-purple-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}
-                             >
-                                 English
-                             </button>
+                             <button onClick={() => setLang('ko')} className={`flex-1 p-2 rounded ${lang === 'ko' ? 'bg-purple-900 text-white' : 'bg-gray-800 text-gray-400'}`}>한국어</button>
+                             <button onClick={() => setLang('en')} className={`flex-1 p-2 rounded ${lang === 'en' ? 'bg-purple-900 text-white' : 'bg-gray-800 text-gray-400'}`}>English</button>
                          </div>
                      </div>
 
-                     <div className="mb-8">
-                         <label className="block text-gray-400 mb-2">My History</label>
-                         {user.email !== 'Guest' ? (
-                             <div className="max-h-40 overflow-y-auto bg-black/50 p-2 rounded text-xs text-gray-300">
-                                 {user.history.length === 0 ? "No records." : user.history.map((h, i) => (
-                                     <div key={i} className="mb-2 border-b border-gray-800 pb-1">
-                                         <div className="text-purple-300">{h.date.split('T')[0]}</div>
-                                         <div>{h.question}</div>
-                                     </div>
-                                 ))}
-                             </div>
-                         ) : (
-                             <p className="text-sm text-gray-500">Login to view history.</p>
-                         )}
+                     <div className="mb-6">
+                         <label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].bgm_control}</label>
+                         <div className="flex items-center gap-4 mb-3">
+                             <button onClick={() => setBgmStopped(!bgmStopped)} className="text-2xl p-2 bg-gray-800 rounded-full">
+                                 {bgmStopped ? '🔇' : '🔊'}
+                             </button>
+                             <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={(e) => setBgmVolume(parseFloat(e.target.value))} className="w-full accent-purple-500" />
+                         </div>
+                         <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+                            {BGMS.map(bgm => (
+                                <button 
+                                    key={bgm.id} 
+                                    onClick={() => setCurrentBgm(bgm)}
+                                    className={`p-2 text-sm text-left rounded ${currentBgm.id === bgm.id ? 'bg-purple-900/50 text-purple-200 border border-purple-500' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                >
+                                    {bgm.name}
+                                </button>
+                            ))}
+                         </div>
                      </div>
+                 </div>
+             </div>
+          )}
 
-                     <button 
-                        onClick={() => setShowSettings(false)}
-                        className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded text-gray-300 transition-colors border border-gray-600 font-bold"
-                     >
-                         Close
-                     </button>
+          {/* GLOBAL LOGIN MODAL */}
+          {authMode === 'LOGIN' && (
+             <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[300] animate-fade-in backdrop-blur-sm">
+                 <div className="bg-gray-900 p-8 rounded-lg border border-purple-500 w-full max-w-md shadow-[0_0_30px_rgba(147,51,234,0.3)] relative">
+                     <button onClick={() => setAuthMode(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
+                     <h2 className="text-2xl mb-6 text-center text-purple-200 font-occult">Connect with Fate</h2>
+                     <AuthForm onClose={() => setAuthMode(null)} />
                  </div>
              </div>
           )}
       </div>
   );
-};
-
-// Sub-components for cleaner App.tsx
-
-const AuthScreen: React.FC<{ 
-    initialMode: 'LOGIN' | 'SIGNUP'; 
-    deviceId: string; 
-    onComplete: (user: User, msg: string) => void; 
-    onCancel: () => void; 
-    lang: Language 
-}> = ({ initialMode, deviceId, onComplete, onCancel, lang }) => {
-    const [mode, setMode] = useState(initialMode);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const t = TRANSLATIONS[lang];
-
-    const handleSubmit = async () => {
-  setError("");
-  if (!email || !password) { setError("Fields required"); return; }
-
- if (mode === "LOGIN") {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) { setError(error.message); return; }
-  onCancel(); // ✅ 로그인 성공 -> 모달 닫기
-  return;
-}
-
-const { data, error } = await supabase.auth.signUp({ email, password });
-if (error) { setError(error.message); return; }
-
-onCancel(); // ✅ 회원가입 성공 -> 모달 닫기
-
-
-  // 회원가입 직후 profiles 기본 row 보장 (이미 있으면 무시)
-  const uid = data.user?.id;
-  if (uid) {
-    await supabase.from("profiles").upsert({
-      id: uid,
-      email,
-      coins: 50,
-      user_info: null,
-    });
-  }
-};
-
-     
-
-
-    return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md animate-fade-in p-4">
-            <div className="w-full max-w-sm bg-gray-900 border border-purple-500/30 p-8 rounded-lg shadow-2xl relative">
-                <button onClick={onCancel} className="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
-                
-                <h2 className="text-3xl font-occult text-center mb-8 text-gold-gradient">
-                    {mode === 'LOGIN' ? t.auth_title_login : t.auth_title_signup}
-                </h2>
-                
-                <div className="space-y-4">
-                    <input 
-                        className="w-full p-3 bg-black/50 border border-gray-700 rounded text-white focus:border-purple-500 outline-none"
-                        placeholder={t.email_ph}
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                    />
-                    <div>
-                        <input 
-                            type="password"
-                            className="w-full p-3 bg-black/50 border border-gray-700 rounded text-white focus:border-purple-500 outline-none"
-                            placeholder={mode === 'LOGIN' ? t.pw_ph : t.create_pw_ph}
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                        />
-                        {/* Red Error Message specifically here */}
-                        {error && <p className="text-red-500 text-sm mt-2 font-bold animate-pulse">{error}</p>}
-                    </div>
-                    
-                    <button 
-                        onClick={handleSubmit}
-                        className="w-full py-3 mt-4 btn-gold-3d font-bold rounded"
-                    >
-                        {mode === 'LOGIN' ? t.auth_title_login : t.auth_title_signup}
-                    </button>
-                    
-                    <div className="flex justify-between text-xs text-gray-400 mt-4 px-1">
-                        <button onClick={() => { setMode(mode === 'LOGIN' ? 'SIGNUP' : 'LOGIN'); setError(''); }} className="hover:text-white underline">
-                            {mode === 'LOGIN' ? t.auth_title_signup : t.auth_title_login}
-                        </button>
-                        {mode === 'LOGIN' && (
-                            <button onClick={() => alert(t.forgot_pw_alert)} className="hover:text-white">
-                                {t.forgot_pw}
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="relative my-6">
-                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-800"></div></div>
-                        <div className="relative flex justify-center text-xs uppercase"><span className="bg-gray-900 px-2 text-gray-500">Or</span></div>
-                    </div>
-
-    <GoogleContinueButton />
-
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Language }> = ({ onSubmit, lang }) => {
-    const [name, setName] = useState('');
-    const [birth, setBirth] = useState('');
-    const [warn, setWarn] = useState(false);
-    const t = TRANSLATIONS[lang];
-
-    const handleClick = () => {
-        if (!name || birth.length !== 8) return;
-        if (!warn) { setWarn(true); return; }
-        const zodiac = getZodiacSign(birth);
-        onSubmit({ name, birthDate: birth, zodiacSign: zodiac });
-    };
-
-    return (
-        <div className="space-y-4">
-            <input 
-                className="w-full p-3 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 focus:outline-none" 
-                placeholder={t.name_ph} 
-                value={name} 
-                onChange={e => setName(e.target.value)} 
-            />
-            {/* UPDATED: Tel input for numeric keypad + 8 digit limit */}
-            <input 
-                type="tel"
-                maxLength={8}
-                pattern="\d*"
-                placeholder={t.birth_ph}
-                className="w-full p-3 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 focus:outline-none font-mono tracking-wider" 
-                value={birth} 
-                onChange={e => {
-                    const val = e.target.value.replace(/[^0-9]/g, '');
-                    if(val.length <= 8) setBirth(val);
-                }}
-            />
-            {warn && <p className="text-red-500 text-sm text-center animate-pulse">{t.warning_change}</p>}
-            <button 
-                onClick={handleClick} 
-                disabled={!name || birth.length !== 8}
-                className="w-full py-3 bg-purple-900 hover:bg-purple-800 font-bold rounded mt-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-                {t.next}
-            </button>
-        </div>
-    );
-};
-
-const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language }> = ({ onComplete, lang }) => {
-    useEffect(() => {
-        playShuffleLoop();
-        // Reduced to 5 seconds as requested
-        const t = setTimeout(() => { stopShuffleLoop(); onComplete(); }, 5000);
-        return () => { clearTimeout(t); stopShuffleLoop(); };
-    }, []);
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen relative overflow-hidden">
-             {/* 60 Cards visual simulation with optimization */}
-            <div className="relative w-full h-full flex items-center justify-center">
-                {Array.from({length: 60}).map((_, i) => (
-                    <div key={i} className="absolute card-back design-0 w-32 h-52 shadow-lg will-change-transform" style={{
-                        // SPEED UP: Reduced base duration to ~0.8s for faster movement
-                        animation: `heavyShuffle${(i%4)+1} ${0.8 + (i%3)*0.2}s infinite ease-in-out`,
-                        animationDelay: `${i*0.05}s`,
-                        opacity: 0.95
-                    }} />
-                ))}
-            </div>
-            {/* Z-Index High to sit above cards - Z-index fixed to 200 to ensure visibility */}
-            <h2 className="absolute bottom-20 text-3xl font-occult text-gold-gradient animate-pulse z-[200] drop-shadow-[0_0_10px_rgba(234,179,8,0.8)] tracking-widest">{TRANSLATIONS[lang].shuffling}</h2>
-        </div>
-    );
-};
-
-const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang: Language }> = ({ onSelectCards, lang }) => {
-    const [selected, setSelected] = useState<number[]>([]);
-    const [layoutFactor, setLayoutFactor] = useState(18); // Default spacing
-    
-    // Optimized: Increased card count for better visual "fan" appearance
-    const total = 48; 
-    
-    // Responsive layout adjustment
-    useEffect(() => {
-        const updateLayout = () => {
-            if (window.innerWidth < 640) {
-                 // Adjusted for mobile: closer packing but wider fan arc if possible,
-                 // or just simpler tight packing.
-                 setLayoutFactor(8); 
-            } else {
-                 setLayoutFactor(18);
-            }
-        };
-        updateLayout();
-        window.addEventListener('resize', updateLayout);
-        return () => window.removeEventListener('resize', updateLayout);
-    }, []);
-
-    const cards = React.useMemo(() => Array.from({length: total}, (_, i) => ({
-        id: i, 
-        iVal: i
-    })), [total]);
-
-    const click = (id: number) => {
-        if(selected.includes(id)) return;
-        
-        // Haptic feedback for satisfaction on mobile
-        if (navigator.vibrate) navigator.vibrate(10);
-        
-        playSound('SELECT');
-        const newSel = [...selected, id];
-        setSelected(newSel);
-        if(newSel.length === 3) setTimeout(() => onSelectCards(newSel), 1000);
-    };
-
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen overflow-hidden touch-none">
-            <h2 className="text-2xl font-occult text-purple-200 mb-10">{TRANSLATIONS[lang].select_cards_title} ({selected.length}/3)</h2>
-            <div className="relative h-64 w-full max-w-4xl flex justify-center items-center perspective-1000">
-                {cards.map(c => {
-                    const isSelected = selected.includes(c.id);
-                    // Standard fan distribution calculation
-                    const x = (c.iVal - total/2) * layoutFactor;
-                    const y = Math.abs(c.iVal - total/2) * (window.innerWidth < 640 ? 3 : 4); // Flatter arc on mobile
-                    const rot = (c.iVal - total/2) * (window.innerWidth < 640 ? 1.5 : 1.8);
-
-                    return (
-                        <div 
-                            key={c.id}
-                            className={`absolute w-32 h-52 transition-transform duration-300 will-change-transform
-                                ${isSelected ? 'z-[100]' : 'hover:z-50'}
-                            `}
-                            style={{ 
-                                transform: `translate(${x}px, ${y}px) rotate(${rot}deg)`,
-                            }}
-                        >
-                            <div 
-                                onClick={() => click(c.id)} 
-                                className={`w-full h-full card-back design-0 cursor-pointer transition-all duration-300 cubic-bezier(0.25, 0.46, 0.45, 0.94)
-                                    ${isSelected 
-                                        ? '-translate-y-16 scale-110 shadow-[0_0_50px_rgba(253,224,71,0.6)] ring-2 ring-yellow-200 brightness-110' 
-                                        : 'hover:-translate-y-4 hover:scale-110 hover:brightness-125 hover:shadow-[0_0_25px_rgba(168,85,247,0.5)]' 
-                                    }
-                                `}
-                            />
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-};
-
-const ResultView: React.FC<{
-    question: string;
-    selectedCards: TarotCard[];
-    isLoggedIn: boolean;
-    onRetry: () => void;
-    userInfo: UserInfo | null;
-    lang: Language;
-    readingPromise: Promise<string> | null;
-    onReadingComplete: (text: string) => void;
-    onLogin: () => void;
-}> = ({ question, selectedCards, isLoggedIn, onRetry, userInfo, lang, readingPromise, onReadingComplete, onLogin }) => {
-    const [text, setText] = useState('');
-    const [images, setImages] = useState<string[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [flipped, setFlipped] = useState([false, false, false]);
-    const [isDownloading, setIsDownloading] = useState(false);
-    
-    
-    const captureRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        // Initialize with generated URLs (which might fail)
-        Promise.all(selectedCards.map(c => generateTarotImage(c.name)))
-            .then(urls => setImages(urls))
-            .catch(() => {
-                // If generation promise itself fails (unlikely for sync string return), fallback
-                setImages(selectedCards.map(c => getFallbackTarotImage(c.id)));
-            });
-
-        if (readingPromise) {
-            readingPromise.then(res => {
-                setText(res);
-                setLoading(false);
-                setFlipped([true, true, true]); // Auto reveal
-                onReadingComplete(res);
-            }).catch(e => {
-                // FAILURE: Show alert and exit
-                alert("Network Error: Offline mode is not supported. Please check your connection.");
-                onRetry(); // Immediately go back
-            });
-        }
-    }, []);
-
-    const toggle = (i: number) => {
-        if (!flipped[i]) {
-            playSound('REVEAL');
-            const n = [...flipped]; n[i] = true; setFlipped(n);
-        }
-    };
-    const allFlipped = flipped.every(Boolean);
-    
-    // Handle image load error by switching to fallback
-    const handleImageError = (index: number) => {
-        console.warn(`Image for card ${selectedCards[index].name} failed to load. Switching to fallback.`);
-        setImages(prev => {
-            const next = [...prev];
-            next[index] = getFallbackTarotImage(selectedCards[index].id);
-            return next;
-        });
-    };
-
-    const handleDownload = async () => {
-        if (!captureRef.current) return;
-        setIsDownloading(true);
-
-        try {
-            // Optimization: Remove delay to force rapid capture, utilize requestAnimationFrame to ensure render
-            await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
-            
-            const canvas = await html2canvas(captureRef.current, {
-                useCORS: true,
-                scale: 2, // High resolution
-                backgroundColor: '#000000', // Ensure dark background
-            });
-            
-            const link = document.createElement('a');
-            link.download = `jennies-black-tarot-${Date.now()}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        } catch (e) {
-            console.error("Download failed", e);
-            alert("이미지 저장에 실패했습니다.");
-        } finally {
-            setIsDownloading(false);
-        }
-    };
-
-    return (
-        <div className="flex flex-col items-center justify-start min-h-screen pt-24 pb-10 px-4 overflow-y-auto relative">
-            
-            {/* INVISIBLE EXPORT CONTAINER (ABSOLUTE POSITIONING OFFSCREEN) */}
-            <div 
-                ref={captureRef}
-                style={{
-                    position: 'fixed',
-                    left: '-9999px', // Hide offscreen
-                    top: 0,
-                    width: '600px', // Fixed width for consistent export layout
-                    minHeight: '1000px',
-                    padding: '40px',
-                    background: 'linear-gradient(to bottom, #1e1b4b, #000000)',
-                    fontFamily: "'Noto Serif KR', serif",
-                    color: 'white',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    zIndex: -1, // Ensure it's behind everything
-                }}
-            >
-                <div className="absolute inset-0 border-[10px] border-double border-yellow-700/50 pointer-events-none"></div>
-                
-                {/* Export Header */}
-                <h1 className="text-4xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-500 to-yellow-800 font-bold mb-4 drop-shadow-md">
-                    Jennie's Black Tarot
-                </h1>
-                <div className="w-32 h-1 bg-yellow-600 mb-8 opacity-70"></div>
-                
-                {/* Export Question */}
-                <div className="mb-8 text-center px-4">
-                    <p className="text-gray-400 text-sm mb-2 font-occult uppercase tracking-widest">Question</p>
-                    <h2 className="text-2xl font-sans text-yellow-100 font-bold leading-relaxed">"{question}"</h2>
-                </div>
-
-                {/* Export Cards */}
-                <div className="flex justify-center gap-4 mb-8 w-full px-4">
-                    {selectedCards.map((c, i) => (
-                        <div key={i} className="flex flex-col items-center w-1/3">
-                            <div className="relative w-full aspect-[2/3] rounded-lg overflow-hidden border-2 border-yellow-600 shadow-2xl mb-2">
-                                {/* Use Image or Placeholder for Export */}
-                                {images[i] ? (
-                                    <img 
-                                        src={images[i]} 
-                                        className="w-full h-full object-cover" 
-                                        crossOrigin="anonymous" // Crucial for html2canvas
-                                        alt={c.name}
-                                        onError={(e) => {
-                                            // Ensure fallback even in export view
-                                            e.currentTarget.src = getFallbackTarotImage(c.id);
-                                        }}
-                                    />
-                                ) : (
-                                    <div className="w-full h-full bg-gray-900"></div>
-                                )}
-                            </div>
-                            <p className="text-xs text-yellow-500 font-occult text-center mt-1">{c.name}</p>
-                            <p className="text-[10px] text-gray-500 text-center uppercase">{c.isReversed ? 'Reversed' : 'Upright'}</p>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Export Text */}
-                <div className="w-full bg-black/40 border border-yellow-900/30 p-6 rounded-lg mb-8 backdrop-blur-sm">
-                    <div className="whitespace-pre-line text-sm leading-7 text-gray-200 text-justify font-sans">
-                        {text}
-                    </div>
-                </div>
-
-                {/* Export Footer */}
-                <div className="mt-auto text-center opacity-60">
-                    <p className="font-occult text-xs text-yellow-700 tracking-[0.3em] uppercase">Cards Don't Lie</p>
-                    <p className="text-[10px] text-gray-600 mt-1">jennies-black-tarot.com</p>
-                </div>
-            </div>
-
-            {/* NORMAL VIEW */}
-            <h2 className="text-2xl font-sans text-purple-100 mb-8 text-center">"{question}"</h2>
-            
-            {!allFlipped && (
-                <div className="text-yellow-400 font-sans animate-pulse mb-4 text-sm font-bold tracking-widest uppercase">
-                    {TRANSLATIONS[lang].reveal_hint}
-                </div>
-            )}
-
-            {/* Mobile: Horizontal Scale (All visible) | Desktop: Standard row */}
-            <div className="flex flex-row justify-center gap-2 md:gap-4 mb-8 w-full transform scale-75 md:scale-100 origin-top">
-                {selectedCards.map((c, i) => (
-                    <div key={i} onClick={() => toggle(i)} className="relative w-32 md:w-48 h-52 md:h-80 perspective-1000 cursor-pointer group shrink-0">
-                        {!flipped[i] && (
-                             <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">Tap</div>
-                         )}
-                         
-                        <div className={`w-full h-full transition-all duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)] transform-style-3d ${flipped[i] ? 'rotate-y-180 scale-105 shadow-[0_0_30px_rgba(253,224,71,0.3)]' : ''} relative`}>
-                            <div className="absolute inset-0 backface-hidden card-back design-0 rounded-lg shadow-xl" />
-                            <div className="absolute inset-0 backface-hidden rotate-y-180 bg-black rounded-lg overflow-hidden border border-gold-500 shadow-gold">
-                                <div className="w-full h-full bg-black flex items-center justify-center">
-                                    {images[i] ? (
-                                        <img 
-                                            src={images[i]} 
-                                            className="w-full h-full object-cover opacity-90" 
-                                            onError={() => handleImageError(i)}
-                                            alt={c.name}
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full bg-gray-900 flex items-center justify-center text-gray-700">Loading...</div>
-                                    )}
-                                </div>
-                                <div className="absolute bottom-0 inset-x-0 bg-black/80 p-2 text-center">
-                                    <p className="text-gold-gradient font-bold text-[10px] md:text-base">{c.name}</p>
-                                    <p className="text-[8px] md:text-xs text-gray-400">{c.isReversed ? 'Reversed' : 'Upright'}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* INTERPRETATION TEXT - Automatically revealed once fetched */}
-            <div className="w-full max-w-2xl bg-black/70 border border-purple-900/50 p-6 rounded-lg min-h-[150px] mb-8 relative animate-fade-in">
-                 <div className="absolute bottom-2 right-2 opacity-50 text-xs text-gray-500 font-occult">Jennie's Black Tarot</div>
-                 {loading ? (
-                    <div className="text-center animate-pulse text-purple-400">Reading the void...</div>
-                 ) : (
-                    <TypewriterText text={text} />
-                 )}
-            </div>
-
-            {!loading && (
-                <div className="flex flex-col gap-4 items-center animate-fade-in w-full max-w-md">
-                    {/* NEW DOWNLOAD BUTTON */}
-                    <button 
-                        onClick={handleDownload} 
-                        disabled={isDownloading}
-                        className="w-full py-3 bg-gradient-to-r from-gray-800 to-gray-900 border border-yellow-600/50 rounded text-yellow-100 font-bold hover:from-gray-700 hover:to-gray-800 transition shadow-[0_4px_15px_rgba(0,0,0,0.5)] flex items-center justify-center gap-2 group"
-                    >
-                        {isDownloading ? (
-                            <span className="animate-pulse">{TRANSLATIONS[lang].downloading}</span>
-                        ) : (
-                            <>
-                                <span>{TRANSLATIONS[lang].share}</span> 
-                                <span className="text-xl group-hover:-translate-y-1 transition-transform">⬇</span>
-                            </>
-                        )}
-                    </button>
-
-                    {isLoggedIn ? (
-                        <button onClick={onRetry} className="btn-gold-3d w-full">
-                            {TRANSLATIONS[lang].login_btn_again}
-                        </button>
-                    ) : (
-                        <div className="flex flex-col items-center gap-2 mt-4 w-full">
-                             <p className="text-gray-400 text-sm font-sans animate-pulse">
-                                 {TRANSLATIONS[lang].guest_continue_prompt}
-                             </p>
-                             <button onClick={onLogin} className="btn-gold-3d w-full">
-                                 {TRANSLATIONS[lang].login_btn}
-                             </button>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
 };
 
 export default App;

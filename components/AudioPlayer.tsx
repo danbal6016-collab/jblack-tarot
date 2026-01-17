@@ -1,126 +1,73 @@
-import React, { useEffect, useRef, useState } from 'react';
 
-// MYSTICAL & DREAMY BGM PLAYLIST
-// Reliable Direct MP3 Links
-const BGM_PLAYLIST = [
-  // "Fluidscape" - Very dreamy, water-like, mystical (Kevin MacLeod)
-  "https://ia800301.us.archive.org/5/items/Fluidscape/Fluidscape.mp3",
-  // "Angel Share" - Ethereal, harp-like, soft
-  "https://ia800305.us.archive.org/30/items/AngelShare/AngelShare.mp3",
-  // "Clean Soul" - Simple, emotional, moving
-  "https://ia800309.us.archive.org/5/items/CleanSoul/CleanSoul.mp3",
-  // "Meditation Impromptu" - Calm, soothing, deep
-  "https://ia600303.us.archive.org/29/items/MeditationImpromptu01/MeditationImpromptu01.mp3"
-];
+import React, { useEffect, useRef, useState } from 'react';
 
 interface AudioPlayerProps {
   volume: number;
   userStopped: boolean;
+  currentTrack?: string;
 }
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped }) => {
+const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped, currentTrack }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const isMountedRef = useRef(true);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
-  }, []);
-
-  const handlePlayError = (err: any) => {
-    if (!isMountedRef.current) return;
-    
-    // Ignore AbortError (happens when pausing/unloading while loading)
-    if (err && err.name === 'AbortError') return;
-    
-    const errorMessage = err?.message || 'Unknown playback error';
-
-    // Auto-play policy error
-    if (err && err.name === 'NotAllowedError') {
-      console.log("Autoplay blocked. Waiting for interaction...");
-      const unlockAudio = () => {
-        if (!isMountedRef.current) {
-          removeListeners();
-          return;
-        }
-        
-        const audio = audioRef.current;
-        if (audio && !userStopped) {
-          audio.play().catch(e => {
-            const eMsg = e?.message || 'Unknown error';
-            if (e && e.name !== 'AbortError') console.warn("Unlock play failed:", eMsg);
-          });
-        }
-        removeListeners();
-      };
-
-      const removeListeners = () => {
-        window.removeEventListener('click', unlockAudio);
-        window.removeEventListener('touchstart', unlockAudio);
-        window.removeEventListener('keydown', unlockAudio);
-      };
-      
-      window.addEventListener('click', unlockAudio);
-      window.addEventListener('touchstart', unlockAudio);
-      window.addEventListener('keydown', unlockAudio);
-    } else {
-      console.warn("Audio playback error:", errorMessage);
-    }
-  };
-
+  const [blocked, setBlocked] = useState(false);
+  
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // Update volume
+    // Apply volume immediately
     audio.volume = volume;
 
-    if (!userStopped) {
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            // Playback started successfully
-          })
-          .catch(handlePlayError);
-      }
+    if (!userStopped && currentTrack) {
+        if (audio.src !== currentTrack) {
+            audio.src = currentTrack;
+        }
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => {
+                    setBlocked(false);
+                })
+                .catch(error => {
+                    // Browser policy blocked autoplay
+                    // We silently set blocked state to true to trigger the global listener,
+                    // but we do NOT show any UI.
+                    setBlocked(true);
+                });
+        }
     } else {
-      audio.pause();
+        audio.pause();
     }
-    
-    return () => {
-       if (isMountedRef.current === false && audio) {
-         audio.pause(); 
-       }
+  }, [volume, userStopped, currentTrack]);
+
+  // Global unlocker: Listens for ANY user interaction to start audio seamlessly
+  useEffect(() => {
+    if (!blocked) return;
+
+    const unlock = () => {
+        const audio = audioRef.current;
+        if (audio && !userStopped) {
+            audio.play().then(() => setBlocked(false)).catch(() => {});
+        }
     };
-  }, [volume, userStopped, currentTrackIndex]);
 
-  const handleTrackEnd = () => {
-    if (!isMountedRef.current) return;
-    setCurrentTrackIndex((prev) => (prev + 1) % BGM_PLAYLIST.length);
-  };
+    // Capture the very first interaction anywhere on the page
+    window.addEventListener('click', unlock, { once: true });
+    window.addEventListener('touchstart', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
 
-  const handleError = (e: any) => {
-    if (!isMountedRef.current) return;
-    // [CRITICAL FIX] Do not log the full Event object 'e'. 
-    // 'e.target' refers to the HTMLAudioElement which has circular references (React Fiber internals).
-    // Serializing it causes "Converting circular structure to JSON" errors.
-    console.warn(`Track ${currentTrackIndex} failed to load. Skipping.`);
-    
-    // Prevent infinite rapid loops if all fail
-    setTimeout(() => {
-        if(isMountedRef.current) setCurrentTrackIndex((prev) => (prev + 1) % BGM_PLAYLIST.length);
-    }, 1000);
-  };
+    return () => {
+        window.removeEventListener('click', unlock);
+        window.removeEventListener('touchstart', unlock);
+        window.removeEventListener('keydown', unlock);
+    };
+  }, [blocked, userStopped]);
 
   return (
     <audio 
       ref={audioRef} 
-      src={BGM_PLAYLIST[currentTrackIndex]} 
-      onEnded={handleTrackEnd}
-      onError={handleError}
-      loop={false} 
+      loop 
       playsInline
       preload="auto"
     />
