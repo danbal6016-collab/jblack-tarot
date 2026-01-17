@@ -7,7 +7,7 @@ import Background from './components/Background';
 import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
 import { getTarotReading, generateTarotImage, getFallbackTarotImage, getFaceReading, getLifeReading, getCompatibilityReading, getPartnerLifeReading } from './services/geminiService';
-import { playSound, playShuffleLoop, stopShuffleLoop } from './services/soundService';
+import { playSound, playShuffleLoop, stopShuffleLoop, initSounds } from './services/soundService';
 import html2canvas from 'html2canvas';
 
 // ---------------------------------------------------------------------------
@@ -180,7 +180,7 @@ const TypewriterText: React.FC<{ text: string }> = ({ text }) => {
         return () => clearInterval(timer);
     }, [text]);
     return (
-        <div className="whitespace-pre-line leading-relaxed font-sans text-lg text-gray-200">
+        <div className="whitespace-pre-line leading-relaxed font-sans text-gray-200">
             {text.substring(0, visibleCount)}
         </div>
     );
@@ -278,11 +278,12 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
 
 const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string }> = ({ onComplete, lang }) => {
   useEffect(() => {
+    playSound('SWOOSH'); // Immediate impact sound
     playShuffleLoop();
     const t = setTimeout(() => {
       stopShuffleLoop();
       onComplete();
-    }, 7000); // 7 seconds shuffle
+    }, 5000); // 5 seconds shuffle for better user experience
     return () => {
       stopShuffleLoop();
       clearTimeout(t);
@@ -293,18 +294,19 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md">
        {/* Tarot Rug */}
        <div className="absolute w-[90vw] h-[90vw] max-w-[500px] max-h-[500px] bg-[#2e0b49] rounded-full border-4 border-yellow-600/50 shadow-[0_0_80px_rgba(76,29,149,0.5)] flex items-center justify-center overflow-hidden rug-texture">
-          {/* Decorative Circle in Rug */}
           <div className="absolute w-[80%] h-[80%] border-2 border-dashed border-yellow-600/30 rounded-full animate-spin-slow"></div>
        </div>
 
       <div className="relative w-40 h-64">
-        {/* Render a denser deck stack (50 cards) with "Washing" animation */}
-        {Array.from({length: 50}).map((_, i) => (
+        {/* Render a very dense deck stack (60 cards) for professional look */}
+        {Array.from({length: 60}).map((_, i) => (
              <div key={i} className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#2e1065] to-black border border-[#fbbf24]/30 shadow-2xl card-back" 
                   style={{
                       zIndex: i,
-                      // Randomize wash animation type and speed for chaotic "shashashak" effect
-                      animation: `wash${(i % 5) + 1} ${2 + (i % 3) * 0.5}s ease-in-out infinite ${i * 0.1}s alternate`
+                      // More complex randomization for a natural "washing" effect
+                      // Rotates between -180 and 180, translates in random directions
+                      animation: `wash${(i % 5) + 1} ${2 + (i % 4) * 0.4}s ease-in-out infinite ${i * 0.05}s alternate`,
+                      transformOrigin: 'center center'
                   }}>
              </div>
         ))}
@@ -392,38 +394,86 @@ const ResultView: React.FC<{
   
   const handleCapture = async () => {
       if(ref.current) {
-          const canvas = await html2canvas(ref.current);
+          const canvas = await html2canvas(ref.current, {
+              backgroundColor: '#000000',
+              scale: 2
+          });
           const link = document.createElement('a');
-          link.download = 'tarot.png';
+          link.download = `black_tarot_${Date.now()}.png`;
           link.href = canvas.toDataURL();
           link.click();
       }
   };
 
   return (
-    <div className="min-h-screen pt-24 pb-12 px-4 flex flex-col items-center z-10 relative overflow-y-auto">
-       <div ref={ref} className="bg-black/80 p-6 rounded-xl border border-purple-900/30 max-w-3xl w-full text-center">
-         <h2 className="text-xl text-purple-200 mb-6">"{question}"</h2>
-         <div className="flex justify-center gap-4 mb-8">
-           {selectedCards.map((c, i) => (
-             <div key={i} onClick={() => toggleReveal(i)} className="cursor-pointer perspective-1000 group">
-                <div className={`w-20 h-32 md:w-32 md:h-48 relative transition-transform duration-500 transform-style-3d ${revealed[i] ? 'rotate-y-180' : ''}`}>
-                   <div className="absolute inset-0 backface-hidden bg-gray-900 border border-gray-700 rounded-lg flex items-center justify-center">?</div>
-                   <div className="absolute inset-0 backface-hidden rotate-y-180 bg-black border border-yellow-600 rounded-lg overflow-hidden">
-                      <img src={c.imagePlaceholder} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} />
-                      <div className="absolute bottom-0 w-full bg-black/70 text-[10px] text-yellow-500 p-1 truncate">{c.name}</div>
-                   </div>
-                </div>
+    <div className="min-h-screen pt-28 pb-20 px-4 flex flex-col items-center z-10 relative overflow-y-auto overflow-x-hidden">
+       <div ref={ref} className="w-full max-w-4xl flex flex-col gap-8 animate-fade-in p-2">
+         
+         {/* 1. Question Section */}
+         <div className="bg-gradient-to-r from-transparent via-purple-900/30 to-transparent border-y border-purple-500/30 py-6 text-center backdrop-blur-sm">
+             <h3 className="text-gray-400 text-xs md:text-sm font-sans uppercase tracking-[0.2em] mb-2">{TRANSLATIONS[lang].result_question}</h3>
+             <h2 className="text-xl md:text-3xl font-serif-en text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-white to-purple-200 drop-shadow-md px-4">
+                 "{question}"
+             </h2>
+         </div>
+
+         {/* 2. Cards Section */}
+         <div className="flex flex-col items-center">
+             <div className="flex flex-wrap justify-center gap-4 md:gap-8 perspective-1000">
+               {selectedCards.map((c, i) => (
+                 <div key={i} onClick={() => toggleReveal(i)} className="flex flex-col items-center gap-2 group cursor-pointer">
+                    <div className={`w-24 h-40 md:w-32 md:h-52 relative transition-all duration-700 transform-style-3d ${revealed[i] ? 'rotate-y-180' : 'hover:-translate-y-2'}`}>
+                       {/* Back of card (Cover) */}
+                       <div className="absolute inset-0 backface-hidden rounded-lg card-back shadow-[0_0_15px_rgba(0,0,0,0.8)] border border-purple-500/20"></div>
+                       
+                       {/* Front of card (Face) */}
+                       <div className="absolute inset-0 backface-hidden rotate-y-180 bg-black rounded-lg overflow-hidden border border-yellow-600/50 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+                          <img src={c.imagePlaceholder} className={`w-full h-full object-cover opacity-90 ${c.isReversed?'rotate-180':''}`} alt={c.name} />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
+                          <div className="absolute bottom-2 left-0 right-0 text-center">
+                              <span className="text-[10px] md:text-xs font-occult text-yellow-500 uppercase tracking-widest bg-black/50 px-2 py-0.5 rounded">{c.name}</span>
+                          </div>
+                       </div>
+                    </div>
+                    {/* Number Label */}
+                    <span className="text-xs text-gray-500 font-serif-en tracking-widest">{i + 1}</span>
+                 </div>
+               ))}
              </div>
-           ))}
          </div>
-         <div className="bg-gray-900/50 p-6 rounded min-h-[100px] text-left text-gray-200 leading-relaxed text-sm md:text-base whitespace-pre-line">
-            {loading ? <span className="animate-pulse">Reading...</span> : <TypewriterText text={text} />}
+
+         {/* 3. Interpretation Section */}
+         <div className="relative">
+            {/* Decorative corners */}
+            <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-purple-500/50"></div>
+            <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-purple-500/50"></div>
+            <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-purple-500/50"></div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-purple-500/50"></div>
+
+            <div className="bg-black/60 backdrop-blur-md border border-purple-900/30 p-6 md:p-8 rounded-sm shadow-2xl min-h-[200px]">
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center h-40 gap-4">
+                        <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-purple-300 font-occult animate-pulse text-sm tracking-widest">Reading Fate...</span>
+                    </div>
+                ) : (
+                    <div className="text-gray-200 font-sans text-sm md:text-base leading-relaxed md:leading-loose whitespace-pre-wrap break-keep">
+                        <TypewriterText text={text} />
+                    </div>
+                )}
+            </div>
          </div>
+
        </div>
-       <div className="flex gap-4 mt-6">
-         <button onClick={onRetry} className="px-6 py-3 bg-gray-700 rounded text-white">{TRANSLATIONS[lang].next}</button>
-         <button onClick={handleCapture} className="px-6 py-3 bg-purple-700 rounded text-white">{TRANSLATIONS[lang].share}</button>
+       
+       {/* Action Buttons */}
+       <div className="fixed bottom-6 z-40 flex gap-4 animate-fade-in-up">
+         <button onClick={onRetry} className="px-8 py-3 bg-gray-900/80 border border-gray-600 rounded text-gray-300 font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg backdrop-blur-md uppercase text-sm tracking-wider">
+             {TRANSLATIONS[lang].next}
+         </button>
+         <button onClick={handleCapture} className="px-8 py-3 bg-gradient-to-r from-purple-900 to-indigo-900 border border-purple-500 rounded text-white font-bold hover:brightness-110 transition-all shadow-[0_0_15px_rgba(147,51,234,0.4)] backdrop-blur-md uppercase text-sm tracking-wider flex items-center gap-2">
+             <span>✨</span> {TRANSLATIONS[lang].share}
+         </button>
        </div>
     </div>
   );
@@ -567,9 +617,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleStart = () => {
-      // Ensure BGM plays by toggling mute momentarily or trusting the dummy interaction
-      const dummyAudio = new Audio();
-      dummyAudio.play().catch(()=>{}); 
+      initSounds(); // Unlock and warm up audio context on first interaction
       setBgmStopped(false);
       setAppState(AppState.INPUT_INFO);
   };

@@ -27,6 +27,35 @@ try {
   });
 } catch(e) { /* Ignore audio support errors */ }
 
+export const initSounds = () => {
+  try {
+    if (!shuffleAudio) {
+      shuffleAudio = new Audio(SFX_URLS.SHUFFLE);
+      shuffleAudio.loop = true;
+      shuffleAudio.volume = 0.6;
+      shuffleAudio.preload = 'auto';
+    }
+    
+    // Critical: Play and pause immediately inside a user interaction handler 
+    // to unlock the AudioContext for this element on mobile/Safari.
+    const p = shuffleAudio.play();
+    if (p !== undefined) {
+      p.then(() => {
+        shuffleAudio?.pause();
+        if (shuffleAudio) shuffleAudio.currentTime = 0;
+      }).catch(() => {});
+    }
+    
+    // Also warm up other sounds
+    const swoosh = new Audio(SFX_URLS.SWOOSH);
+    swoosh.volume = 0;
+    swoosh.play().then(() => swoosh.pause()).catch(() => {});
+
+  } catch (e) {
+    // Ignore
+  }
+};
+
 export const playSound = (type: 'SELECT' | 'REVEAL' | 'SWOOSH') => {
   try {
     const url = SFX_URLS[type];
@@ -50,17 +79,15 @@ export const playSound = (type: 'SELECT' | 'REVEAL' | 'SWOOSH') => {
 export const playShuffleLoop = () => {
   try {
     if (!shuffleAudio) {
-      shuffleAudio = new Audio(SFX_URLS.SHUFFLE);
-      shuffleAudio.loop = true;
-      shuffleAudio.volume = 0.7; 
+        initSounds();
     }
     
-    // Check if already playing to avoid overlap
-    if (shuffleAudio.paused) {
+    if (shuffleAudio) {
         shuffleAudio.currentTime = 0;
+        shuffleAudio.volume = 0.8; // Louder for satisfaction
         const p = shuffleAudio.play();
         if (p !== undefined) {
-            p.catch(() => {});
+            p.catch(e => console.error("Shuffle play blocked", e));
         }
     }
   } catch (e) {
