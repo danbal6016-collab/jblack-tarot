@@ -295,43 +295,30 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
   );
 };
 
-const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string }> = ({ onComplete, lang, skin }) => {
-  const [phase, setPhase] = useState<"split"|"riffle"|"settle">("split");
+useEffect(() => {
+  // 오디오는 반드시 유저 제스처 이후가 안전하지만,
+  // 셔플 화면 자체가 버튼 클릭 후 뜨는 구조라면 여기서 해도 OK
+  initSounds();
 
-  const deckCount = 10;
-  const skinClass = SKINS.find(s => s.id === skin)?.cssClass ?? "";
+  setPhase("split");
+  playSound("SWOOSH");
+  playShuffleFor(2800);
 
-  // 카드별 랜덤 파라미터 (매 렌더마다 바뀌면 더 이상해지니 useMemo로 고정)
-  const riffleParams = React.useMemo(() => {
-    const rand = (min: number, max: number) => Math.random() * (max - min) + min;
-    return Array.from({ length: deckCount }).map((_, i) => {
-      const side = i % 2 === 0 ? -1 : 1; // 좌/우 베이스만 주고 나머지는 랜덤
-      return {
-        startX: side * rand(90, 140),
-        startY: rand(-8, 18),
-        startRot: side * rand(6, 14),
-        midX: side * rand(10, 28),
-        midY: rand(-16, -4),
-        midRot: -side * rand(3, 10),
-      };
-    });
-  }, [deckCount]);
+  const t1 = window.setTimeout(() => setPhase("riffle"), 200);
+  const t2 = window.setTimeout(() => setPhase("settle"), 1350);
+  const t3 = window.setTimeout(() => onComplete(), 3000);
 
-  useEffect(() => {
-    playSound("SWOOSH");
-    playShuffleFor(2800);
+  return () => {
+    clearTimeout(t1);
+    clearTimeout(t2);
+    clearTimeout(t3);
 
-    // ✅ phase 타임라인
-    setPhase("split");
-    const t1 = setTimeout(() => setPhase("riffle"), 250);
-    const t2 = setTimeout(() => setPhase("settle"), 1350);
-    const t3 = setTimeout(() => onComplete(), 3000);
+    // ✅ stopShuffleLoop() 같은 “없는 함수” 쓰지 말고,
+    // 너 서비스에 있는 걸로 끝내
+    stopShuffleWithClack();
+  };
+}, [onComplete]);
 
-    return () => {
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
-      stopShuffleLoop();
-    };
-  }, [onComplete]);
 
   const deckPhaseClass =
     phase === "split" ? "deck-phase-split" :
