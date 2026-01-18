@@ -309,14 +309,27 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
   }, [onComplete]);
 
   const deckCount = 28;
+const skinClass = SKINS.find(s => s.id === skin)?.cssClass ?? '';
 
+
+
+<div
+  key={i}
+  className={`absolute w-28 h-44 rounded-xl card-back border border-[#fbbf24]/25 shadow-2xl shuffle-riffle ${skinClass}`}
+  style={{
+    zIndex: deckCount - i,
+    ["--i" as any]: i,
+  }}
+/>
+
+  
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md">
       <div className="absolute w-[90vw] h-[90vw] max-w-[500px] max-h-[500px] bg-[#2e0b49] rounded-full border-4 border-yellow-600/50 shadow-[0_0_80px_rgba(76,29,149,0.5)] flex items-center justify-center overflow-hidden rug-texture">
         <div className="absolute w-[80%] h-[80%] border-2 border-dashed border-yellow-600/30 rounded-full animate-spin-slow"></div>
       </div>
 
-     <div className={`relative w-[340px] h-[260px] ${SKINS.find(s => s.id === skin)?.cssClass ?? ''}`}>
+<div className={`min-h-screen pt-24 pb-12 px-2 flex flex-col items-center z-10 relative overflow-y-auto touch-manipulation ${SKINS.find(s=>s.id===skin)?.cssClass ?? ''}`}>
         {Array.from({ length: deckCount }).map((_, i) => (
           <div
             key={i}
