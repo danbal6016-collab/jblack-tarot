@@ -329,6 +329,12 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
           />
         ))}
       </div>
+      <p className="mt-12 text-xl font-occult text-purple-200 animate-pulse tracking-[0.2em] z-[60] bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
+        {TRANSLATIONS[lang].shuffling}
+      </p>
+    </div>
+  );
+};
 
     
 
