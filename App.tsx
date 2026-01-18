@@ -295,30 +295,45 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
   );
 };
 
-useEffect(() => {
-  // 오디오는 반드시 유저 제스처 이후가 안전하지만,
-  // 셔플 화면 자체가 버튼 클릭 후 뜨는 구조라면 여기서 해도 OK
-  initSounds();
+const ShufflingAnimation: React.FC<{
+  onComplete: () => void;
+  lang: Language;
+  skin: string;
+}> = ({ onComplete, lang, skin }) => {
+  const [phase, setPhase] = useState<"split" | "riffle" | "settle">("split");
 
-  setPhase("split");
-  playSound("SWOOSH");
-  playShuffleFor(2800);
+  const deckCount = 10;
 
-  const t1 = window.setTimeout(() => setPhase("riffle"), 200);
-  const t2 = window.setTimeout(() => setPhase("settle"), 1350);
-  const t3 = window.setTimeout(() => onComplete(), 3000);
+  // riffle 파라미터(랜덤)
+  const riffleParams = Array.from({ length: deckCount }).map(() => ({
+    startX: (Math.random() * 2 - 1) * 120,
+    startY: (Math.random() * 2 - 1) * 70,
+    startRot: (Math.random() * 2 - 1) * 18,
+    midX: (Math.random() * 2 - 1) * 40,
+    midY: (Math.random() * 2 - 1) * 25,
+    midRot: (Math.random() * 2 - 1) * 10,
+  }));
 
-  return () => {
-    clearTimeout(t1);
-    clearTimeout(t2);
-    clearTimeout(t3);
+  const skinClass = SKINS.find(s => s.id === skin)?.cssClass ?? "";
 
-    // ✅ stopShuffleLoop() 같은 “없는 함수” 쓰지 말고,
-    // 너 서비스에 있는 걸로 끝내
-    stopShuffleWithClack();
-  };
-}, [onComplete]);
+  useEffect(() => {
+    initSounds();
 
+    setPhase("split");
+    playSound("SWOOSH");
+    playShuffleFor(2800);
+
+    const t1 = window.setTimeout(() => setPhase("riffle"), 200);
+    const t2 = window.setTimeout(() => setPhase("settle"), 1350);
+    const t3 = window.setTimeout(() => onComplete(), 3000);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      stopShuffleWithClack();
+    };
+  }, [onComplete]);
 
   const deckPhaseClass =
     phase === "split" ? "deck-phase-split" :
@@ -326,17 +341,17 @@ useEffect(() => {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md">
-      {/* ✅ 러그 레이어 */}
+      {/* 러그 */}
       <div className="relative w-[420px] h-[320px] flex items-center justify-center">
         <div
-          className="absolute inset-0 rug-texture rounded-[28px] opacity-90"
+          className="absolute inset-0 rug-texture rounded-[28px] opacity-90 pointer-events-none"
           style={{
             border: "1px solid rgba(191,149,63,0.25)",
             boxShadow: "inset 0 0 120px rgba(0,0,0,0.9), 0 30px 80px rgba(0,0,0,0.7)"
           }}
         />
 
-        {/* ✅ 덱 */}
+        {/* 덱 */}
         <div className={`relative w-[340px] h-[260px] ${skinClass} ${deckPhaseClass}`}>
           {phase === "riffle" && riffleParams.map((p, i) => (
             <div
