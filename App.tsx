@@ -807,6 +807,7 @@ const App: React.FC = () => {
 
   const handleStart = () => {
       initSounds(); 
+    playSound("SWOOSH");
       setBgmStopped(false);
       navigateTo(AppState.INPUT_INFO);
   };
