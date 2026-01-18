@@ -168,6 +168,70 @@ export const playShuffleLoop = () => {
   scheduleNext();
 };
 
+// --- NEW: a satisfying ending "clack" when shuffle finishes ---
+const playShuffleEndClack = () => {
+  try {
+    const { ctx } = ensureGraph();
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+
+    const t = ctx.currentTime;
+
+    // tiny click (very short noise)
+    const click = ctx.createBufferSource();
+    click.buffer = noiseBuffer!;
+
+    const hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 1400;
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.18, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
+
+    click.connect(hp);
+    hp.connect(g);
+    g.connect(masterGain!);
+
+    // short low thump (like deck landing)
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(110, t);
+
+    const og = ctx.createGain();
+    og.gain.setValueAtTime(0.0001, t);
+    og.gain.exponentialRampToValueAtTime(0.14, t + 0.003);
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+
+    osc.connect(og);
+    og.connect(masterGain!);
+
+    click.start(t);
+    click.stop(t + 0.03);
+
+    osc.start(t);
+    osc.stop(t + 0.08);
+  } catch {}
+};
+
+// --- NEW: long, natural shuffle for a fixed duration ---
+// durationMs 동안 셔플 루프를 돌리고, 끝날 때 "딱" 마감음을 넣는다.
+export const playShuffleFor = (durationMs: number = 2800) => {
+  playShuffleLoop();
+
+  window.setTimeout(() => {
+    stopShuffleLoop();
+    playShuffleEndClack();
+  }, durationMs);
+};
+
+// --- NEW: call this when you stop shuffle manually (optional helper) ---
+export const stopShuffleWithClack = () => {
+  stopShuffleLoop();
+  playShuffleEndClack();
+};
+
+
 export const stopShuffleLoop = () => {
   shuffleRunning = false;
   if (shuffleTimer) {
@@ -211,9 +275,13 @@ export const playSound = (type: "SELECT" | "REVEAL" | "SWOOSH") => {
         createOscillator("sine", 600, 0.35, 0.11);
         setTimeout(() => createOscillator("triangle", 1200, 0.28, 0.10), 40);
         break;
-      case "SWOOSH":
-        playShuffleLoop();
-        break;
+     case "SWOOSH":
+  // one-shot swoosh: just 2~3 grains quickly (NOT loop)
+  playOneShuffleGrain(1.0);
+  setTimeout(() => playOneShuffleGrain(0.95), 40);
+  setTimeout(() => playOneShuffleGrain(1.1), 85);
+  break;
+
     }
   } catch {}
 };
