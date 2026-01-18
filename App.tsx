@@ -8,7 +8,7 @@ import Background from './components/Background';
 import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
 import { getTarotReading, generateTarotImage, getFallbackTarotImage, getFaceReading, getLifeReading, getCompatibilityReading, getPartnerLifeReading } from './services/geminiService';
-import { playSound, playShuffleLoop, stopShuffleLoop, initSounds } from './services/soundService';
+import { playShuffleFor, stopShuffleWithClack } from './services/soundService';
 import html2canvas from 'html2canvas';
 
 // ---------------------------------------------------------------------------
@@ -299,17 +299,20 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
   const [phase, setPhase] = useState<"split"|"riffle"|"settle">("split");
 
   useEffect(() => {
-    playShuffleLoop();
+  playSound("SWOOSH");      // 시작 때 한 번 “슥”
+  playShuffleFor(2800);     // ✅ 2.8초 동안 자연스러운 셔플 루프 + 끝에 clack
 
-    const t1 = setTimeout(() => setPhase("riffle"), 900);    // split 끝
-    const t2 = setTimeout(() => setPhase("settle"), 2400);   // riffle 끝 + 잠깐 여유
-    const t3 = setTimeout(() => { stopShuffleLoop(); onComplete(); }, 2900); // settle 끝
+  const t = setTimeout(() => {
+    onComplete();
+  }, 3000); // 사운드보다 약간 늦게 화면 넘어가면 만족감 상승
 
-    return () => {
-      stopShuffleLoop();
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
-    };
-  }, [onComplete]);
+  return () => {
+    clearTimeout(t);
+    // 혹시 중간에 나가면 강제로 종료 + clack(선택)
+    // stopShuffleWithClack();
+    stopShuffleLoop(); // 안전 종료
+  };
+}, [onComplete]);
 
   const skinClass = SKINS.find(s => s.id === skin)?.cssClass ?? "";
   const deckCount = 10; // ✅ 8~12 권장 (자연스럽고 렉 없음)
