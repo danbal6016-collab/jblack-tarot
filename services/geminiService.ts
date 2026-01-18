@@ -50,10 +50,13 @@ const SAFETY_SETTINGS = [
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Fallback Chain: Gemini 3 Flash (Newest) -> Gemini 2.0 Flash (Stable) -> Gemini Flash Latest (Generic)
+const MODEL_FALLBACK_CHAIN = ['gemini-3-flash-preview', 'gemini-2.0-flash', 'gemini-flash-latest'];
+
 async function retryOperation<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 3, // Increased retries
-    baseDelay: number = 1000 // Increased base delay
+    maxRetries: number = 2,
+    baseDelay: number = 1000
 ): Promise<T> {
     let lastError: any;
     
@@ -64,8 +67,10 @@ async function retryOperation<T>(
             lastError = error;
             const status = error.status || error.response?.status;
             // Retry on 429 (Quota), 5xx (Server), or Network errors
-            if (status === 429 || status >= 500 || error.message?.toLowerCase().includes('fetch') || error.message?.toLowerCase().includes('network')) {
-                const delay = baseDelay * Math.pow(2, i); // Exponential backoff: 1s, 2s, 4s
+            const isNetworkError = !status && (error.message?.toLowerCase().includes('fetch') || error.message?.toLowerCase().includes('network'));
+            
+            if (status === 429 || status >= 500 || isNetworkError || error.message?.toLowerCase().includes('overloaded')) {
+                const delay = baseDelay * Math.pow(2, i); 
                 console.warn(`Retry ${i+1}/${maxRetries} after ${delay}ms due to error:`, error.message);
                 await wait(delay);
                 continue;
@@ -76,14 +81,13 @@ async function retryOperation<T>(
     throw lastError;
 }
 
-async function callGenAI(prompt: string, baseConfig: any, model: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const PROXY_TIMEOUT = 25000;   
-    const CLIENT_TIMEOUT = 20000; 
+async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
+    // Increased timeouts to prevent premature failures
+    const PROXY_TIMEOUT = 30000;   
+    const CLIENT_TIMEOUT = 50000; 
     
-    const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-
     const getFallbackMsg = () => {
-        return `[내용 분석]\n서버가 과부하로 터졌습니다. 지금 운명을 읽으려는 사람이 너무 많네요. 억까 그 자체입니다. 잠시 후 다시 시도해 보세요.\n\n[조언 한마디]\n인내심을 기르는 것도 수행입니다.`;
+        return `[내용 분석]\n서버 상태가 메롱입니다. 지금 운명을 읽으려는 사람이 너무 많거나, 인터넷 연결이 불안정합니다. 잠시 후 다시 시도해 보세요. (Error: All Models Failed)\n\n[조언 한마디]\n인내심을 기르는 것도 수행입니다.`;
     };
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -96,100 +100,128 @@ async function callGenAI(prompt: string, baseConfig: any, model: string = 'gemin
         });
     };
 
-    try {
-        // 1. Attempt Server-Side Proxy (if available)
+    // Ensure our preferred model is first in the chain, removing duplicates
+    const chainSet = new Set([preferredModel, ...MODEL_FALLBACK_CHAIN]);
+    const modelsToTry = Array.from(chainSet);
+
+    for (const model of modelsToTry) {
         try {
-            const proxyPromise = (async () => {
-                const body: any = { prompt, config, model };
-                if (imageParts) body.imageParts = imageParts;
+            console.log(`Attempting generation with model: ${model}`);
+            
+            // Clone config
+            const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
 
-                const proxyRes = await fetch('/api/gemini', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                
-                if (!proxyRes.ok) throw new Error(`Proxy ${proxyRes.status}`);
-                const data = await proxyRes.json();
-                if (!data.text) throw new Error("Empty response");
-                return data.text as string;
-            })();
-
-            const result = await withTimeout(proxyPromise, PROXY_TIMEOUT);
-            return result;
-
-        } catch (proxyError: any) {
-            // console.warn("Proxy failed, switching to client...", proxyError);
-        }
-
-        // 2. Client-Side Fallback (Direct REST API)
-        let apiKey = '';
-        try {
-            // @ts-ignore
-            if (typeof process !== 'undefined' && process.env) {
-                apiKey = process.env.API_KEY || '';
+            // Compatibility check: Remove thinkingConfig for unsupported models
+            if (!model.includes('gemini-3') && !model.includes('gemini-2.5')) {
+                if (config.thinkingConfig) delete config.thinkingConfig;
             }
-        } catch(e) {}
 
-        try {
-            // @ts-ignore
-            if (!apiKey && typeof import.meta !== 'undefined' && import.meta.env) {
+            // 1. Attempt Server-Side Proxy (if available)
+            try {
+                const proxyPromise = (async () => {
+                    const body: any = { prompt, config, model };
+                    if (imageParts) body.imageParts = imageParts;
+
+                    const proxyRes = await fetch('/api/gemini', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    
+                    if (!proxyRes.ok) {
+                        const errText = await proxyRes.text();
+                        throw new Error(`Proxy ${proxyRes.status}: ${errText}`);
+                    }
+                    const data = await proxyRes.json();
+                    if (!data.text) throw new Error("Empty response");
+                    return data.text as string;
+                })();
+
+                const result = await withTimeout(proxyPromise, PROXY_TIMEOUT);
+                return result; // Success!
+
+            } catch (proxyError: any) {
+                console.warn(`Proxy failed for ${model}, switching to client...`, proxyError.message);
+                // Continue to client-side attempt
+            }
+
+            // 2. Client-Side Fallback (Direct REST API)
+            let apiKey = '';
+            try {
                 // @ts-ignore
-                apiKey = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
+                if (typeof process !== 'undefined' && process.env) {
+                    apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
+                }
+            } catch(e) {}
+
+            try {
+                // @ts-ignore
+                if (!apiKey && typeof import.meta !== 'undefined' && import.meta.env) {
+                    // @ts-ignore
+                    apiKey = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
+                }
+            } catch(e) {}
+
+            if (!apiKey) {
+                console.error("No API Key found for Client Fallback");
+                if (modelsToTry.indexOf(model) === modelsToTry.length - 1) return getFallbackMsg();
+                continue;
             }
-        } catch(e) {}
 
-        if (!apiKey) {
-            console.error("No API Key found");
-            return getFallbackMsg();
-        }
+            // Use Direct REST API Call with retry mechanism
+            const responseText = await retryOperation(async () => {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                
+                let contents: any = { parts: [{ text: prompt }] };
+                if (imageParts) {
+                    contents = { parts: [...imageParts, { text: prompt }] };
+                }
 
-        // Use Direct REST API Call with retry mechanism
-        const responseText = await retryOperation(async () => {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-            
-            let contents: any = { parts: [{ text: prompt }] };
-            if (imageParts) {
-                contents = { parts: [...imageParts, { text: prompt }] };
-            }
-
-            const response = await withTimeout(
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        contents: [contents],
-                        generationConfig: config,
-                        safetySettings: SAFETY_SETTINGS
+                const response = await withTimeout(
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            contents: [contents],
+                            generationConfig: config,
+                            safetySettings: SAFETY_SETTINGS
+                        }),
+                        // CRITICAL: Set referrerPolicy to 'no-referrer' to avoid 403 errors from API key restrictions
+                        referrerPolicy: "no-referrer" 
                     }),
-                    // CRITICAL: Set referrerPolicy to 'no-referrer' to avoid 403 errors from API key restrictions
-                    referrerPolicy: "no-referrer" 
-                }),
-                CLIENT_TIMEOUT
-            );
+                    CLIENT_TIMEOUT
+                );
 
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(`Gemini API Error: ${response.status} ${JSON.stringify(errData)}`);
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(`Gemini API Error: ${response.status} ${JSON.stringify(errData)}`);
+                }
+
+                const data = await response.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (typeof text === 'string') {
+                    return text;
+                }
+                throw new Error("No text generated in response");
+            }, 2, 1000); // 2 retries per model
+
+            return responseText; // Success!
+
+        } catch (modelError: any) {
+            console.warn(`Model ${model} failed.`, modelError);
+            // If this was the last model in the chain, we exit the loop and return fallback
+            if (model === modelsToTry[modelsToTry.length - 1]) {
+                console.error("All models failed. Returning fallback.");
+            } else {
+                continue; // Try next model
             }
-
-            const data = await response.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            
-            if (typeof text === 'string') {
-                return text;
-            }
-            throw new Error("No text generated in response");
-        }, 3, 1500); // 3 retries, starting at 1.5s delay
-
-        return responseText;
-
-    } catch (finalError) {
-        console.error("Final Fallback Triggered", finalError);
-        return getFallbackMsg();
+        }
     }
+
+    return getFallbackMsg();
 }
 
 // --- MAIN SERVICES ---
@@ -224,9 +256,9 @@ export const getTarotReading = async (
     systemInstruction: getBaseInstruction(lang),
     temperature: 0.8,
     maxOutputTokens: 1500,
-    thinkingConfig: { thinkingBudget: 0 } 
   };
 
+  // Switched default to gemini-3-flash-preview for maximum stability and speed
   return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
@@ -248,7 +280,6 @@ export const getCompatibilityReading = async (
         systemInstruction: getBaseInstruction(lang),
         temperature: 0.85,
         maxOutputTokens: 800,
-        thinkingConfig: { thinkingBudget: 0 }
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
@@ -267,7 +298,6 @@ export const getPartnerLifeReading = async (
         systemInstruction: getBaseInstruction(lang),
         temperature: 0.8,
         maxOutputTokens: 800,
-        thinkingConfig: { thinkingBudget: 0 }
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
@@ -286,8 +316,8 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.7, 
         maxOutputTokens: 600,
-        thinkingConfig: { thinkingBudget: 0 }
     };
+    // Face reading uses specialized image model (nano banana alias)
     return await callGenAI(prompt, config, 'gemini-2.5-flash-image', [imagePart], lang);
 };
 
@@ -308,7 +338,6 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.8, 
         maxOutputTokens: 1000, 
-        thinkingConfig: { thinkingBudget: 0 }
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
