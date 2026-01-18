@@ -105,18 +105,12 @@
   }
 }
 
-      .shuffle-riffle {
+    .shuffle-riffle {
   left: 50%;
   top: 50%;
   transform: translate3d(-50%, -50%, 0);
   will-change: transform, filter;
   backface-visibility: hidden;
-/* use CSS variables derived from side + index */
-.shuffle-riffle {
-  --gap: 6px;
-  --lift: 2px;
-
-  /* left stack starts left, right stack starts right */
 
   --startX: 120px;
   --startY: 10px;
@@ -126,12 +120,10 @@
   --midY: -12px;
   --midRot: -6deg;
 
- animation: riffleIn 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-
+  animation: riffleIn 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--i) * 40ms);
 }
 
-/* Browser-safe side split (no string compare):
-   We'll use nth-child to alternate left/right feel */
 .shuffle-riffle:nth-child(odd) {
   --startX: -125px;
   --startY: 12px;
@@ -140,6 +132,7 @@
   --midY: -10px;
   --midRot: 6deg;
 }
+
 .shuffle-riffle:nth-child(even) {
   --startX: 125px;
   --startY: 12px;
@@ -148,6 +141,7 @@
   --midY: -10px;
   --midRot: -6deg;
 }
+
 
 /* interleave timing: each card slightly delayed */
 .shuffle-riffle {
