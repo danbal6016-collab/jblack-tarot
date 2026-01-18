@@ -81,78 +81,38 @@
         box-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
       }
       
-    /* --- NEW: Riffle Shuffle (more satisfying) --- */
+   /* --- Riffle shuffle (fast + smooth + low-lag) --- */
+@keyframes riffleIn {
+  0%   { transform: translate3d(calc(-50% + var(--startX)), calc(-50% + var(--startY)), 0) rotate(var(--startRot)); }
+  70%  { transform: translate3d(calc(-50% + var(--midX)),   calc(-50% + var(--midY)),   0) rotate(var(--midRot)); }
+  100% { transform: translate3d(-50%, -50%, 0) rotate(0deg); }
+}
+
 .shuffle-riffle {
   left: 50%;
   top: 50%;
   transform: translate3d(-50%, -50%, 0);
-  will-change: transform, filter;
-  background: radial-gradient(circle at 50% 40%, #452269 0%, #2a164f 50%, #110524 100%);
-}
-
-@keyframes riffleIn {
-  0% {
-    transform: translate3d(calc(-50% + var(--startX)), calc(-50% + var(--startY)), 0) rotate(var(--startRot));
-    filter: blur(0px) brightness(0.9);
-  }
-  55% {
-    transform: translate3d(calc(-50% + var(--midX)), calc(-50% + var(--midY)), 0) rotate(var(--midRot));
-    filter: blur(0.2px) brightness(1.05);
-  }
-  100% {
-    transform: translate3d(-50%, -50%, 0) rotate(0deg);
-    filter: blur(0px) brightness(1.0);
-  }
-}
-
-    .shuffle-riffle {
-  left: 50%;
-  top: 50%;
-  transform: translate3d(-50%, -50%, 0);
-  will-change: transform, filter;
+  will-change: transform;
   backface-visibility: hidden;
 
-  --startX: 120px;
-  --startY: 10px;
-  --startRot: 8deg;
+  /* 렉 줄이기: filter/blur 금지 */
+  border: 1px solid rgba(251, 191, 36, 0.18);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.55);
 
-  --midX: 20px;
-  --midY: -12px;
-  --midRot: -6deg;
-
-  animation: riffleIn 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: calc(var(--i) * 40ms);
+  animation: riffleIn 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i) * 22ms);
 }
 
-.shuffle-riffle:nth-child(odd) {
-  --startX: -125px;
-  --startY: 12px;
-  --startRot: -10deg;
-  --midX: -18px;
-  --midY: -10px;
-  --midRot: 6deg;
-}
+/* 좌/우 느낌: nth-child로 안전하게 */
+.shuffle-riffle:nth-child(odd)  { --startX: -120px; --startY: 10px; --startRot: -10deg; --midX: -18px; --midY: -10px; --midRot: 6deg; }
+.shuffle-riffle:nth-child(even) { --startX:  120px; --startY: 10px; --midRot: -6deg;  --midX:  18px; --midY: -10px; --startRot: 10deg; }
 
-.shuffle-riffle:nth-child(even) {
-  --startX: 125px;
-  --startY: 12px;
-  --startRot: 10deg;
-  --midX: 18px;
-  --midY: -10px;
-  --midRot: -6deg;
-}
-
-
-/* interleave timing: each card slightly delayed */
-.shuffle-riffle {
-  animation-delay: calc(var(--i) * 40ms);
-}
-
-/* slow subtle “deck breathing” */
+/* 전체 덱이 살짝 “숨 쉬는” 느낌 (카드 22개 각각 무겁게 돌리지 말고 부모만) */
 @keyframes deckPulse {
-  0% { transform: translate3d(-50%, -50%, 0) scale(1); }
-  100% { transform: translate3d(-50%, -50%, 0) scale(1.02); }
+  0%   { transform: scale(1); }
+  100% { transform: scale(1.02); }
 }
+.deck-pulse { animation: deckPulse 520ms ease-in-out infinite alternate; }
 
 
       /* Rug Texture */
