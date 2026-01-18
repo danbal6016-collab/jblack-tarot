@@ -53,6 +53,7 @@ export const TIER_THRESHOLDS = {
   PLATINUM: 3000
 };
 
+// 10 Day Attendance: Day 1 & 10 = 50, others 20
 export const ATTENDANCE_REWARDS = [50, 20, 20, 20, 20, 20, 20, 20, 20, 50];
 
 export const CATEGORIES: QuestionCategory[] = [
@@ -186,6 +187,22 @@ export const CATEGORIES: QuestionCategory[] = [
     questions: [], // Special UI
     minTier: UserTier.SILVER,
     cost: 150
+  },
+  {
+    id: 'SECRET_COMPAT',
+    label: '19금',
+    icon: '🔞',
+    questions: [],
+    minTier: UserTier.GOLD,
+    cost: 150
+  },
+  {
+    id: 'PARTNER_LIFE',
+    label: '그 사람의 인생',
+    icon: '👥',
+    questions: [],
+    minTier: UserTier.PLATINUM,
+    cost: 120
   }
 ];
 

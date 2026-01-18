@@ -11,9 +11,10 @@ export enum AppState {
   LOGIN = 'LOGIN',
   FACE_UPLOAD = 'FACE_UPLOAD', 
   LIFE_INPUT = 'LIFE_INPUT',
+  PARTNER_INPUT = 'PARTNER_INPUT',
 }
 
-export type CategoryKey = 'FANDOM' | 'LOVE' | 'APPEARANCE' | 'CAREER' | 'WEALTH' | 'HEALTH' | 'STUDY' | 'RELATIONSHIP' | 'FACE' | 'LIFE';
+export type CategoryKey = 'FANDOM' | 'LOVE' | 'APPEARANCE' | 'CAREER' | 'WEALTH' | 'HEALTH' | 'STUDY' | 'RELATIONSHIP' | 'FACE' | 'LIFE' | 'SECRET_COMPAT' | 'PARTNER_LIFE';
 
 export type Language = 'ko' | 'en';
 
@@ -61,9 +62,11 @@ export interface UserInfo {
   timezone: string;
   profileImage?: string; 
   bio?: string;
-  lastNameChange?: string; 
-  birthDateChanged?: boolean;
-  countryChanged?: boolean;
+  
+  // Edit Limits
+  nameChangeCount: number; // Max 3
+  birthDateChanged: boolean; // Max 1
+  countryChanged: boolean; // Max 1
 }
 
 export interface User {
@@ -83,9 +86,11 @@ export interface User {
   loginDates: string[]; // List of YYYY-MM-DD strings
   lastLoginDate?: string;
 
-  attendanceDay: number; 
-  lastAttendance?: string; 
+  // Attendance
+  attendanceDay: number; // 1 to 10
+  lastAttendance?: string; // YYYY-MM-DD
   
+  // Skins
   ownedSkins: string[]; 
   currentSkin: string; 
   

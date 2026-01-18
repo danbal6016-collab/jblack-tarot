@@ -7,51 +7,40 @@ import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 // ---------------------------------------------------------------------------
 
 const getBaseInstruction = (lang: Language) => {
-    if (lang === 'en') {
-        return `Role: Black Tarot (Cynical).
-Rules:
-1. Short, savage analysis.
-2. No emojis.
-3. No filler.
-4. Use user info.`;
-    } else {
-        return `역할: 블랙 타로 (냉소적, 팩폭).
-규칙:
-1. 짧고 강렬한 독설.
-2. 이모지 금지.
-3. 잡담 금지.
-4. 사용자 정보 반영.`;
-    }
+    // STRICT "JENNIE" PERSONA
+    return `
+You are 'Jennie', a REALISTIC, CYNICAL, WITTY, INTERNET-ADDICTED CONSULTANT.
+You use Korean Honorifics (존댓말) but your vocabulary is that of a heavy internet user (Twitter/Community vibe).
+You are NOT a mystical fortune teller. You are a cold truth-teller.
+
+STRICT RULES - DO NOT IGNORE:
+1. NO EMOJIS ALLOWED: Do not use ANY emojis (🚫✨🔮). Keep it text-only and dry.
+2. NO INTROS/OUTROS: IMMEDIATELY start the analysis.
+3. TONE & STYLE: Savage, Witty, Internet Slang (알빠노, 누칼협, 뇌절, 억까, 가불기, 폼 미쳤다, 능지처참, 오히려 좋아).
+4. IMPLICIT SAJU/PERSONALITY ANALYSIS: Use the User's Birthdate to implicitly estimate personality flaws. NEVER mention "Saju" or "Birthdate" explicitly. Just roast them based on it.
+5. UNIQUE READINGS: Every reading must be unique.
+6. LANGUAGE: Korean (Hangul).
+`;
 };
 
-const getTarotStructure = (lang: Language) => {
-    if (lang === 'en') {
-        return `
-[Analysis]
-(3 savage sentences.)
-
-[Advice]
-(1 sentence.)
-
-[Solution]
-(3 actions.)
-`;
-    } else {
-        return `
+const getTarotStructure = (lang: Language, tier: string = 'BRONZE') => {
+    // FORMAT RULES
+    return `
+FORMAT:
 [내용 분석]
-(3문장 팩폭.)
+(MINIMUM 10 SENTENCES. Analyze the reality of the situation. Be cynical and realistic. Use slang like 억까, 뇌절.)
 
-[블랙 타로의 조언]
-(1문장.)
+[조언 한마디]
+(EXACTLY ONE SENTENCE. Short, punchy, savage.)
 
 [실질적인 해결책]
-(짧은 행동 3개.)
+1. (현실적인 해결책) (Minimum 5 sentences. Brutally realistic.)
+2. (가장 효과적인 해결책) (Minimum 5 sentences. The best way out.)
+3. (신박하고 웃긴 해결책) (Minimum 5 sentences. Witty, funny, internet-brained approach.)
 `;
-    }
 };
 
 // --- SAFETY SETTINGS ---
-// Critical for "Savage" persona to avoid being blocked
 const SAFETY_SETTINGS = [
     { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
     { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
@@ -75,7 +64,6 @@ async function retryOperation<T>(
             return await operation();
         } catch (error: any) {
             lastError = error;
-            // Retry on network errors or 429/5xx
             const status = error.status || error.response?.status;
             if (status === 429 || status >= 500 || error.message?.toLowerCase().includes('fetch') || error.message?.toLowerCase().includes('network')) {
                 const delay = baseDelay * (i + 1); 
@@ -89,40 +77,13 @@ async function retryOperation<T>(
 }
 
 async function callGenAI(prompt: string, baseConfig: any, model: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const PROXY_TIMEOUT = 5000;   // Increased to 5s
-    const CLIENT_TIMEOUT = 18000; // Increased to 18s (Total max ~20s)
+    const PROXY_TIMEOUT = 25000;   
+    const CLIENT_TIMEOUT = 18000; 
     
-    // Merge safety settings into config
     const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
 
     const getFallbackMsg = () => {
-        if (lang === 'en') {
-            return `
-[Analysis]
-The spirits are silent. The server is overloaded or your connection is weak.
-
-[Advice]
-Try again later.
-
-[Solution]
-1. Check Wifi.
-2. Refresh page.
-3. Breathe.
-`;
-        } else {
-            return `
-[내용 분석]
-우주의 신호가 끊겼습니다. 서버가 혼잡하거나 당신의 운명이 로딩을 거부하고 있습니다.
-
-[블랙 타로의 조언]
-새로고침 하세요.
-
-[실질적인 해결책]
-1. 와이파이 확인.
-2. 페이지 새로고침.
-3. 잠시 후 재시도.
-`;
-        }
+        return `[내용 분석]\n서버가 터졌습니다. 억까 그 자체네요. 인터넷 상태 확인하고 다시 오세요.\n\n[조언 한마디]\n새로고침이 답입니다.`;
     };
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -136,9 +97,8 @@ Try again later.
     };
 
     try {
-        // --- 1. PROXY ATTEMPT ---
+        // 1. Attempt Server-Side Proxy
         try {
-            // Attempt proxy without retries to save time for client fallback if it fails
             const proxyPromise = (async () => {
                 const body: any = { prompt, config, model };
                 if (imageParts) body.imageParts = imageParts;
@@ -150,7 +110,6 @@ Try again later.
                 });
                 
                 if (!proxyRes.ok) throw new Error(`Proxy ${proxyRes.status}`);
-                
                 const data = await proxyRes.json();
                 if (!data.text) throw new Error("Empty response");
                 return data.text as string;
@@ -161,10 +120,9 @@ Try again later.
 
         } catch (proxyError: any) {
             // console.warn("Proxy failed, switching to client...", proxyError);
-            // Fall through to Client Direct
         }
 
-        // --- 2. CLIENT DIRECT FALLBACK ---
+        // 2. Client-Side Fallback (Direct REST API to avoid SDK Referrer issues)
         let apiKey = '';
         try {
             // @ts-ignore
@@ -186,26 +144,44 @@ Try again later.
             return getFallbackMsg();
         }
 
-        const ai = new GoogleGenAI({ apiKey });
-        
-        let contents: any = prompt;
-        if (imageParts) contents = { parts: [...imageParts, { text: prompt }] };
-
+        // Use Direct REST API Call instead of SDK to strip Referrer manually
         const responseText = await retryOperation(async () => {
-            const response = await withTimeout(
-                ai.models.generateContent({
-                    model,
-                    contents,
-                    config
-                }),
-                CLIENT_TIMEOUT 
-            ) as any;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
             
-            if (typeof response.text === 'string') {
-                return response.text;
+            let contents: any = { parts: [{ text: prompt }] };
+            if (imageParts) {
+                contents = { parts: [...imageParts, { text: prompt }] };
             }
-            throw new Error("No text generated");
-        }, 1); // Allow 1 retry for client
+
+            const response = await withTimeout(
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [contents],
+                        generationConfig: config,
+                        safetySettings: SAFETY_SETTINGS
+                    }),
+                    referrerPolicy: "no-referrer" // CRITICAL FIX FOR 403
+                }),
+                CLIENT_TIMEOUT
+            );
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(`Gemini API Error: ${response.status} ${JSON.stringify(errData)}`);
+            }
+
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            if (typeof text === 'string') {
+                return text;
+            }
+            throw new Error("No text generated in response");
+        }, 1);
 
         return responseText;
 
@@ -222,23 +198,36 @@ export const getTarotReading = async (
   cards: TarotCard[],
   userInfo?: UserInfo,
   lang: Language = 'ko',
-  history: ReadingResult[] = []
+  history: ReadingResult[] = [],
+  tier: string = 'BRONZE'
 ): Promise<string> => {
   const cardNames = cards.map(c => c.name + (c.isReversed ? " (Reversed)" : "")).join(", ");
   const userContext = userInfo ? `User: ${userInfo.name}, ${userInfo.birthDate}` : "User: Anonymous";
+  
+  // AI Personalization for Silver+
+  let personalizationContext = "";
+  if ((tier === 'SILVER' || tier === 'GOLD' || tier === 'PLATINUM') && history.length > 0) {
+      // Get last 3 readings to give context
+      const recentHistory = history.slice(0, 3).map(h => `Q: ${h.question} -> A: ${h.interpretation.substring(0, 50)}...`).join("\n");
+      personalizationContext = `\n[Context from User History - DO NOT REPEAT, just use for tone consistency]\n${recentHistory}\nUser has high loyalty. Be deeply personal.`;
+  }
+
+  const additionalContext = "Be brutally honest. Use internet slang naturally.";
 
   const prompt = `
     ${userContext}
+    ${personalizationContext}
     Q: "${question}"
     Cards: ${cardNames}
-    ${getTarotStructure(lang)}
+    ${additionalContext}
+    ${getTarotStructure(lang, tier)}
   `;
 
   const config = {
     systemInstruction: getBaseInstruction(lang),
-    temperature: 0.7, 
-    maxOutputTokens: 450,
-    thinkingConfig: { thinkingBudget: 0 } // Fast response
+    temperature: 0.8, // Slightly higher for "Witty" creativity
+    maxOutputTokens: 1500, // Increased for longer solution texts
+    thinkingConfig: { thinkingBudget: 0 } 
   };
 
   return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
@@ -249,11 +238,19 @@ export const getCompatibilityReading = async (
     partnerBirth: string, 
     lang: Language = 'ko'
 ): Promise<string> => {
-    const prompt = `Compat: ${myInfo.name} & ${partnerBirth}. Savage.`;
+    const prompt = `
+      Analyze the sexual and deep inner compatibility between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
+      Tone: Slightly erotic, intense, revealing, but grounded in Saju/Astrology. 
+      Length: Around 30 lines.
+      Structure:
+      [Physical Chemistry]
+      [Inner Desires]
+      [Final Verdict]
+    `;
     const config = {
         systemInstruction: getBaseInstruction(lang),
-        temperature: 0.8,
-        maxOutputTokens: 450,
+        temperature: 0.85,
+        maxOutputTokens: 800,
         thinkingConfig: { thinkingBudget: 0 }
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
@@ -263,11 +260,16 @@ export const getPartnerLifeReading = async (
     partnerBirth: string,
     lang: Language = 'ko'
 ): Promise<string> => {
-    const prompt = `Life Path: ${partnerBirth}. Savage.`;
+    const prompt = `
+      Analyze the life path of a person born on ${partnerBirth} using Saju/Astrology.
+      Sections: Early Years, Middle Age, Late Years.
+      Reveal their true nature, hidden destiny, and fortune.
+      Tone: Professional, mysterious, revealing.
+    `;
     const config = {
         systemInstruction: getBaseInstruction(lang),
         temperature: 0.8,
-        maxOutputTokens: 450,
+        maxOutputTokens: 800,
         thinkingConfig: { thinkingBudget: 0 }
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
@@ -275,23 +277,40 @@ export const getPartnerLifeReading = async (
 
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
-    const prompt = `Analyze face. Truth. Savage.`;
+    const prompt = `
+      Analyze this face based on Physiognomy (Face Reading) standards at an expert level.
+      Is this person the one the user is looking for?
+      Length: ~20 lines.
+      Tone: Cynical but accurate. NOT too harsh/insulting, but honest.
+      Focus on personality, fortune, and relationship potential derived from facial features.
+    `;
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
     const config = { 
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.7, 
-        maxOutputTokens: 400,
+        maxOutputTokens: 600,
         thinkingConfig: { thinkingBudget: 0 }
     };
     return await callGenAI(prompt, config, 'gemini-2.5-flash-image', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
-    const prompt = `Life Path: ${userInfo.name}, ${userInfo.birthDate}. Wealth/Talent. Savage.`;
+    const prompt = `
+      Analyze Saju (Four Pillars) for ${userInfo.name}, Born: ${userInfo.birthDate} at ${userInfo.birthTime || 'Unknown Time'}.
+      
+      Required Content (~50 lines):
+      1. When and how will they make a fortune? (Wealth timing/source).
+      2. Hidden genius talents they don't know yet.
+      3. The Golden Age of their life (when they rule).
+      4. Future Spouse details: Height, Appearance, Vibe, Job.
+      5. Life "Cheat Codes" (Crucial facts to know).
+      
+      Tone: Professional, destined, revealing.
+    `;
     const config = { 
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.8, 
-        maxOutputTokens: 500,
+        maxOutputTokens: 1000, 
         thinkingConfig: { thinkingBudget: 0 }
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
