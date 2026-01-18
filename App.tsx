@@ -8,8 +8,7 @@ import Background from './components/Background';
 import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
 import { getTarotReading, generateTarotImage, getFallbackTarotImage, getFaceReading, getLifeReading, getCompatibilityReading, getPartnerLifeReading } from './services/geminiService';
-import { playShuffleFor, stopShuffleWithClack } from './services/soundService';
-import { initSounds, playSound, playShuffleFor, stopShuffleWithClack } from "./services/soundService";
+import { initSounds, playSound, playShuffleFor, stopShuffleWithClack } from './services/soundService';
 import html2canvas from 'html2canvas';
 
 // ---------------------------------------------------------------------------
