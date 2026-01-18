@@ -298,24 +298,40 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
 const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string }> = ({ onComplete, lang, skin }) => {
   const [phase, setPhase] = useState<"split"|"riffle"|"settle">("split");
 
-  useEffect(() => {
-  playSound("SWOOSH");      // 시작 때 한 번 “슥”
-  playShuffleFor(2800);     // ✅ 2.8초 동안 자연스러운 셔플 루프 + 끝에 clack
-
-  const t = setTimeout(() => {
-    onComplete();
-  }, 3000); // 사운드보다 약간 늦게 화면 넘어가면 만족감 상승
-
-  return () => {
-    clearTimeout(t);
-    // 혹시 중간에 나가면 강제로 종료 + clack(선택)
-    // stopShuffleWithClack();
-    stopShuffleLoop(); // 안전 종료
-  };
-}, [onComplete]);
-
+  const deckCount = 10;
   const skinClass = SKINS.find(s => s.id === skin)?.cssClass ?? "";
-  const deckCount = 10; // ✅ 8~12 권장 (자연스럽고 렉 없음)
+
+  // 카드별 랜덤 파라미터 (매 렌더마다 바뀌면 더 이상해지니 useMemo로 고정)
+  const riffleParams = React.useMemo(() => {
+    const rand = (min: number, max: number) => Math.random() * (max - min) + min;
+    return Array.from({ length: deckCount }).map((_, i) => {
+      const side = i % 2 === 0 ? -1 : 1; // 좌/우 베이스만 주고 나머지는 랜덤
+      return {
+        startX: side * rand(90, 140),
+        startY: rand(-8, 18),
+        startRot: side * rand(6, 14),
+        midX: side * rand(10, 28),
+        midY: rand(-16, -4),
+        midRot: -side * rand(3, 10),
+      };
+    });
+  }, [deckCount]);
+
+  useEffect(() => {
+    playSound("SWOOSH");
+    playShuffleFor(2800);
+
+    // ✅ phase 타임라인
+    setPhase("split");
+    const t1 = setTimeout(() => setPhase("riffle"), 250);
+    const t2 = setTimeout(() => setPhase("settle"), 1350);
+    const t3 = setTimeout(() => onComplete(), 3000);
+
+    return () => {
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+      stopShuffleLoop();
+    };
+  }, [onComplete]);
 
   const deckPhaseClass =
     phase === "split" ? "deck-phase-split" :
@@ -323,20 +339,42 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md">
-      <div className={`relative w-[340px] h-[260px] ${skinClass} ${deckPhaseClass}`}>
-        {phase === "riffle" && Array.from({ length: deckCount }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-28 h-44 rounded-xl card-back shuffle-riffle"
-            style={{ zIndex: deckCount - i, ["--i" as any]: i }}
-          />
-        ))}
-        {phase !== "riffle" && (
-          <div className="absolute left-1/2 top-1/2 w-28 h-44 -translate-x-1/2 -translate-y-1/2 rounded-xl card-back shadow-2xl" />
-        )}
+      {/* ✅ 러그 레이어 */}
+      <div className="relative w-[420px] h-[320px] flex items-center justify-center">
+        <div
+          className="absolute inset-0 rug-texture rounded-[28px] opacity-90"
+          style={{
+            border: "1px solid rgba(191,149,63,0.25)",
+            boxShadow: "inset 0 0 120px rgba(0,0,0,0.9), 0 30px 80px rgba(0,0,0,0.7)"
+          }}
+        />
+
+        {/* ✅ 덱 */}
+        <div className={`relative w-[340px] h-[260px] ${skinClass} ${deckPhaseClass}`}>
+          {phase === "riffle" && riffleParams.map((p, i) => (
+            <div
+              key={i}
+              className="absolute w-28 h-44 rounded-xl card-back shuffle-riffle"
+              style={{
+                zIndex: deckCount - i,
+                ["--i" as any]: i,
+                ["--startX" as any]: `${p.startX}px`,
+                ["--startY" as any]: `${p.startY}px`,
+                ["--startRot" as any]: `${p.startRot}deg`,
+                ["--midX" as any]: `${p.midX}px`,
+                ["--midY" as any]: `${p.midY}px`,
+                ["--midRot" as any]: `${p.midRot}deg`,
+              }}
+            />
+          ))}
+
+          {phase !== "riffle" && (
+            <div className="absolute left-1/2 top-1/2 w-28 h-44 -translate-x-1/2 -translate-y-1/2 rounded-xl card-back shadow-2xl" />
+          )}
+        </div>
       </div>
 
-      <p className="mt-12 text-xl font-occult text-purple-200 animate-pulse tracking-[0.2em] z-[60] bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
+      <p className="mt-10 text-xl font-occult text-purple-200 animate-pulse tracking-[0.2em] z-[60] bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
         {TRANSLATIONS[lang].shuffling}
       </p>
     </div>
