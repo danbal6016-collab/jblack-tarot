@@ -296,41 +296,41 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
 };
 
 const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string }> = ({ onComplete, lang, skin }) => {
-  useEffect(() => {
-    playSound("SWOOSH");
-    playShuffleLoop(); // ✅ 이게 있어야 셔플 사운드가 “계속” 나옴
+  const [phase, setPhase] = useState<"split"|"riffle"|"settle">("split");
 
-    const t = setTimeout(() => {
-      stopShuffleLoop();
-      onComplete();
-    }, 1600); // ✅ 3.8초는 너무 길어서 체감상 답답 + 렉 체감 커짐
+  useEffect(() => {
+    playShuffleLoop();
+
+    const t1 = setTimeout(() => setPhase("riffle"), 900);    // split 끝
+    const t2 = setTimeout(() => setPhase("settle"), 2400);   // riffle 끝 + 잠깐 여유
+    const t3 = setTimeout(() => { stopShuffleLoop(); onComplete(); }, 2900); // settle 끝
 
     return () => {
       stopShuffleLoop();
-      clearTimeout(t);
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
     };
   }, [onComplete]);
 
-  const deckCount = 22; // ✅ 28은 과함. 애니메이션 28개 동시에 돌리면 렉 올라감
   const skinClass = SKINS.find(s => s.id === skin)?.cssClass ?? "";
+  const deckCount = 10; // ✅ 8~12 권장 (자연스럽고 렉 없음)
+
+  const deckPhaseClass =
+    phase === "split" ? "deck-phase-split" :
+    phase === "settle" ? "deck-phase-settle" : "";
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md">
-      <div className="absolute w-[90vw] h-[90vw] max-w-[500px] max-h-[500px] bg-[#2e0b49] rounded-full border-4 border-yellow-600/50 shadow-[0_0_80px_rgba(76,29,149,0.5)] flex items-center justify-center overflow-hidden rug-texture">
-        <div className="absolute w-[80%] h-[80%] border-2 border-dashed border-yellow-600/30 rounded-full animate-spin-slow"></div>
-      </div>
-
-      <div className={`relative w-[340px] h-[260px] deck-pulse ${skinClass}`}>
-        {Array.from({ length: deckCount }).map((_, i) => (
+      <div className={`relative w-[340px] h-[260px] ${skinClass} ${deckPhaseClass}`}>
+        {phase === "riffle" && Array.from({ length: deckCount }).map((_, i) => (
           <div
             key={i}
             className="absolute w-28 h-44 rounded-xl card-back shuffle-riffle"
-            style={{
-              zIndex: deckCount - i,
-              ["--i" as any]: i,
-            }}
+            style={{ zIndex: deckCount - i, ["--i" as any]: i }}
           />
         ))}
+        {phase !== "riffle" && (
+          <div className="absolute left-1/2 top-1/2 w-28 h-44 -translate-x-1/2 -translate-y-1/2 rounded-xl card-back shadow-2xl" />
+        )}
       </div>
 
       <p className="mt-12 text-xl font-occult text-purple-200 animate-pulse tracking-[0.2em] z-[60] bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
@@ -339,6 +339,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
     </div>
   );
 };
+
 
     
 
