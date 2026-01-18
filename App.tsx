@@ -56,7 +56,7 @@ const TRANSLATIONS = {
     tier_benefit_gold: "매달 1일 보유 코인 2.0배",
     tier_benefit_platinum: "매달 1일 보유 코인 3.0배",
     no_benefit: "혜택 없음",
-    guest_exhausted: "게스트 횟수가 소진되었습니다.",
+    guest_exhausted: "게스트 무료 횟수(1회)를 소진했습니다.",
     coin_shortage: "코인이 부족합니다.",
     shop_title: "블랙코인 상점",
     shop_subtitle: "마음 속 고민의 운명적인 해답을 찾아 보세요.",
@@ -75,8 +75,8 @@ const TRANSLATIONS = {
     pay_title: "결제 수단 선택",
     pay_cancel: "취소",
     pay_confirm: "결제하기",
-    guest_lock_msg: "계속하려면 로그인이 필요합니다.",
-    guest_lock_btn: "로그인 하러 가기",
+    guest_lock_msg: "무료 체험이 끝났습니다. 계속하려면 로그인이 필요합니다.",
+    guest_lock_btn: "로그인 / 회원가입",
     secret_compat_title: "은밀한 궁합",
     secret_compat_desc: "당신과 그 사람의 속궁합, 그리고 숨겨진 욕망.",
     secret_compat_btn: "궁합 확인 (-150 Coin)",
@@ -126,7 +126,7 @@ const TRANSLATIONS = {
     tier_benefit_gold: "2.0x Coins monthly",
     tier_benefit_platinum: "3.0x Coins monthly",
     no_benefit: "No benefits",
-    guest_exhausted: "Guest limit reached.",
+    guest_exhausted: "Guest trial (1 reading) used.",
     coin_shortage: "Not enough coins.",
     shop_title: "Black Coin Shop",
     shop_subtitle: "Find the fateful answer to your heart's trouble.",
@@ -145,8 +145,8 @@ const TRANSLATIONS = {
     pay_title: "Select Payment Method",
     pay_cancel: "Cancel",
     pay_confirm: "Pay Now",
-    guest_lock_msg: "Login required to continue.",
-    guest_lock_btn: "Go to Login",
+    guest_lock_msg: "Trial ended. Login required to continue.",
+    guest_lock_btn: "Login / Sign Up",
     secret_compat_title: "Secret Compat",
     secret_compat_desc: "Inner desires and physical chemistry.",
     secret_compat_btn: "Check Compat (-150 Coin)",
@@ -298,7 +298,7 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
 const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string }> = ({ onComplete, lang, skin }) => {
   useEffect(() => {
     playSound('SWOOSH');
-    playShuffleLoop();
+    // Using playSound 'SWOOSH' triggers the loop in soundService
     const t = setTimeout(() => {
       stopShuffleLoop();
       onComplete();
@@ -319,7 +319,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
         {Array.from({length: 60}).map((_, i) => {
             const isLeft = i % 2 === 0;
             return (
-                 <div key={i} className={`absolute inset-0 rounded-xl bg-gradient-to-br from-[#2e1065] to-blackZQ border border-[#fbbf24]/30 shadow-2xl card-back ${isLeft ? 'shuffle-card-left' : 'shuffle-card-right'}`} 
+                 <div key={i} className={`absolute inset-0 rounded-xl bg-gradient-to-br from-[#2e1065] to-black border border-[#fbbf24]/30 shadow-2xl card-back ${isLeft ? 'shuffle-card-left' : 'shuffle-card-right'}`} 
                       style={{
                           zIndex: i,
                           animation: `wash${(i % 5) + 1} ${2 + (i % 4) * 0.4}s ease-in-out infinite ${i * 0.05}s alternate`,
@@ -391,6 +391,9 @@ const ResultView: React.FC<{
   const [isSolutionUnlocked, setIsSolutionUnlocked] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
 
+  // Use generated images passed in from selectedCards immediately
+  const cardImages = selectedCards.map(c => c.generatedImage || c.imagePlaceholder);
+
   useEffect(() => {
     if(readingPromise) {
       readingPromise.then(t => {
@@ -454,7 +457,7 @@ const ResultView: React.FC<{
           <div className="flex gap-8 mb-20 relative z-10">
               {selectedCards.map((c, i) => (
                   <div key={i} className="w-64 h-96 relative rounded-2xl border-2 border-yellow-500/50 overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.4)]">
-                       <img src={c.imagePlaceholder} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} />
+                       <img src={cardImages[i]} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} />
                        <div className="absolute bottom-0 w-full bg-black/70 text-center py-4 text-2xl font-bold text-yellow-500 uppercase">{c.name}</div>
                   </div>
               ))}
@@ -482,7 +485,7 @@ const ResultView: React.FC<{
                         <div className={`w-24 h-40 md:w-32 md:h-52 relative transition-all duration-700 transform-style-3d ${revealed[i] ? 'rotate-y-180' : 'hover:-translate-y-2'}`}>
                            <div className="absolute inset-0 backface-hidden rounded-lg card-back shadow-[0_0_15px_rgba(0,0,0,0.8)] border border-purple-500/20"></div>
                            <div className="absolute inset-0 backface-hidden rotate-y-180 bg-black rounded-lg overflow-hidden border border-yellow-600/50 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                              <img src={c.imagePlaceholder} className={`w-full h-full object-cover opacity-90 ${c.isReversed?'rotate-180':''}`} alt={c.name} />
+                              <img src={cardImages[i]} className={`w-full h-full object-cover opacity-90 ${c.isReversed?'rotate-180':''}`} alt={c.name} />
                               <div className="absolute bottom-2 left-0 right-0 text-center">
                                   <span className="text-[10px] md:text-xs font-occult text-yellow-500 uppercase tracking-widest bg-black/50 px-2 py-0.5 rounded">{c.name}</span>
                               </div>
@@ -672,14 +675,6 @@ const App: React.FC = () => {
     setAppState(newState);
   };
 
-  const goBack = () => {
-    if (historyStack.length > 0) {
-      const prev = historyStack[historyStack.length - 1];
-      setHistoryStack(prevStack => prevStack.slice(0, -1));
-      setAppState(prev);
-    }
-  };
-
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getSession();
@@ -729,9 +724,7 @@ const App: React.FC = () => {
               currentMonthlyReward = today.substring(0, 7);
           }
 
-          // Attendance Logic (New Users / Reset if break?)
-          // Prompt implies strictly "New user gets 10 days check". Assuming it flows 1 to 10 then stops or resets.
-          // Let's implement: If lastAttendance != today, increment day. 
+          // Attendance Logic
           if (newLastAttendance !== today && newAttendanceDay < 10) {
               newAttendanceDay += 1;
               const reward = ATTENDANCE_REWARDS[newAttendanceDay - 1];
@@ -844,10 +837,6 @@ const App: React.FC = () => {
     }, 1500);
   };
   
-  // -------------------------------------------------------------------------
-  // RESTORED HANDLERS FOR FLOW
-  // -------------------------------------------------------------------------
-
   const handleCategorySelect = (category: QuestionCategory) => {
       if (category.minTier) {
           const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
@@ -875,6 +864,16 @@ const App: React.FC = () => {
   };
 
   const startFaceReading = () => {
+      // Guest Check for Face Reading
+      if (user.email === 'Guest') {
+          const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0');
+          if (guestReadings >= 1) {
+              setShowGuestBlock(true);
+              return;
+          }
+          localStorage.setItem('guest_readings', (guestReadings + 1).toString());
+      }
+
       if (!faceImage) return alert("Please upload a photo first.");
       if (!spendCoins(100)) return;
 
@@ -885,6 +884,16 @@ const App: React.FC = () => {
   };
 
   const startLifeReading = () => {
+      // Guest Check for Life Reading
+      if (user.email === 'Guest') {
+          const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0');
+          if (guestReadings >= 1) {
+              setShowGuestBlock(true);
+              return;
+          }
+          localStorage.setItem('guest_readings', (guestReadings + 1).toString());
+      }
+
       if (!spendCoins(150)) return;
       
       navigateTo(AppState.RESULT);
@@ -894,6 +903,16 @@ const App: React.FC = () => {
   };
 
   const startPartnerReading = () => {
+      // Guest Check for Partner Reading
+      if (user.email === 'Guest') {
+          const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0');
+          if (guestReadings >= 1) {
+              setShowGuestBlock(true);
+              return;
+          }
+          localStorage.setItem('guest_readings', (guestReadings + 1).toString());
+      }
+
       if (!selectedCategory) return;
       const cost = selectedCategory.cost || 0;
       if (!spendCoins(cost)) return;
@@ -911,23 +930,45 @@ const App: React.FC = () => {
   };
 
   const handleCardSelect = (indices: number[]) => {
-      // For standard readings, check daily limits if needed
-      // Special categories don't use this flow
-      const limit = user.tier === UserTier.BRONZE ? 5 : (user.tier === UserTier.SILVER ? 20 : 999);
-      if (user.readingsToday >= limit) {
-          alert(TRANSLATIONS[lang].limit_reached);
-          return;
+      // Strict Guest Limit Check
+      if (user.email === 'Guest') {
+          const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0');
+          if (guestReadings >= 1) {
+              setShowGuestBlock(true);
+              return;
+          }
+          // Increment usage immediately upon selection
+          localStorage.setItem('guest_readings', (guestReadings + 1).toString());
+      } else {
+          // Registered user daily limits
+          const limit = user.tier === UserTier.BRONZE ? 5 : (user.tier === UserTier.SILVER ? 20 : 999);
+          if (user.readingsToday >= limit) {
+              alert(TRANSLATIONS[lang].limit_reached);
+              return;
+          }
+          setUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
       }
-      
-      setUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
 
-      const selected = indices.map(i => ({
-          id: i,
-          name: TAROT_DECK[i],
-          isReversed: Math.random() < 0.3,
-          imagePlaceholder: getFallbackTarotImage(i),
-          backDesign: 0
-      }));
+      const selected = indices.map(i => {
+          const cardName = TAROT_DECK[i];
+          // Pre-generate URL immediately
+          const seed = Math.floor(Math.random() * 1000000);
+          const encodedName = encodeURIComponent(cardName);
+          const genUrl = `https://image.pollinations.ai/prompt/tarot%20card%20${encodedName}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=400&height=600&nologo=true&seed=${seed}&model=flux`;
+          
+          // Trigger browser preload
+          const img = new Image();
+          img.src = genUrl;
+
+          return {
+              id: i,
+              name: cardName,
+              isReversed: Math.random() < 0.3,
+              imagePlaceholder: getFallbackTarotImage(i),
+              generatedImage: genUrl, // Pass generated URL directly
+              backDesign: 0
+          };
+      });
 
       setSelectedCards(selected);
       navigateTo(AppState.RESULT);
@@ -949,9 +990,7 @@ const App: React.FC = () => {
                     onLogin={() => setAuthMode("LOGIN")}
                     openProfile={() => setShowProfile(true)}
                  />
-                 {historyStack.length > 1 && appState !== AppState.CATEGORY_SELECT && (
-                     <button onClick={goBack} className="fixed top-24 left-4 z-40 p-2 bg-black/50 rounded-full border border-gray-600 text-gray-300 hover:bg-black hover:text-white">← Back</button>
-                 )}
+                 {/* Back button removed as requested */}
               </div>
           )}
 
@@ -1161,7 +1200,7 @@ const App: React.FC = () => {
                          <button onClick={handleCustomQuestionSubmit} className="absolute right-2 top-6 bottom-2 px-4 bg-purple-900 rounded text-xs font-bold hover:bg-purple-700 mt-4 mb-2">OK</button>
                      </div>
                  </div>
-                 <button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="mt-8 text-gray-500 underline text-sm">Back</button>
+                 {/* Back button removed as requested */}
              </div>
           )}
 
