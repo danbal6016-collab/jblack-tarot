@@ -7,7 +7,6 @@ import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 // ---------------------------------------------------------------------------
 
 const getBaseInstruction = (lang: Language) => {
-    // STRICT "JENNIE" PERSONA
     return `
 You are 'Jennie', a REALISTIC, CYNICAL, WITTY, INTERNET-ADDICTED CONSULTANT.
 You use Korean Honorifics (존댓말) but your vocabulary is that of a heavy internet user (Twitter/Community vibe).
@@ -24,7 +23,6 @@ STRICT RULES - DO NOT IGNORE:
 };
 
 const getTarotStructure = (lang: Language, tier: string = 'BRONZE') => {
-    // FORMAT RULES
     return `
 FORMAT:
 [내용 분석]
@@ -54,8 +52,8 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 2,
-    baseDelay: number = 500
+    maxRetries: number = 3, // Increased retries
+    baseDelay: number = 1000 // Increased base delay
 ): Promise<T> {
     let lastError: any;
     
@@ -65,8 +63,10 @@ async function retryOperation<T>(
         } catch (error: any) {
             lastError = error;
             const status = error.status || error.response?.status;
+            // Retry on 429 (Quota), 5xx (Server), or Network errors
             if (status === 429 || status >= 500 || error.message?.toLowerCase().includes('fetch') || error.message?.toLowerCase().includes('network')) {
-                const delay = baseDelay * (i + 1); 
+                const delay = baseDelay * Math.pow(2, i); // Exponential backoff: 1s, 2s, 4s
+                console.warn(`Retry ${i+1}/${maxRetries} after ${delay}ms due to error:`, error.message);
                 await wait(delay);
                 continue;
             }
@@ -78,12 +78,12 @@ async function retryOperation<T>(
 
 async function callGenAI(prompt: string, baseConfig: any, model: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
     const PROXY_TIMEOUT = 25000;   
-    const CLIENT_TIMEOUT = 18000; 
+    const CLIENT_TIMEOUT = 20000; 
     
     const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
 
     const getFallbackMsg = () => {
-        return `[내용 분석]\n서버가 터졌습니다. 억까 그 자체네요. 인터넷 상태 확인하고 다시 오세요.\n\n[조언 한마디]\n새로고침이 답입니다.`;
+        return `[내용 분석]\n서버가 과부하로 터졌습니다. 지금 운명을 읽으려는 사람이 너무 많네요. 억까 그 자체입니다. 잠시 후 다시 시도해 보세요.\n\n[조언 한마디]\n인내심을 기르는 것도 수행입니다.`;
     };
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -97,7 +97,7 @@ async function callGenAI(prompt: string, baseConfig: any, model: string = 'gemin
     };
 
     try {
-        // 1. Attempt Server-Side Proxy
+        // 1. Attempt Server-Side Proxy (if available)
         try {
             const proxyPromise = (async () => {
                 const body: any = { prompt, config, model };
@@ -122,7 +122,7 @@ async function callGenAI(prompt: string, baseConfig: any, model: string = 'gemin
             // console.warn("Proxy failed, switching to client...", proxyError);
         }
 
-        // 2. Client-Side Fallback (Direct REST API to avoid SDK Referrer issues)
+        // 2. Client-Side Fallback (Direct REST API)
         let apiKey = '';
         try {
             // @ts-ignore
@@ -144,7 +144,7 @@ async function callGenAI(prompt: string, baseConfig: any, model: string = 'gemin
             return getFallbackMsg();
         }
 
-        // Use Direct REST API Call instead of SDK to strip Referrer manually
+        // Use Direct REST API Call with retry mechanism
         const responseText = await retryOperation(async () => {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
             
@@ -164,7 +164,8 @@ async function callGenAI(prompt: string, baseConfig: any, model: string = 'gemin
                         generationConfig: config,
                         safetySettings: SAFETY_SETTINGS
                     }),
-                    referrerPolicy: "no-referrer" // CRITICAL FIX FOR 403
+                    // CRITICAL: Set referrerPolicy to 'no-referrer' to avoid 403 errors from API key restrictions
+                    referrerPolicy: "no-referrer" 
                 }),
                 CLIENT_TIMEOUT
             );
@@ -181,7 +182,7 @@ async function callGenAI(prompt: string, baseConfig: any, model: string = 'gemin
                 return text;
             }
             throw new Error("No text generated in response");
-        }, 1);
+        }, 3, 1500); // 3 retries, starting at 1.5s delay
 
         return responseText;
 
@@ -204,29 +205,25 @@ export const getTarotReading = async (
   const cardNames = cards.map(c => c.name + (c.isReversed ? " (Reversed)" : "")).join(", ");
   const userContext = userInfo ? `User: ${userInfo.name}, ${userInfo.birthDate}` : "User: Anonymous";
   
-  // AI Personalization for Silver+
   let personalizationContext = "";
   if ((tier === 'SILVER' || tier === 'GOLD' || tier === 'PLATINUM') && history.length > 0) {
-      // Get last 3 readings to give context
       const recentHistory = history.slice(0, 3).map(h => `Q: ${h.question} -> A: ${h.interpretation.substring(0, 50)}...`).join("\n");
       personalizationContext = `\n[Context from User History - DO NOT REPEAT, just use for tone consistency]\n${recentHistory}\nUser has high loyalty. Be deeply personal.`;
   }
-
-  const additionalContext = "Be brutally honest. Use internet slang naturally.";
 
   const prompt = `
     ${userContext}
     ${personalizationContext}
     Q: "${question}"
     Cards: ${cardNames}
-    ${additionalContext}
+    Be brutally honest. Use internet slang naturally.
     ${getTarotStructure(lang, tier)}
   `;
 
   const config = {
     systemInstruction: getBaseInstruction(lang),
-    temperature: 0.8, // Slightly higher for "Witty" creativity
-    maxOutputTokens: 1500, // Increased for longer solution texts
+    temperature: 0.8,
+    maxOutputTokens: 1500,
     thinkingConfig: { thinkingBudget: 0 } 
   };
 
