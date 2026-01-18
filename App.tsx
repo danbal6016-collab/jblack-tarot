@@ -335,29 +335,21 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
         <div className="absolute w-[80%] h-[80%] border-2 border-dashed border-yellow-600/30 rounded-full animate-spin-slow"></div>
       </div>
 
-      {/* Two stacks that riffle into the center */}
-      <div className={`relative w-[340px] h-[260px] ${SKINS.find(s=>s.id===skin)?.cssClass}`}>
-        {Array.from({ length: deckCount }).map((_, i) => {
-          const side = i < leftCount ? "L" : "R";
-          const local = side === "L" ? i : i - leftCount;
+     <div className={`relative w-[340px] h-[260px] ${SKINS.find(s => s.id === skin)?.cssClass}`}>
+  {Array.from({ length: deckCount }).map((_, i) => (
+    <div
+      key={i}
+      className="absolute w-28 h-44 rounded-xl card-back border border-[#fbbf24]/25 shadow-2xl shuffle-riffle"
+      style={{
+        zIndex: deckCount - i,
+        // animation stagger only
+        // @ts-ignore
+        ["--i" as any]: i,
+      }}
+    />
+  ))}
+</div>
 
-          return (
-            <div
-              key={i}
-              className={`absolute w-28 h-44 rounded-xl card-back border border-[#fbbf24]/25 shadow-2xl shuffle-riffle`}
-              style={{
-                // layering
-                zIndex: deckCount - i,
-                // custom props for CSS keyframes
-                // @ts-ignore
-                ["--side" as any]: side,
-                // @ts-ignore
-                ["--i" as any]: local,
-              }}
-            />
-          );
-        })}
-      </div>
 
       <p className="mt-12 text-xl font-occult text-purple-200 animate-pulse tracking-[0.2em] z-[60] bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
         {TRANSLATIONS[lang].shuffling}
