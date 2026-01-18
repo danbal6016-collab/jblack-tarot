@@ -316,16 +316,56 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
        </div>
 
       <div className={`relative w-40 h-64 ${SKINS.find(s=>s.id===skin)?.cssClass}`}>
-        {Array.from({length: 60}).map((_, i) => {
-            const isLeft = i % 2 === 0;
-            return (
-                 <div key={i} className={`absolute inset-0 rounded-xl bg-gradient-to-br from-[#2e1065] to-black border border-[#fbbf24]/30 shadow-2xl card-back ${isLeft ? 'shuffle-card-left' : 'shuffle-card-right'}`} 
-                      style={{
-                          zIndex: i,
-                          animation: `wash${(i % 5) + 1} ${2 + (i % 4) * 0.4}s ease-in-out infinite ${i * 0.05}s alternate`,
-                          transformOrigin: 'center center'
-                      }}>
-                 </div>
+       const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string }> = ({ onComplete, lang, skin }) => {
+  useEffect(() => {
+    playSound('SWOOSH');
+    const t = setTimeout(() => {
+      stopShuffleLoop();
+      onComplete();
+    }, 5000);
+    return () => { stopShuffleLoop(); clearTimeout(t); };
+  }, []);
+
+  const deckCount = 28;
+  const leftCount = Math.floor(deckCount / 2);
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md">
+      <div className="absolute w-[90vw] h-[90vw] max-w-[500px] max-h-[500px] bg-[#2e0b49] rounded-full border-4 border-yellow-600/50 shadow-[0_0_80px_rgba(76,29,149,0.5)] flex items-center justify-center overflow-hidden rug-texture">
+        <div className="absolute w-[80%] h-[80%] border-2 border-dashed border-yellow-600/30 rounded-full animate-spin-slow"></div>
+      </div>
+
+      {/* Two stacks that riffle into the center */}
+      <div className={`relative w-[340px] h-[260px] ${SKINS.find(s=>s.id===skin)?.cssClass}`}>
+        {Array.from({ length: deckCount }).map((_, i) => {
+          const side = i < leftCount ? "L" : "R";
+          const local = side === "L" ? i : i - leftCount;
+
+          return (
+            <div
+              key={i}
+              className={`absolute w-28 h-44 rounded-xl card-back border border-[#fbbf24]/25 shadow-2xl shuffle-riffle`}
+              style={{
+                // layering
+                zIndex: deckCount - i,
+                // custom props for CSS keyframes
+                // @ts-ignore
+                ["--side" as any]: side,
+                // @ts-ignore
+                ["--i" as any]: local,
+              }}
+            />
+          );
+        })}
+      </div>
+
+      <p className="mt-12 text-xl font-occult text-purple-200 animate-pulse tracking-[0.2em] z-[60] bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
+        {TRANSLATIONS[lang].shuffling}
+      </p>
+    </div>
+  );
+};
+
             )
         })}
       </div>
