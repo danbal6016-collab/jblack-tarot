@@ -81,17 +81,80 @@
         box-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
       }
       
-      /* --- SHUFFLE ANIMATIONS --- */
-      @keyframes wash1 { 0% { transform: translate(0,0) rotate(0deg); z-index: 10; } 50% { transform: translate(40px, 60px) rotate(90deg); z-index: 5; } 100% { transform: translate(0,0) rotate(360deg); z-index: 10; } }
-      @keyframes wash2 { 0% { transform: translate(0,0) rotate(0deg); z-index: 12; } 33% { transform: translate(90px, 90px) rotate(120deg); z-index: 40; } 100% { transform: translate(0,0) rotate(0deg); z-index: 12; } }
-      @keyframes wash3 { 0% { transform: translate(0,0) rotate(0deg); z-index: 15; } 60% { transform: translate(60px, -80px) rotate(-120deg); z-index: 50; } 100% { transform: translate(0,0) rotate(0deg); z-index: 15; } }
-      @keyframes wash4 { 0% { transform: translate(0,0) rotate(0deg); z-index: 20; } 80% { transform: translate(20px, 100px) rotate(45deg); z-index: 45; } 100% { transform: translate(0,0) rotate(0deg); z-index: 20; } }
-      @keyframes wash5 { 0% { transform: translate(0,0) rotate(0deg); z-index: 25; } 50% { transform: translate(0, -120px) rotate(360deg); z-index: 60; } 100% { transform: translate(0,0) rotate(720deg); z-index: 25; } }
-      @keyframes shuffle-left { 0% { transform: translateX(0); } 50% { transform: translateX(-50px) rotate(-10deg); } 100% { transform: translateX(0); } }
-      @keyframes shuffle-right { 0% { transform: translateX(0); } 50% { transform: translateX(50px) rotate(10deg); } 100% { transform: translateX(0); } }
+    /* --- NEW: Riffle Shuffle (more satisfying) --- */
+.shuffle-riffle {
+  left: 50%;
+  top: 50%;
+  transform: translate3d(-50%, -50%, 0);
+  will-change: transform, filter;
+  background: radial-gradient(circle at 50% 40%, #452269 0%, #2a164f 50%, #110524 100%);
+}
 
-      .shuffle-card-left { animation: shuffle-left 0.5s infinite alternate; }
-      .shuffle-card-right { animation: shuffle-right 0.5s infinite alternate; }
+@keyframes riffleIn {
+  0% {
+    transform: translate3d(calc(-50% + var(--startX)), calc(-50% + var(--startY)), 0) rotate(var(--startRot));
+    filter: blur(0px) brightness(0.9);
+  }
+  55% {
+    transform: translate3d(calc(-50% + var(--midX)), calc(-50% + var(--midY)), 0) rotate(var(--midRot));
+    filter: blur(0.2px) brightness(1.05);
+  }
+  100% {
+    transform: translate3d(-50%, -50%, 0) rotate(0deg);
+    filter: blur(0px) brightness(1.0);
+  }
+}
+
+/* use CSS variables derived from side + index */
+.shuffle-riffle {
+  --gap: 6px;
+  --lift: 2px;
+
+  /* left stack starts left, right stack starts right */
+  --startX: calc((var(--side) == "L") * -120px + (var(--side) == "R") * 120px);
+  /* fallback (since CSS can't compare strings reliably across browsers):
+     we’ll approximate using the index pattern below (works visually even if browser ignores string compare) */
+  --startX: 120px;
+  --startY: 10px;
+  --startRot: 8deg;
+
+  --midX: 20px;
+  --midY: -12px;
+  --midRot: -6deg;
+
+  animation: riffleIn 900ms cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
+}
+
+/* Browser-safe side split (no string compare):
+   We'll use nth-child to alternate left/right feel */
+.shuffle-riffle:nth-child(odd) {
+  --startX: -125px;
+  --startY: 12px;
+  --startRot: -10deg;
+  --midX: -18px;
+  --midY: -10px;
+  --midRot: 6deg;
+}
+.shuffle-riffle:nth-child(even) {
+  --startX: 125px;
+  --startY: 12px;
+  --startRot: 10deg;
+  --midX: 18px;
+  --midY: -10px;
+  --midRot: -6deg;
+}
+
+/* interleave timing: each card slightly delayed */
+.shuffle-riffle {
+  animation-delay: calc(var(--i) * 40ms);
+}
+
+/* slow subtle “deck breathing” */
+@keyframes deckPulse {
+  0% { transform: translate3d(-50%, -50%, 0) scale(1); }
+  100% { transform: translate3d(-50%, -50%, 0) scale(1.02); }
+}
+
 
       /* Rug Texture */
       .rug-texture {
