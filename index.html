@@ -105,7 +105,6 @@
 .deck-phase-split  { animation: splitWiggle 900ms ease-in-out 1; }
 .deck-phase-settle { animation: settle 500ms ease-out 1; }
 
-/* Cards riffle only during phase 2 */
 .shuffle-riffle {
   left: 50%;
   top: 50%;
@@ -117,7 +116,7 @@
   animation-delay: calc(var(--i) * 26ms);
 }
 
-/* left/right feel */
+/* (선택) fallback만 유지 */
 .shuffle-riffle:nth-child(odd)  { --startX: -120px; --startY: 10px; --startRot: -10deg; --midX: -18px; --midY: -10px; --midRot: 6deg; }
 .shuffle-riffle:nth-child(even) { --startX:  120px; --startY: 10px; --startRot:  10deg; --midX:  18px; --midY: -10px; --midRot:-6deg; }
 
