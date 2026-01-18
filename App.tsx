@@ -316,7 +316,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
         <div className="absolute w-[80%] h-[80%] border-2 border-dashed border-yellow-600/30 rounded-full animate-spin-slow"></div>
       </div>
 
-      <div className={`relative w-[340px] h-[260px] ${SKINS.find((s) => s.id === skin)?.cssClass}`}>
+     <div className={`relative w-[340px] h-[260px] ${SKINS.find(s => s.id === skin)?.cssClass ?? ''}`}>
         {Array.from({ length: deckCount }).map((_, i) => (
           <div
             key={i}
