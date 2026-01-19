@@ -209,19 +209,24 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                     const body: any = { prompt, config, model };
                     if (imageParts) body.imageParts = imageParts;
 
-                    const constEqRes = await fetch('/api/gemini', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
-                    });
-                    
-                    if (!constEqRes.ok) {
-                        const errText = await constEqRes.text().catch(() => constEqRes.statusText);
-                        throw new Error(`Proxy ${constEqRes.status}: ${errText}`);
+                    try {
+                        const constEqRes = await fetch('/api/gemini', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        });
+                        
+                        if (!constEqRes.ok) {
+                            const errText = await constEqRes.text().catch(() => constEqRes.statusText);
+                            throw new Error(`Proxy ${constEqRes.status}: ${errText}`);
+                        }
+                        const data = await constEqRes.json();
+                        if (!data.text) throw new Error("Empty response from proxy");
+                        return data.text as string;
+                    } catch (fetchErr: any) {
+                        // Catch network errors specifically here to prevent "Failed to fetch" from crashing things unexpectedly
+                        throw new Error(`Fetch failed: ${fetchErr.message}`);
                     }
-                    const data = await constEqRes.json();
-                    if (!data.text) throw new Error("Empty response from proxy");
-                    return data.text as string;
                 })();
 
                 return await withTimeout(proxyPromise, API_TIMEOUT);
