@@ -1307,6 +1307,9 @@ const App: React.FC = () => {
       } else {
           const limit = user.tier === UserTier.BRONZE ? 5 : (user.tier === UserTier.SILVER ? 20 : 999);
           if (user.readingsToday >= limit) { alert(TRANSLATIONS[lang].limit_reached); return; }
+          
+          if (!spendCoins(5)) return;
+
           updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
       }
 
