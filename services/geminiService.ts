@@ -151,59 +151,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
 
             let responseText = "";
             
-            // 1. Client-Side Call (SDK)
-            let apiKey = '';
-            try {
-                // Check import.meta.env first for Vite
-                // @ts-ignore
-                if (typeof import.meta !== 'undefined' && import.meta.env) {
-                    // @ts-ignore
-                    apiKey = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
-                }
-            } catch(e) {}
-
-            try {
-                // Fallback to process.env
-                // @ts-ignore
-                if (!apiKey && typeof process !== 'undefined' && process.env) {
-                    apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
-                }
-            } catch(e) {}
-
-            if (apiKey) {
-                try {
-                    // Wrap SDK call in timeout
-                    responseText = await withTimeout(retryOperation(async () => {
-                        const ai = new GoogleGenAI({ apiKey });
-                        
-                        let contents: any = { parts: [{ text: prompt }] };
-                        if (imageParts && imageParts.length > 0) {
-                            contents = { parts: [...imageParts, { text: prompt }] };
-                        }
-
-                        const response = await ai.models.generateContent({
-                            model: model,
-                            contents: contents,
-                            config: config
-                        });
-
-                        if (response.text) return response.text;
-                        
-                        if (response.candidates && response.candidates.length > 0 && response.candidates[0].finishReason) {
-                             throw new Error(`Blocked: ${response.candidates[0].finishReason}`);
-                        }
-                        
-                        throw new Error("No text generated from model (empty response).");
-                    }, 2, 1000), API_TIMEOUT);
-
-                    if (responseText) return responseText;
-
-                } catch (e: any) {
-                    // Catch 403 or specific client errors to try Proxy
-                    console.warn(`Client-side SDK failed for ${model}. trying proxy...`, e.message);
-                    if (e.message.includes("Timeout")) throw e; // Don't retry timeout on proxy, just fail model
-                }
-            }
+    
 
             // 2. Proxy Fallback
             // If client failed (403/Referrer) or no key, try server-side proxy
