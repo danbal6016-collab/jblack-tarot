@@ -120,9 +120,9 @@ async function retryOperation<T>(
 }
 
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Timeout set to 180s (was 60s). 
+    // Timeout set to 300s (was 180s). 
     // Increased to allow full 4000 token generation without premature timeout.
-    const API_TIMEOUT = 180000;   
+    const API_TIMEOUT = 300000;   
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
