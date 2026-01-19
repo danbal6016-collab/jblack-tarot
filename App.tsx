@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from "./src/lib/supabase";
 import { GoogleContinueButton } from "./components/AuthModal";
@@ -1224,12 +1223,11 @@ const App: React.FC = () => {
       if (!user.userInfo) return;
       
       const newInfo = { ...editProfileData };
-      let updatedUser = { ...user };
       let changed = false;
 
       // Name Logic (Max 3)
       if (newInfo.name !== user.userInfo.name) {
-          if (user.userInfo.nameChangeCount >= 3) {
+          if ((user.userInfo.nameChangeCount || 0) >= 3) {
               alert("이름은 최대 3회까지만 변경 가능합니다.");
               return;
           }
@@ -1263,8 +1261,11 @@ const App: React.FC = () => {
       }
 
       if (changed) {
-          updatedUser.userInfo = newInfo;
-          updateUser(() => updatedUser);
+          // Use functional update to ensure consistent state and save changes
+          updateUser(prev => ({
+              ...prev,
+              userInfo: newInfo
+          }));
           alert("프로필이 업데이트 되었습니다.");
       }
       setShowProfile(false);
@@ -1746,6 +1747,123 @@ const App: React.FC = () => {
                      )}
                  </div>
              </div>
+          )}
+
+          {/* SETTINGS MODAL */}
+          {showSettings && (
+             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
+                 <div className="bg-gray-900 border-wine-gradient p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl overflow-y-auto max-h-[80vh]">
+                     <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-occult text-purple-200">{settingsMode === 'MAIN' ? TRANSLATIONS[lang].settings_title : settingsMode === 'RUG' ? 'Rug Color' : 'BGM Upload'}</h3>
+                        <button onClick={() => { 
+                            if (settingsMode === 'MAIN') setShowSettings(false);
+                            else setSettingsMode('MAIN');
+                        }} className="text-gray-400">{settingsMode === 'MAIN' ? '✕' : '←'}</button>
+                     </div>
+                     
+                     {settingsMode === 'MAIN' && (
+                         <>
+                         {user.email !== 'Guest' && (
+                             <>
+                             <div className="mb-6 bg-black/40 p-4 rounded border border-purple-900">
+                                 <h4 className="text-gold-gradient font-bold mb-4">{TRANSLATIONS[lang].tier_info}: <span className="text-white">{user.tier}</span></h4>
+                                 <div className="space-y-3">
+                                     {/* Tier Displays */}
+                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.BRONZE ? 'bg-stone-800 border border-stone-600' : 'opacity-50'}`}>
+                                         <span className="text-stone-400 font-bold">Bronze</span>
+                                         <span className="text-xs text-stone-500">0 Used</span>
+                                     </div>
+                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.SILVER ? 'bg-gray-300 text-black border border-white shadow-[0_0_10px_white]' : 'opacity-50'}`}>
+                                         <span className="font-bold">Silver</span>
+                                         <span className="text-xs">400 Used</span>
+                                     </div>
+                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.GOLD ? 'bg-yellow-500 text-black border border-yellow-300 shadow-[0_0_10px_gold]' : 'opacity-50'}`}>
+                                         <span className="font-bold">Gold</span>
+                                         <span className="text-xs">1500 Used</span>
+                                     </div>
+                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.PLATINUM ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white border border-purple-300 shadow-[0_0_15px_purple]' : 'opacity-50'}`}>
+                                         <span className="font-bold">Platinum</span>
+                                         <span className="text-xs">4000 Used</span>
+                                     </div>
+                                 </div>
+                             </div>
+                             </>
+                         )}
+
+                         <div className="mb-6">
+                             <label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].bgm_control}</label>
+                             <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={(e) => { setBgmVolume(parseFloat(e.target.value)); if(parseFloat(e.target.value)>0 && bgmStopped) setBgmStopped(false); }} className="w-full accent-purple-500" />
+                             <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                 <span>Mute</span>
+                                 <span>Max</span>
+                             </div>
+                             <div className="mt-2 flex gap-2">
+                                 <button onClick={() => setBgmStopped(!bgmStopped)} className="text-xs bg-gray-800 px-3 py-1 rounded border border-gray-600 hover:bg-gray-700">
+                                     {bgmStopped ? '▶ Play' : '⏸ Pause'}
+                                 </button>
+                             </div>
+                         </div>
+
+                         <div className="mb-6">
+                             <label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].language_control}</label>
+                             <div className="flex bg-gray-800 rounded p-1">
+                                 <button onClick={() => setLang('ko')} className={`flex-1 py-1 rounded text-sm ${lang === 'ko' ? 'bg-purple-600 text-white' : 'text-gray-400'}`}>한국어</button>
+                                 <button onClick={() => setLang('en')} className={`flex-1 py-1 rounded text-sm ${lang === 'en' ? 'bg-purple-600 text-white' : 'text-gray-400'}`}>English</button>
+                             </div>
+                         </div>
+
+                         {user.tier !== UserTier.BRONZE && user.tier !== UserTier.SILVER && (
+                             <div className="mb-6 grid grid-cols-2 gap-2">
+                                 <button onClick={() => setSettingsMode('RUG')} className="p-3 bg-gray-800 border border-gray-700 rounded text-sm hover:border-yellow-500 transition-colors flex flex-col items-center gap-1">
+                                     <span className="text-xl">🕸</span>
+                                     <span>{TRANSLATIONS[lang].rug_shop}</span>
+                                 </button>
+                                 <button onClick={() => setSettingsMode('BGM')} className="p-3 bg-gray-800 border border-gray-700 rounded text-sm hover:border-yellow-500 transition-colors flex flex-col items-center gap-1">
+                                     <span className="text-xl">🎵</span>
+                                     <span>{TRANSLATIONS[lang].bgm_upload}</span>
+                                 </button>
+                             </div>
+                         )}
+
+                         {user.email !== 'Guest' && (
+                            <button onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }} className="w-full py-3 border border-red-900/50 text-red-400 rounded hover:bg-red-900/20">
+                                {TRANSLATIONS[lang].logout}
+                            </button>
+                         )}
+                         </>
+                     )}
+                     
+                     {settingsMode === 'RUG' && (
+                         <div className="grid grid-cols-3 gap-3">
+                             {RK_COLORS.map(c => (
+                                 <button key={c.name} onClick={() => handleRugChange(c.color)} className="aspect-square rounded-full border-2 border-gray-600 hover:scale-110 transition-transform shadow-lg relative" style={{ backgroundColor: c.color }}>
+                                     {user.rugColor === c.color && <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">✓</div>}
+                                 </button>
+                             ))}
+                         </div>
+                     )}
+
+                     {settingsMode === 'BGM' && (
+                         <div className="text-center">
+                             <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative">
+                                  <input type="file" accept="audio/*" onChange={handleBgmUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                  <p className="text-gray-400">Click to upload MP3</p>
+                             </div>
+                             {currentBgm.id.startsWith('custom') && <p className="mt-4 text-green-400 text-sm">Custom BGM Playing: {currentBgm.name}</p>}
+                         </div>
+                     )}
+                 </div>
+             </div>
+          )}
+
+          {authMode && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4">
+                  <div className="bg-gray-900 border border-purple-500 p-8 rounded max-w-sm w-full shadow-[0_0_50px_rgba(147,51,234,0.3)] relative">
+                      <button onClick={() => setAuthMode(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
+                      <h2 className="text-2xl font-bold text-white mb-6 text-center">ACCESS REQUIRED</h2>
+                      <AuthForm onClose={() => setAuthMode(null)} onLoginSuccess={() => { setAuthMode(null); checkUser(); }} />
+                  </div>
+              </div>
           )}
       </div>
   );
