@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from "./src/lib/supabase";
 import { GoogleContinueButton } from "./components/AuthModal";
 import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult, UserTier, Country, BGM, Skin, ChatMessage, CustomSkin } from './types';
@@ -217,8 +217,16 @@ const TypewriterText: React.FC<{ text: string }> = ({ text }) => {
     const [visibleCount, setVisibleCount] = useState(0);
     useEffect(() => {
         setVisibleCount(0);
-        // Faster text speed for responsiveness
-        const timer = setInterval(() => setVisibleCount(p => p < text.length ? p + 5 : p), 20); 
+        // Faster text speed for responsiveness - Increased from 5 to 25 to prevent stopping sensation
+        const timer = setInterval(() => {
+            setVisibleCount(p => {
+                if (p >= text.length) {
+                    clearInterval(timer);
+                    return p;
+                }
+                return p + 25;
+            });
+        }, 20); 
         return () => clearInterval(timer);
     }, [text]);
     return (
@@ -612,15 +620,15 @@ const ResultView: React.FC<{
   const handleCapture = async () => {
       if(captureRef.current) {
           const canvas = await html2canvas(captureRef.current, {
-              backgroundColor: '#000000',
-              scale: 2,
+              backgroundColor: '#050505',
+              scale: 2, // High resolution capture
               useCORS: true,
-              logging: false, // Fix: Reduce console noise
-              allowTaint: true, // Fix: Allow cross-origin images even if it taints canvas (we export via toDataURL anyway usually, but useCORS is preferred)
+              logging: false,
+              allowTaint: true,
           });
           const link = document.createElement('a');
-          link.download = `black_tarot_${Date.now()}.png`;
-          link.href = canvas.toDataURL();
+          link.download = `black_tarot_result_${Date.now()}.png`;
+          link.href = canvas.toDataURL('image/png');
           link.click();
       }
   };
@@ -629,63 +637,63 @@ const ResultView: React.FC<{
     <div className={`min-h-screen pt-28 pb-20 px-4 flex flex-col items-center z-10 relative overflow-y-auto overflow-x-hidden ${!user.activeCustomSkin ? SKINS.find(s=>s.id===user.currentSkin)?.cssClass : ''}`}>
        
        {/* High-End Luxurious Capture View (Redesigned) */}
-       {/* Fix: Moved entirely off-screen instead of display: none to fix render issues */}
-       <div ref={captureRef} style={{ position: 'fixed', left: '-3000px', top: 0, width: '1080px', height: '1920px', zIndex: -10 }} className="bg-[#050505] flex-col relative font-serif overflow-hidden">
-          {/* Background Layer - Use inline SVG for reliable capture */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#1a0b2e_0%,#000000_100%)] opacity-100"></div>
-          {/* Fix: Replace external stardust.png with inline SVG noise to prevent CORS/loading errors during capture */}
+       {/* Fixed Off-Screen Capture Area */}
+       <div ref={captureRef} style={{ position: 'fixed', left: '-9999px', top: 0, width: '1080px', height: '1920px', zIndex: -10 }} className="bg-[#050505] flex flex-col items-center font-serif overflow-hidden">
+          {/* Noise Texture */}
           <div className="absolute inset-0 opacity-20" style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E")`
           }}></div>
           
-          {/* Ornate Gold Border */}
-          <div className="absolute inset-0 border-[20px] border-[#b8860b] border-double pointer-events-none z-20"></div>
-          <div className="absolute top-4 bottom-4 left-4 right-4 border border-[#ffd700] opacity-50 pointer-events-none z-20"></div>
+          {/* Double Gold Border */}
+          <div className="absolute inset-8 border-4 border-double border-[#b8860b] pointer-events-none z-20"></div>
+          
+          {/* Corner Ornaments (CSS Shapes) */}
+          <div className="absolute top-8 left-8 w-16 h-16 border-t-4 border-l-4 border-[#ffd700] z-30"></div>
+          <div className="absolute top-8 right-8 w-16 h-16 border-t-4 border-r-4 border-[#ffd700] z-30"></div>
+          <div className="absolute bottom-8 left-8 w-16 h-16 border-b-4 border-l-4 border-[#ffd700] z-30"></div>
+          <div className="absolute bottom-8 right-8 w-16 h-16 border-b-4 border-r-4 border-[#ffd700] z-30"></div>
 
-          <div className="z-30 flex flex-col items-center w-full h-full justify-between py-16 px-12">
+          <div className="z-30 flex flex-col items-center w-full h-full pt-24 px-16 pb-16 relative">
               {/* Header */}
-              <div className="text-center">
-                  <h1 className="text-8xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-[#ffd700] to-[#b8860b] drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] tracking-widest mb-2">BLACK TAROT</h1>
-                  <p className="text-3xl text-[#ffd700] opacity-80 font-serif tracking-[0.3em] uppercase">Fate Revealed</p>
-                  <div className="w-32 h-1 bg-[#b8860b] mx-auto mt-6"></div>
+              <div className="text-center mb-12">
+                  <h1 className="text-8xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-[#ffd700] via-[#fcf6ba] to-[#b8860b] drop-shadow-[0_4px_15px_rgba(0,0,0,0.9)] tracking-[0.2em] mb-4">BLACK TAROT</h1>
+                  <div className="w-48 h-1 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent mx-auto"></div>
               </div>
 
               {/* Question */}
-              <div className="w-full text-center mt-8">
-                  <h2 className="text-4xl text-white font-serif italic opacity-90 px-8">"{question}"</h2>
+              <div className="w-full text-center mb-12 relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-900/30 to-transparent blur-xl"></div>
+                  <h2 className="relative text-4xl text-white font-serif italic opacity-90 px-8 leading-normal">"{question}"</h2>
               </div>
 
-              {/* Cards Display - Elegant Row */}
-              <div className="flex gap-8 justify-center items-center my-8 w-full px-8">
+              {/* Cards Display */}
+              <div className="flex gap-8 justify-center items-center mb-12 w-full">
                   {selectedCards.map((c, i) => (
-                      <div key={i} className="flex flex-col items-center gap-4 relative">
-                          <div className="w-[240px] h-[400px] relative rounded-lg border-[3px] border-[#ffd700] shadow-[0_0_40px_rgba(184,134,11,0.4)] overflow-hidden bg-black transform hover:scale-105 transition-transform">
+                      <div key={i} className="flex flex-col items-center gap-4 relative group">
+                          <div className="w-[260px] h-[420px] relative rounded-lg border-2 border-[#b8860b] shadow-[0_0_50px_rgba(184,134,11,0.2)] overflow-hidden bg-black">
                               <img src={cardImages[i]} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} crossOrigin="anonymous" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
-                          </div>
-                          <div className="absolute -bottom-6 bg-black/80 border border-[#b8860b] px-6 py-2 rounded-full shadow-lg">
-                              <span className="text-xl font-bold text-[#ffd700] uppercase tracking-widest font-occult whitespace-nowrap">{c.name}</span>
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80"></div>
+                              {/* Card Name Overlay */}
+                              <div className="absolute bottom-6 left-0 right-0 text-center">
+                                  <span className="text-xl font-bold text-[#ffd700] uppercase tracking-widest font-occult">{c.name}</span>
+                              </div>
                           </div>
                       </div>
                   ))}
               </div>
 
-              {/* Analysis Text Box */}
-              <div className="w-full flex-1 bg-black/40 border border-[#ffd700]/20 rounded-2xl p-10 relative overflow-hidden">
-                  {/* Fix: Replace external black-felt.png with inline SVG noise to prevent CORS/loading errors during capture */}
-                  <div className="absolute top-0 left-0 w-full h-full opacity-30" style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.3'/%3E%3C/svg%3E")`
-                  }}></div>
+              {/* Interpretation Box */}
+              <div className="w-full flex-1 bg-black/60 border border-[#b8860b]/30 rounded-lg p-10 relative overflow-hidden backdrop-blur-md">
                   <div className="relative z-10 h-full flex items-center justify-center">
-                      <p className="text-2xl text-[#e0e0e0] leading-[2.2] text-justify font-serif whitespace-pre-wrap break-keep drop-shadow-md">
-                          {fullText.substring(0, 500) + (fullText.length > 500 ? "..." : "")}
+                      <p className="text-3xl text-[#e0e0e0] leading-[1.8] text-center font-serif whitespace-pre-wrap break-keep drop-shadow-md line-clamp-[12]">
+                          {fullText.split('[실질적인 해결책]')[0].substring(0, 450)}...
                       </p>
                   </div>
               </div>
 
               {/* Footer */}
-              <div className="text-center mt-8 opacity-80">
-                  <p className="text-xl text-[#ffd700] font-occult tracking-[0.5em] uppercase">The Cards Don't Lie</p>
+              <div className="text-center mt-12 opacity-70">
+                  <p className="text-2xl text-[#ffd700] font-occult tracking-[0.5em] uppercase">Fate Revealed</p>
                   <p className="text-lg text-gray-500 mt-2 font-serif">blacktarot.com</p>
               </div>
           </div>
@@ -907,8 +915,27 @@ const App: React.FC = () => {
   const [pendingPackage, setPendingPackage] = useState<{amount: number, coins: number} | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'TOSS' | 'PAYPAL' | 'APPLE' | 'KAKAO'>('TOSS');
 
+  // Persistence: Save state when user changes
+  const saveUserState = useCallback((u: User, state: AppState) => {
+      // 1. LocalStorage (Immediate / Sync)
+      localStorage.setItem('black_tarot_user', JSON.stringify({ ...u, lastAppState: state }));
+      
+      // 2. Supabase (Background / Async) - Simulation since table schema is unknown
+      // In a real app, we would update the 'users' table or 'profiles' table here.
+      // await supabase.from('profiles').upsert({ id: u.email, data: u });
+  }, []);
+
   const navigateTo = (newState: AppState) => {
     setAppState(newState);
+    saveUserState(user, newState);
+  };
+
+  const updateUser = (updater: (prev: User) => User) => {
+      setUser(prev => {
+          const newUser = updater(prev);
+          saveUserState(newUser, appState);
+          return newUser;
+      });
   };
 
   useEffect(() => {
@@ -917,90 +944,118 @@ const App: React.FC = () => {
       const todayDate = new Date();
       const isFirstDay = todayDate.getDate() === 1;
 
+      // 1. Try to load from LocalStorage first for instant resumption
+      let localUser: User | null = null;
+      try {
+          const stored = localStorage.getItem('black_tarot_user');
+          if (stored) {
+              localUser = JSON.parse(stored);
+              if (localUser) setUser(localUser);
+          }
+      } catch (e) {}
+
       try {
           const { data, error } = await supabase.auth.getSession();
-          if (error) throw error;
-
-          if (!data.session?.user) {
-             setUser(prev => ({ ...prev, email: "Guest", lastLoginDate: today }));
-             // Guest stays at WELCOME
-             setAppState(AppState.WELCOME);
-             // Remember device ID
+          // If no session, rely on local guest data or default
+          if (error || !data.session?.user) {
+             if (localUser && localUser.email === 'Guest') {
+                 // Already loaded
+             } else {
+                 const newGuest: User = { ...user, email: "Guest", lastLoginDate: today };
+                 setUser(newGuest);
+                 setAppState(AppState.WELCOME);
+             }
              localStorage.setItem('tarot_device_id', 'true');
              return;
           }
           
+          // User is logged in
           const u = data.session.user;
+          const email = u.email || "User";
+
+          // Merge local data if email matches, otherwise start fresh or fetch from DB
+          let currentUser = (localUser && localUser.email === email) ? localUser : { ...user, email };
+
+          // --- LOGIC: ATTENDANCE & REWARDS ---
+          let newLoginDates = [...(currentUser.loginDates || [])];
+          if (!newLoginDates.includes(today)) newLoginDates.push(today);
           
-          setUser(prev => {
-              let newLoginDates = [...(prev.loginDates || [])];
-              if (!newLoginDates.includes(today)) newLoginDates.push(today);
+          let newTier = calculateTier(currentUser.totalSpent);
+          let newCoins = currentUser.coins;
+          let currentMonthlyReward = currentUser.lastMonthlyReward;
+          let newAttendanceDay = currentUser.attendanceDay;
+          let newLastAttendance = currentUser.lastAttendance;
+
+          // Demotion Check
+          if (isFirstDay && currentUser.lastLoginDate !== today) {
+             const lastMonthLogins = newLoginDates.filter(d => {
+                 const dDate = new Date(d);
+                 return dDate.getMonth() === todayDate.getMonth() - 1;
+             }).length;
+             if (lastMonthLogins < 20 && (newTier === UserTier.GOLD || newTier === UserTier.PLATINUM)) {
+                 newTier = UserTier.SILVER;
+                 alert("출석 부족으로 등급이 SILVER로 조정되었습니다.");
+             }
+          }
+
+          // Monthly Reward
+          if (isFirstDay && currentMonthlyReward !== today.substring(0, 7)) {
+              if (newTier === UserTier.GOLD) {
+                  newCoins = Math.floor(newCoins * 1.5);
+                  alert(TRANSLATIONS[lang].reward_popup + " (1.5x)");
+              } else if (newTier === UserTier.PLATINUM) {
+                  newCoins = Math.floor(newCoins * 2.0);
+                  alert(TRANSLATIONS[lang].reward_popup + " (2.0x)");
+              }
+              currentMonthlyReward = today.substring(0, 7);
+          }
+
+          // Daily Attendance - STRICT CHECK
+          // Only trigger if saved date is NOT today
+          if (newLastAttendance !== today) {
+              if (newAttendanceDay < 10) newAttendanceDay += 1;
+              else newAttendanceDay = 1; // Loop or Reset? Assuming loop or cap. Let's cap at 10 or loop. Constants suggest 10 days.
               
-              let newTier = calculateTier(prev.totalSpent);
-              let newCoins = prev.coins;
-              let currentMonthlyReward = prev.lastMonthlyReward;
-              let newAttendanceDay = prev.attendanceDay;
-              let newLastAttendance = prev.lastAttendance;
+              const reward = ATTENDANCE_REWARDS[Math.min(newAttendanceDay, 10) - 1] || 20;
+              newCoins += reward;
+              newLastAttendance = today;
+              setAttendanceReward(reward);
+              setShowAttendancePopup(true);
+          }
+          
+          const updatedUser = {
+            ...currentUser,
+            email: email,
+            tier: newTier,
+            coins: newCoins,
+            lastLoginDate: today,
+            loginDates: newLoginDates,
+            readingsToday: currentUser.lastReadingDate === today ? currentUser.readingsToday : 0,
+            lastReadingDate: today,
+            lastMonthlyReward: currentMonthlyReward,
+            attendanceDay: newAttendanceDay,
+            lastAttendance: newLastAttendance
+          };
 
-              // Demotion Logic: Check last month logins on 1st day
-              if (isFirstDay && prev.lastLoginDate !== today) {
-                 const lastMonthLogins = newLoginDates.filter(d => {
-                     const dDate = new Date(d);
-                     return dDate.getMonth() === todayDate.getMonth() - 1;
-                 }).length;
-                 // If less than 20 days logged in (roughly implies > 10 missed days)
-                 if (lastMonthLogins < 20 && (newTier === UserTier.GOLD || newTier === UserTier.PLATINUM)) {
-                     newTier = UserTier.SILVER;
-                     alert("출석 부족으로 등급이 SILVER로 조정되었습니다.");
-                 }
-              }
+          setUser(updatedUser);
+          saveUserState(updatedUser, updatedUser.lastAppState || AppState.WELCOME);
 
-              if (isFirstDay && currentMonthlyReward !== today.substring(0, 7)) {
-                  if (newTier === UserTier.GOLD) {
-                      newCoins = Math.floor(newCoins * 1.5);
-                      alert(TRANSLATIONS[lang].reward_popup + " (1.5x)");
-                  } else if (newTier === UserTier.PLATINUM) {
-                      newCoins = Math.floor(newCoins * 2.0);
-                      alert(TRANSLATIONS[lang].reward_popup + " (2.0x)");
-                  }
-                  currentMonthlyReward = today.substring(0, 7);
-              }
-
-              if (newLastAttendance !== today && newAttendanceDay < 10) {
-                  newAttendanceDay += 1;
-                  const reward = ATTENDANCE_REWARDS[newAttendanceDay - 1];
-                  newCoins += reward;
-                  newLastAttendance = today;
-                  setAttendanceReward(reward);
-                  setShowAttendancePopup(true);
-              }
-              
-              const updatedUser = {
-                ...prev,
-                email: u.email || "User",
-                tier: newTier,
-                coins: newCoins,
-                lastLoginDate: today,
-                loginDates: newLoginDates,
-                readingsToday: prev.lastReadingDate === today ? prev.readingsToday : 0,
-                lastReadingDate: today,
-                lastMonthlyReward: currentMonthlyReward,
-                attendanceDay: newAttendanceDay,
-                lastAttendance: newLastAttendance
-              };
-
-              // CRITICAL: If user has Name/Birthdate already, skip INPUT_INFO
-              if (prev.userInfo?.name && prev.userInfo.birthDate) {
+          // --- LOGIC: AUTO-NAVIGATION ---
+          // If we have state history, resume it
+          if (updatedUser.lastAppState && updatedUser.lastAppState !== AppState.WELCOME) {
+              setAppState(updatedUser.lastAppState);
+          } else {
+              // Else if info exists, skip to Category
+              if (updatedUser.userInfo?.name && updatedUser.userInfo?.birthDate) {
                   setAppState(AppState.CATEGORY_SELECT);
+                  saveUserState(updatedUser, AppState.CATEGORY_SELECT);
               } else {
                   setAppState(AppState.INPUT_INFO);
               }
+          }
 
-              return updatedUser;
-          });
       } catch (err: any) {
           console.warn("Session check failed:", err);
-          setUser(prev => ({ ...prev, email: "Guest", lastLoginDate: today }));
       }
     };
     checkUser();
@@ -1009,14 +1064,17 @@ const App: React.FC = () => {
   const handleStart = () => {
       initSounds(); 
       setBgmStopped(false);
-      // Logic for existing user handled in checkUser, but for guest:
-      if (user.email === 'Guest') navigateTo(AppState.INPUT_INFO);
-      else if (user.userInfo?.name) navigateTo(AppState.CATEGORY_SELECT);
-      else navigateTo(AppState.INPUT_INFO);
+      
+      // If returning user has name/birthdate, skip input
+      if (user.userInfo?.name && user.userInfo?.birthDate) {
+          navigateTo(AppState.CATEGORY_SELECT);
+      } else {
+          navigateTo(AppState.INPUT_INFO);
+      }
   };
 
   const handleUserInfoSubmit = (info: UserInfo) => {
-    setUser((prev) => ({ ...prev, userInfo: info }));
+    updateUser((prev) => ({ ...prev, userInfo: info }));
     navigateTo(AppState.CATEGORY_SELECT);
   };
   
@@ -1029,7 +1087,7 @@ const App: React.FC = () => {
           }
           return false;
       }
-      setUser(prev => ({ ...prev, coins: prev.coins - amount }));
+      updateUser(prev => ({ ...prev, coins: prev.coins - amount }));
       return true;
   };
 
@@ -1039,11 +1097,11 @@ const App: React.FC = () => {
           return;
       }
       if (user.ownedSkins.includes(skin.id)) {
-          setUser(prev => ({ ...prev, currentSkin: skin.id, activeCustomSkin: null }));
+          updateUser(prev => ({ ...prev, currentSkin: skin.id, activeCustomSkin: null }));
           return;
       }
       if (spendCoins(skin.cost)) {
-          setUser(prev => ({
+          updateUser(prev => ({
               ...prev,
               ownedSkins: [...prev.ownedSkins, skin.id],
               currentSkin: skin.id,
@@ -1068,7 +1126,7 @@ const App: React.FC = () => {
           isPublic: isSkinPublic,
           shareCode: isSkinPublic ? Math.floor(100000 + Math.random() * 900000).toString() : undefined
       };
-      setUser(prev => ({ ...prev, customSkins: [...(prev.customSkins || []), newSkin], activeCustomSkin: newSkin }));
+      updateUser(prev => ({ ...prev, customSkins: [...(prev.customSkins || []), newSkin], activeCustomSkin: newSkin }));
       setCustomSkinImage(null);
       alert(`${TRANSLATIONS[lang].skin_saved} ${newSkin.shareCode ? `Code: ${newSkin.shareCode}` : ''}`);
   };
@@ -1076,7 +1134,7 @@ const App: React.FC = () => {
   const handleApplySkinCode = () => {
       const found = user.customSkins?.find(s => s.shareCode === inputSkinCode);
       if (found) {
-          setUser(prev => ({ ...prev, activeCustomSkin: found }));
+          updateUser(prev => ({ ...prev, activeCustomSkin: found }));
           alert(TRANSLATIONS[lang].skin_applied);
       } else {
           alert("Invalid Code (Simulation: Only local codes work in demo)");
@@ -1099,13 +1157,15 @@ const App: React.FC = () => {
   };
 
   const handleRugChange = (color: string) => {
-      setUser(prev => ({ ...prev, rugColor: color }));
+      updateUser(prev => ({ ...prev, rugColor: color }));
   };
 
   const deleteAccount = () => {
       if (confirm(TRANSLATIONS[lang].delete_confirm)) {
           supabase.auth.signOut();
-          setUser({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [] });
+          const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [] };
+          setUser(cleanUser);
+          localStorage.removeItem('black_tarot_user'); // Clear storage
           setAppState(AppState.WELCOME);
           setShowProfile(false);
       }
@@ -1124,7 +1184,7 @@ const App: React.FC = () => {
     if (!pendingPackage) return;
     setTimeout(() => {
         alert(`Payment Successful via ${selectedPaymentMethod}!`);
-        setUser(prev => ({ 
+        updateUser(prev => ({ 
             ...prev, 
             coins: prev.coins + pendingPackage.coins, 
             totalSpent: prev.totalSpent + pendingPackage.amount, 
@@ -1209,7 +1269,7 @@ const App: React.FC = () => {
       } else {
           const limit = user.tier === UserTier.BRONZE ? 5 : (user.tier === UserTier.SILVER ? 20 : 999);
           if (user.readingsToday >= limit) { alert(TRANSLATIONS[lang].limit_reached); return; }
-          setUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
+          updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
       }
 
       const selected = indices.map(i => {
@@ -1288,18 +1348,18 @@ const App: React.FC = () => {
                           <div className="w-24 h-24 rounded-full bg-gray-800 border-2 border-purple-500 flex items-center justify-center overflow-hidden relative group cursor-pointer">
                               {user.userInfo?.profileImage ? <img src={user.userInfo.profileImage} className="w-full h-full object-cover" /> : <span className="text-4xl">👤</span>}
                               <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-xs text-white">Change</div>
-                              <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{ const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onload=()=>setUser({...user, userInfo: {...user.userInfo!, profileImage: r.result as string}}); r.readAsDataURL(f); } }}/>
+                              <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{ const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onload=()=>updateUser(prev => ({...prev, userInfo: {...prev.userInfo!, profileImage: r.result as string}})); r.readAsDataURL(f); } }}/>
                           </div>
                       </div>
 
                       <div className="space-y-4">
                           <div>
                               <label className="text-xs text-gray-500 block mb-1">Name</label>
-                              <input value={user.userInfo?.name} onChange={(e) => setUser({...user, userInfo: {...user.userInfo!, name: e.target.value}})} className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white" />
+                              <input value={user.userInfo?.name} onChange={(e) => updateUser(prev => ({...prev, userInfo: {...prev.userInfo!, name: e.target.value}}))} className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white" />
                           </div>
                           <div>
                               <label className="text-xs text-gray-500 block mb-1">Bio</label>
-                              <textarea value={user.userInfo?.bio || ''} onChange={(e) => setUser({...user, userInfo: {...user.userInfo!, bio: e.target.value}})} className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white h-20" />
+                              <textarea value={user.userInfo?.bio || ''} onChange={(e) => updateUser(prev => ({...prev, userInfo: {...prev.userInfo!, bio: e.target.value}}))} className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white h-20" />
                           </div>
                       </div>
 
@@ -1445,7 +1505,7 @@ const App: React.FC = () => {
           {appState === AppState.RESULT && (
             <ResultView question={selectedQuestion} selectedCards={selectedCards} onRetry={() => navigateTo(AppState.CATEGORY_SELECT)} lang={lang} readingPromise={readingPromise} onReadingComplete={(text) => {
                 const result: ReadingResult = { date: new Date().toISOString(), question: selectedQuestion, cards: selectedCards, interpretation: text };
-                setUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] }));
+                updateUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] }));
               }} user={user} spendCoins={spendCoins} onLogin={() => setAuthMode("LOGIN")} />
           )}
 
@@ -1634,7 +1694,7 @@ const App: React.FC = () => {
                                         {user.customSkins && user.customSkins.length > 0 && (
                                             <div className="mt-4 grid grid-cols-3 gap-2">
                                                 {user.customSkins.map((skin) => (
-                                                    <div key={skin.id} onClick={() => setUser(prev => ({...prev, activeCustomSkin: skin}))} className={`relative h-16 rounded border cursor-pointer overflow-hidden ${user.activeCustomSkin?.id === skin.id ? 'border-green-500' : 'border-gray-700'}`}>
+                                                    <div key={skin.id} onClick={() => updateUser(prev => ({...prev, activeCustomSkin: skin}))} className={`relative h-16 rounded border cursor-pointer overflow-hidden ${user.activeCustomSkin?.id === skin.id ? 'border-green-500' : 'border-gray-700'}`}>
                                                         <img src={skin.imageUrl} className="w-full h-full object-cover" />
                                                         {skin.isPublic && <span className="absolute bottom-0 right-0 bg-black/70 text-[8px] text-white px-1">{skin.shareCode}</span>}
                                                     </div>

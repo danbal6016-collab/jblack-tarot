@@ -108,6 +108,9 @@ export interface User {
   activeCustomSkin?: CustomSkin | null;
 
   lastMonthlyReward?: string; 
+  
+  // Persistence
+  lastAppState?: AppState; // Saved state to resume
 }
 
 export interface ChatMessage {
