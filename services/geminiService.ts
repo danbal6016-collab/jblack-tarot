@@ -80,18 +80,17 @@ const SAFETY_SETTINGS = [
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Fallback Chain
-// 1. Prefer strict versioned models
-// 2. Fallback to 'latest' alias which is generally stable
+// UPDATED: Use fast models. gemini-1.5-flash is very stable if 2.0 fails.
 const MODEL_FALLBACK_CHAIN = [
-    'gemini-3-flash-preview',
     'gemini-2.0-flash', 
+    'gemini-1.5-flash',
     'gemini-flash-latest'
 ];
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 3,
-    baseDelay: number = 2000
+    maxRetries: number = 1, // Reduced default retries for speed
+    baseDelay: number = 500
 ): Promise<T> {
     let lastError: any;
     
@@ -101,15 +100,15 @@ async function retryOperation<T>(
         } catch (error: any) {
             lastError = error;
             const status = error.status || error.response?.status;
-            const msg = error.message?.toLowerCase() || '';
+            const errorMessage = error.message?.toLowerCase() || '';
             
             // Critical: If Referrer Blocked (403), do NOT retry the same way, throw immediately to trigger proxy fallback
-            if (status === 403 || msg.includes('referer') || msg.includes('permission_denied')) {
+            if (status === 403 || errorMessage.includes('referer') || errorMessage.includes('permission_denied')) {
                 throw error; 
             }
 
             // Retry on rate limits (429), server errors (500+), or network issues
-            if (status === 429 || status >= 500 || msg.includes('fetch') || msg.includes('network') || msg.includes('overloaded')) {
+            if (status === 429 || status >= 500 || errorMessage.includes('fetch') || errorMessage.includes('network') || errorMessage.includes('overloaded')) {
                 const delay = baseDelay * Math.pow(2, i); 
                 console.warn(`Retry ${i+1}/${maxRetries} after ${delay}ms due to error:`, error.message);
                 await wait(delay);
@@ -121,10 +120,10 @@ async function retryOperation<T>(
     throw lastError;
 }
 
-async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Timeout set to 120s. 
-    // Increased from 60s to allow models enough time to generate, minimizing false failure reports.
-    const API_TIMEOUT = 120000;   
+async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.0-flash', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
+    // Timeout set to 12s. 
+    // Drastically reduced to ensure failover happens quickly and user doesn't wait forever.
+    const API_TIMEOUT = 12000;   
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -137,6 +136,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
         });
     };
 
+    // Construct model chain with preferred model first
     const chainSet = new Set([preferredModel, ...MODEL_FALLBACK_CHAIN]);
     const modelsToTry = Array.from(chainSet);
 
@@ -145,18 +145,16 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             console.log(`Attempting generation with model: ${model}`);
             
             const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-            if (!config.maxOutputTokens) config.maxOutputTokens = 1500; 
+            if (!config.maxOutputTokens) config.maxOutputTokens = 1000; // Lower token count for speed
 
-            if (!model.includes('gemini-3') && !model.includes('gemini-2.5')) {
-                if (config.thinkingConfig) delete config.thinkingConfig;
-            }
+            // Clean up config for flash models
+            if (config.thinkingConfig) delete config.thinkingConfig;
 
             let responseText = "";
             
             // 1. Client-Side Call (SDK)
             let apiKey = '';
             try {
-                // Check import.meta.env first for Vite
                 // @ts-ignore
                 if (typeof import.meta !== 'undefined' && import.meta.env) {
                     // @ts-ignore
@@ -165,7 +163,6 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             } catch(e) {}
 
             try {
-                // Fallback to process.env
                 // @ts-ignore
                 if (!apiKey && typeof process !== 'undefined' && process.env) {
                     apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
@@ -175,6 +172,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             if (apiKey) {
                 try {
                     // Wrap SDK call in timeout
+                    // Only 1 retry for SDK to save time
                     responseText = await withTimeout(retryOperation(async () => {
                         const ai = new GoogleGenAI({ apiKey });
                         
@@ -196,19 +194,17 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         }
                         
                         throw new Error("No text generated from model (empty response).");
-                    }, 2, 1000), API_TIMEOUT);
+                    }, 1, 300), API_TIMEOUT);
 
                     if (responseText) return responseText;
 
                 } catch (e: any) {
-                    // Catch 403 or specific client errors to try Proxy
                     console.warn(`Client-side SDK failed for ${model}. trying proxy...`, e.message);
-                    if (e.message.includes("Timeout")) throw e; // Don't retry timeout on proxy, just fail model
+                    if (e.message.includes("Blocked")) throw e;
                 }
             }
 
             // 2. Proxy Fallback
-            // If client failed (403/Referrer) or no key, try server-side proxy
             try {
                 const proxyPromise = (async () => {
                     const body: any = { prompt, config, model };
@@ -244,8 +240,6 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
         }
     }
 
-    // If ALL models fail, return the emergency fallback text.
-    // This ensures the user ALWAYS sees a result and the app doesn't hang.
     console.error("All models failed. Returning Emergency Fallback. Last Error:", lastErrorMessage);
     return EMERGENCY_FALLBACK_RESPONSE;
 }
@@ -284,11 +278,12 @@ export const getTarotReading = async (
 
   const config = {
     systemInstruction: getBaseInstruction(lang),
-    temperature: 0.85, // Increased slightly for more variety
+    temperature: 0.9, 
     maxOutputTokens: 1500,
   };
 
-  return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+  // UPDATED: Use 'gemini-2.0-flash' for maximum speed and reliability
+  return await callGenAI(prompt, config, 'gemini-2.0-flash', undefined, lang);
 };
 
 export const getCompatibilityReading = async (
@@ -314,7 +309,7 @@ export const getCompatibilityReading = async (
         temperature: 0.9,
         maxOutputTokens: 1000,
     };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.0-flash', undefined, lang);
 };
 
 export const getPartnerLifeReading = async (
@@ -340,7 +335,7 @@ export const getPartnerLifeReading = async (
         temperature: 0.8,
         maxOutputTokens: 1500,
     };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.0-flash', undefined, lang);
 };
 
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -363,8 +358,8 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
         temperature: 0.7, 
         maxOutputTokens: 800,
     };
-    // Prioritize 2.5-flash-image for vision tasks
-    return await callGenAI(prompt, config, 'gemini-2.5-flash-image', [imagePart], lang);
+    // Prioritize 2.5-flash-image for vision tasks, fallback to 2.0-flash if needed (though 2.0-flash handles images too)
+    return await callGenAI(prompt, config, 'gemini-2.0-flash', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -389,7 +384,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
         temperature: 0.8, 
         maxOutputTokens: 1500, 
     };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.0-flash', undefined, lang);
 };
 
 export const generateTarotImage = async (cardName: string): Promise<string> => {
