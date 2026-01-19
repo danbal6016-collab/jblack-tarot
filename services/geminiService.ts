@@ -1,3 +1,8 @@
+const inFlight = new Map<string, Promise<string>>();
+
+function keyOf(model: string, prompt: string) {
+  return model + "::" + prompt;
+}
 
 import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 
@@ -120,82 +125,100 @@ async function retryOperation<T>(
     throw lastError;
 }
 
-async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Timeout set to 30s. 
-    // Increased from 12s/18s to allow models enough time to generate, minimizing false failure reports.
-    const API_TIMEOUT = 15000;   
+async function callGenAI(
+  prompt: string,
+  baseConfig: any,
+  preferredModel: string = 'gemini-3-flash-preview',
+  imageParts?: any[],
+  lang: Language = 'ko'
+): Promise<string> {
+
+  // ✅ (A) in-flight dedupe: callGenAI 제일 첫 줄급에 위치
+  const k = keyOf(preferredModel, prompt);
+  if (inFlight.has(k)) return inFlight.get(k)!;
+
+  // ✅ (B) 실제 작업을 task로 감싸기
+  const task = (async () => {
+    // timeout 줄이는 거 추천
+    const API_TIMEOUT = 15000;
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
-        return new Promise((resolve, reject) => {
-            const timer = setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms);
-            promise.then(
-                (res) => { clearTimeout(timer); resolve(res); },
-                (err) => { clearTimeout(timer); reject(err); }
-            );
-        });
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms);
+        promise.then(
+          (res) => { clearTimeout(timer); resolve(res); },
+          (err) => { clearTimeout(timer); reject(err); }
+        );
+      });
     };
 
     const chainSet = new Set([preferredModel, ...MODEL_FALLBACK_CHAIN]);
     const modelsToTry = Array.from(chainSet);
 
     for (const model of modelsToTry) {
-        try {
-            console.log(`Attempting generation with model: ${model}`);
-            
-            const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-            if (!config.maxOutputTokens) config.maxOutputTokens = 1500; 
+      try {
+        console.log(`Attempting generation with model: ${model}`);
 
-            if (!model.includes('gemini-3') && !model.includes('gemini-2.5')) {
-                if (config.thinkingConfig) delete config.thinkingConfig;
-            }
+        const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
+        if (!config.maxOutputTokens) config.maxOutputTokens = 1500;
 
-            let responseText = "";
-            
-    
-
-            // 2. Proxy Fallback
-            // If client failed (403/Referrer) or no key, try server-side proxy
-            try {
-                const proxyPromise = (async () => {
-                    const body: any = { prompt, config, model };
-                    if (imageParts) body.imageParts = imageParts;
-
-                    const constEqRes = await fetch('/api/gemini', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
-                    });
-                    
-                    if (!constEqRes.ok) {
-                        const errText = await constEqRes.text().catch(() => constEqRes.statusText);
-                        throw new Error(`Proxy ${constEqRes.status}: ${errText}`);
-                    }
-                    const data = await constEqRes.json();
-                    if (!data.text) throw new Error("Empty response from proxy");
-                    return data.text as string;
-                })();
-
-                return await withTimeout(proxyPromise, API_TIMEOUT);
-
-            } catch (proxyError: any) {
-                console.error(`Proxy failed for ${model}:`, proxyError);
-                lastErrorMessage = proxyError.message || "Proxy Error";
-                // Continue to next model in loop
-            }
-
-        } catch (modelError: any) {
-            console.warn(`Model ${model} failed fully.`, modelError);
-            lastErrorMessage = modelError.message || JSON.stringify(modelError);
-            continue;
+        if (!model.includes('gemini-3') && !model.includes('gemini-2.5')) {
+          if (config.thinkingConfig) delete config.thinkingConfig;
         }
+
+        // ✅ Proxy ONLY
+        try {
+          const proxyPromise = (async () => {
+            const body: any = { prompt, config, model };
+            if (imageParts) body.imageParts = imageParts;
+
+            const res = await fetch('/api/gemini', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+              const errText = await res.text().catch(() => res.statusText);
+              throw new Error(`Proxy ${res.status}: ${errText.slice(0, 500)}`);
+            }
+
+            const data = await res.json();
+            if (!data.text) throw new Error("Empty response from proxy");
+            return data.text as string;
+          })();
+
+          return await withTimeout(proxyPromise, API_TIMEOUT);
+
+        } catch (proxyError: any) {
+          console.error(`Proxy failed for ${model}:`, proxyError);
+          lastErrorMessage = proxyError.message || "Proxy Error";
+          continue; // next model
+        }
+
+      } catch (modelError: any) {
+        console.warn(`Model ${model} failed fully.`, modelError);
+        lastErrorMessage = modelError.message || JSON.stringify(modelError);
+        continue;
+      }
     }
 
-    // If ALL models fail, return the emergency fallback text.
-    // This ensures the user ALWAYS sees a result and the app doesn't hang.
     console.error("All models failed. Returning Emergency Fallback. Last Error:", lastErrorMessage);
     return EMERGENCY_FALLBACK_RESPONSE;
+  })();
+
+  // ✅ (C) inFlight 등록은 task 만든 직후
+  inFlight.set(k, task);
+
+  try {
+    return await task;
+  } finally {
+    // ✅ (D) 성공/실패 상관없이 반드시 제거
+    inFlight.delete(k);
+  }
 }
+
 
 // --- MAIN SERVICES ---
 
