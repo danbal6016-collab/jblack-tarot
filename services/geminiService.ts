@@ -1,5 +1,4 @@
 
-import { GoogleGenAI } from "@google/genai";
 import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -81,15 +80,17 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // 1. Prefer strict versioned models
 // 2. Fallback to 'latest' alias which is generally stable
 const MODEL_FALLBACK_CHAIN = [
-    'gemini-3-flash-preview',
-    'gemini-2.0-flash', 
-    'gemini-flash-latest'
+-  'gemini-3-flash-preview',
+-  'gemini-2.0-flash', 
+-  'gemini-flash-latest'
++  'gemini-2.0-flash'
 ];
+
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 3,
-    baseDelay: number = 2000
+    maxRetries: number = 1,
+    baseDelay: number = 700
 ): Promise<T> {
     let lastError: any;
     
@@ -122,7 +123,7 @@ async function retryOperation<T>(
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
     // Timeout set to 30s. 
     // Increased from 12s/18s to allow models enough time to generate, minimizing false failure reports.
-    const API_TIMEOUT = 30000;   
+    const API_TIMEOUT = 15000;   
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
