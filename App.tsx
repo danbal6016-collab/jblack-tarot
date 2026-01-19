@@ -45,7 +45,7 @@ const TRANSLATIONS = {
     reward_popup: "등급 보상 지급!",
     face_reading_title: "관상",
     face_reading_desc: "연락 할까 말까 고민하는 시간도 아까워요. 그 사람이 당신이 찾던 그 이인지, 지금 확인해 보세요.",
-    face_upload_btn: "관상 보기 (-200 Coin)",
+    face_upload_btn: "관상 보기 (-100 Coin)",
     face_guide: "인물의 얼굴이 잘 보이는 사진을 업로드 하세요.",
     life_reading_title: "인생",
     life_reading_desc: "당신이 언제, 무엇으로 떼돈을 벌까요? 당신의 숨겨진 재능과 황금기, 미래 배우자까지 확인하세요.",
@@ -132,7 +132,7 @@ const TRANSLATIONS = {
     reward_popup: "Monthly Reward!",
     face_reading_title: "Physiognomy",
     face_reading_desc: "Stop wasting time guessing. Check if they are the one.",
-    face_upload_btn: "Analyze Face (-200 Coin)",
+    face_upload_btn: "Analyze Face (-100 Coin)",
     face_guide: "Upload a clear photo of the face.",
     life_reading_title: "Life Path",
     life_reading_desc: "When will you make a fortune? Hidden talents, golden age, future spouse.",
@@ -195,10 +195,10 @@ const TRANSLATIONS = {
 // ---------------------------------------------------------------------------
 // HELPERS
 // ---------------------------------------------------------------------------
-const calculateTier = (spent: number): UserTier => {
-  if (spent >= TIER_THRESHOLDS.PLATINUM) return UserTier.PLATINUM;
-  if (spent >= TIER_THRESHOLDS.GOLD) return UserTier.GOLD;
-  if (spent >= TIER_THRESHOLDS.SILVER) return UserTier.SILVER;
+const calculateTier = (coinsSpent: number): UserTier => {
+  if (coinsSpent >= TIER_THRESHOLDS.PLATINUM) return UserTier.PLATINUM;
+  if (coinsSpent >= TIER_THRESHOLDS.GOLD) return UserTier.GOLD;
+  if (coinsSpent >= TIER_THRESHOLDS.SILVER) return UserTier.SILVER;
   return UserTier.BRONZE;
 };
 
@@ -881,7 +881,8 @@ const App: React.FC = () => {
       readingsToday: 0,
       loginDates: [],
       customSkins: [],
-      activeCustomSkin: null
+      activeCustomSkin: null,
+      monthlyCoinsSpent: 0
   });
   
   const [authMode, setAuthMode] = useState<'LOGIN'|'SIGNUP'|null>(null);
@@ -943,6 +944,7 @@ const App: React.FC = () => {
       const today = new Date().toISOString().split('T')[0];
       const todayDate = new Date();
       const isFirstDay = todayDate.getDate() === 1;
+      const currentMonth = today.substring(0, 7);
 
       // 1. Try to load from LocalStorage first for instant resumption
       let localUser: User | null = null;
@@ -976,17 +978,53 @@ const App: React.FC = () => {
           // Merge local data if email matches, otherwise start fresh or fetch from DB
           let currentUser = (localUser && localUser.email === email) ? localUser : { ...user, email };
 
-          // --- LOGIC: ATTENDANCE & REWARDS ---
+          // --- LOGIC: ATTENDANCE & REWARDS & TIER RESET ---
           let newLoginDates = [...(currentUser.loginDates || [])];
           if (!newLoginDates.includes(today)) newLoginDates.push(today);
           
-          let newTier = calculateTier(currentUser.totalSpent);
           let newCoins = currentUser.coins;
           let currentMonthlyReward = currentUser.lastMonthlyReward;
           let newAttendanceDay = currentUser.attendanceDay;
           let newLastAttendance = currentUser.lastAttendance;
+          
+          // Monthly Reset Logic (New requirement: Tier renewal on 1st)
+          // We detect month change via currentMonthlyReward field or just simple check.
+          // If 'lastMonthlyReward' is NOT current month, we treat it as a new month for tier calculation reset.
+          let newMonthlyCoinsSpent = currentUser.monthlyCoinsSpent || 0;
+          let newTier = currentUser.tier;
 
-          // Demotion Check
+          if (currentMonthlyReward !== currentMonth) {
+              // New Month Detected!
+              
+              // 1. Give Monthly Reward based on PREVIOUS Tier
+              if (newTier === UserTier.GOLD) {
+                  newCoins = Math.floor(newCoins * 1.5);
+                  alert(TRANSLATIONS[lang].reward_popup + " (1.5x)");
+              } else if (newTier === UserTier.PLATINUM) {
+                  newCoins = Math.floor(newCoins * 2.0);
+                  alert(TRANSLATIONS[lang].reward_popup + " (2.0x)");
+              }
+              
+              // 2. Reset Spend Counter and Recalculate Tier
+              // Assuming "Renew every 1st" means starting fresh or re-evaluating. 
+              // Standard gamification: You keep tier based on past performance OR drop.
+              // Given "Silver is when you USED 400 coins", let's assume it resets to 0 and you must earn back, 
+              // OR more gracefully, we just reset the counter for the new month's tracking. 
+              // Let's implement strict monthly reset as implied by "renew": 
+              // Reset spending to 0. Tier drops to Bronze until they spend again? 
+              // Or keep tier based on last month? 
+              // The prompt says "Renew tier every 1st". Let's reset to Bronze and 0 spent.
+              newMonthlyCoinsSpent = 0;
+              newTier = UserTier.BRONZE; 
+              
+              currentMonthlyReward = currentMonth;
+          }
+
+          // Recalculate tier based on current month's spending (which might be 0 if just reset)
+          newTier = calculateTier(newMonthlyCoinsSpent);
+
+          // Demotion Check (Legacy logic - can be removed or kept. Keeping for safety but effectively overridden by monthly reset)
+          /* 
           if (isFirstDay && currentUser.lastLoginDate !== today) {
              const lastMonthLogins = newLoginDates.filter(d => {
                  const dDate = new Date(d);
@@ -997,24 +1035,13 @@ const App: React.FC = () => {
                  alert("출석 부족으로 등급이 SILVER로 조정되었습니다.");
              }
           }
-
-          // Monthly Reward
-          if (isFirstDay && currentMonthlyReward !== today.substring(0, 7)) {
-              if (newTier === UserTier.GOLD) {
-                  newCoins = Math.floor(newCoins * 1.5);
-                  alert(TRANSLATIONS[lang].reward_popup + " (1.5x)");
-              } else if (newTier === UserTier.PLATINUM) {
-                  newCoins = Math.floor(newCoins * 2.0);
-                  alert(TRANSLATIONS[lang].reward_popup + " (2.0x)");
-              }
-              currentMonthlyReward = today.substring(0, 7);
-          }
+          */
 
           // Daily Attendance - STRICT CHECK
           // Only trigger if saved date is NOT today
           if (newLastAttendance !== today) {
               if (newAttendanceDay < 10) newAttendanceDay += 1;
-              else newAttendanceDay = 1; // Loop or Reset? Assuming loop or cap. Let's cap at 10 or loop. Constants suggest 10 days.
+              else newAttendanceDay = 1; 
               
               const reward = ATTENDANCE_REWARDS[Math.min(newAttendanceDay, 10) - 1] || 20;
               newCoins += reward;
@@ -1034,7 +1061,8 @@ const App: React.FC = () => {
             lastReadingDate: today,
             lastMonthlyReward: currentMonthlyReward,
             attendanceDay: newAttendanceDay,
-            lastAttendance: newLastAttendance
+            lastAttendance: newLastAttendance,
+            monthlyCoinsSpent: newMonthlyCoinsSpent
           };
 
           setUser(updatedUser);
@@ -1087,7 +1115,16 @@ const App: React.FC = () => {
           }
           return false;
       }
-      updateUser(prev => ({ ...prev, coins: prev.coins - amount }));
+      // Update coins AND monthly usage
+      updateUser(prev => {
+          const newSpent = (prev.monthlyCoinsSpent || 0) + amount;
+          return {
+              ...prev,
+              coins: prev.coins - amount,
+              monthlyCoinsSpent: newSpent,
+              tier: calculateTier(newSpent) // Immediate tier update
+          };
+      });
       return true;
   };
 
@@ -1163,7 +1200,7 @@ const App: React.FC = () => {
   const deleteAccount = () => {
       if (confirm(TRANSLATIONS[lang].delete_confirm)) {
           supabase.auth.signOut();
-          const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [] };
+          const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0 };
           setUser(cleanUser);
           localStorage.removeItem('black_tarot_user'); // Clear storage
           setAppState(AppState.WELCOME);
@@ -1188,7 +1225,8 @@ const App: React.FC = () => {
             ...prev, 
             coins: prev.coins + pendingPackage.coins, 
             totalSpent: prev.totalSpent + pendingPackage.amount, 
-            tier: calculateTier(prev.totalSpent + pendingPackage.amount) 
+            // Note: Buying coins does NOT increase tier directly now, only spending them does.
+            // But we keep totalSpent tracking for history if needed.
         }));
         setPendingPackage(null);
         setShopStep('AMOUNT');
@@ -1225,7 +1263,7 @@ const App: React.FC = () => {
   const startFaceReading = () => {
       if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; }
       if (!faceImage) return alert("Please upload a photo first.");
-      if (!spendCoins(200)) return; // Updated Price
+      if (!spendCoins(100)) return; // Updated Price to 100 as per instruction
 
       navigateTo(AppState.RESULT);
       setSelectedQuestion(TRANSLATIONS[lang].face_reading_title);
@@ -1428,7 +1466,13 @@ const App: React.FC = () => {
           {appState === AppState.FACE_UPLOAD && (
               <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in">
                   <div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center">
-                      <h2 className="text-xl font-bold text-white mb-2">{TRANSLATIONS[lang].face_reading_title}</h2>
+                      <h2 className="text-xl font-bold text-white mb-4">{TRANSLATIONS[lang].face_reading_title}</h2>
+                      
+                      {/* Added Description Text */}
+                      <p className="text-gray-300 mb-6 text-sm md:text-base leading-relaxed break-keep">
+                          {TRANSLATIONS[lang].face_reading_desc}
+                      </p>
+
                       <div className="mb-6 border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative">
                           <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onloadend=()=>setFaceImage(r.result as string); r.readAsDataURL(f); } }} className="absolute inset-0 opacity-0 cursor-pointer" />
                           {faceImage ? <img src={faceImage} className="max-h-48 mx-auto rounded" /> : <span className="text-gray-500">{TRANSLATIONS[lang].face_guide}</span>}
@@ -1596,19 +1640,19 @@ const App: React.FC = () => {
                                      {/* Tier Displays */}
                                      <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.BRONZE ? 'bg-stone-800 border border-stone-600' : 'opacity-50'}`}>
                                          <span className="text-stone-400 font-bold">Bronze</span>
-                                         <span className="text-xs text-stone-500">0 Spent</span>
+                                         <span className="text-xs text-stone-500">0 Used</span>
                                      </div>
                                      <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.SILVER ? 'bg-gray-800 border border-gray-400 shadow-[0_0_10px_rgba(255,255,255,0.2)]' : 'opacity-50'}`}>
                                          <span className="text-gray-300 font-bold">Silver</span>
-                                         <span className="text-xs text-gray-400">400+ Spent</span>
+                                         <span className="text-xs text-gray-400">400+ Used</span>
                                      </div>
                                      <div className={`flex justify-between items-center p-3 rounded-lg transition-all ${user.tier === UserTier.GOLD ? 'bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-600 border-2 border-yellow-200 shadow-[0_0_20px_rgba(250,204,21,0.6)] scale-105' : 'opacity-50'}`}>
                                          <span className={`font-black italic text-xl ${user.tier === UserTier.GOLD ? 'text-yellow-900 drop-shadow-sm' : 'text-stone-500'}`}>GOLD</span>
-                                         <span className={`text-xs font-bold ${user.tier === UserTier.GOLD ? 'text-yellow-900' : 'text-stone-500'}`}>1500+ Spent</span>
+                                         <span className={`text-xs font-bold ${user.tier === UserTier.GOLD ? 'text-yellow-900' : 'text-stone-500'}`}>1500+ Used</span>
                                      </div>
                                      <div className={`flex justify-between items-center p-4 rounded-xl transition-all ${user.tier === UserTier.PLATINUM ? 'bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-2 border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.8)] scale-110 relative overflow-hidden' : 'opacity-50'}`}>
                                          <span className={`font-black italic text-2xl tracking-widest ${user.tier === UserTier.PLATINUM ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-purple-300' : 'text-stone-500'}`}>PLATINUM</span>
-                                         <span className={`text-sm font-bold relative z-10 ${user.tier === UserTier.PLATINUM ? 'text-cyan-200' : 'text-stone-500'}`}>4000+ Spent</span>
+                                         <span className={`text-sm font-bold relative z-10 ${user.tier === UserTier.PLATINUM ? 'text-cyan-200' : 'text-stone-500'}`}>4000+ Used</span>
                                      </div>
                                  </div>
                              </div>

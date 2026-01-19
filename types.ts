@@ -108,6 +108,7 @@ export interface User {
   activeCustomSkin?: CustomSkin | null;
 
   lastMonthlyReward?: string; 
+  monthlyCoinsSpent?: number;
   
   // Persistence
   lastAppState?: AppState; // Saved state to resume

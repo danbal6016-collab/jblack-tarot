@@ -46,7 +46,7 @@ export const SKINS: Skin[] = [
   { id: 'idol_2', name: 'K-Idol All Black 2', cost: 150, type: 'IDOL', cssClass: 'design-idol-2' },
 ];
 
-// Updated Thresholds
+// Updated Thresholds (Coins Spent)
 export const TIER_THRESHOLDS = {
   BRONZE: 0,
   SILVER: 400,
@@ -172,14 +172,14 @@ export const CATEGORIES: QuestionCategory[] = [
       '이 관계는 나에게 어떤 영향을 끼칠까?'
     ]
   },
-  // --- SPECIAL TIERS (UPDATED PRICES) ---
+  // --- SPECIAL TIERS (UPDATED PRICES & LABELS) ---
   {
     id: 'FACE',
     label: '관상',
     icon: '👁️',
     questions: [], 
     minTier: UserTier.SILVER,
-    cost: 200 
+    cost: 100 
   },
   {
     id: 'LIFE',
@@ -199,7 +199,7 @@ export const CATEGORIES: QuestionCategory[] = [
   },
   {
     id: 'PARTNER_LIFE',
-    label: '그 사람의 인생',
+    label: '연예인', 
     icon: '👥',
     questions: [],
     minTier: UserTier.PLATINUM,
