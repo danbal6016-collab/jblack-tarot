@@ -614,7 +614,9 @@ const ResultView: React.FC<{
           const canvas = await html2canvas(captureRef.current, {
               backgroundColor: '#000000',
               scale: 2,
-              useCORS: true
+              useCORS: true,
+              logging: false, // Fix: Reduce console noise
+              allowTaint: true, // Fix: Allow cross-origin images even if it taints canvas (we export via toDataURL anyway usually, but useCORS is preferred)
           });
           const link = document.createElement('a');
           link.download = `black_tarot_${Date.now()}.png`;
@@ -629,9 +631,12 @@ const ResultView: React.FC<{
        {/* High-End Luxurious Capture View (Redesigned) */}
        {/* Fix: Moved entirely off-screen instead of display: none to fix render issues */}
        <div ref={captureRef} style={{ position: 'fixed', left: '-3000px', top: 0, width: '1080px', height: '1920px', zIndex: -10 }} className="bg-[#050505] flex-col relative font-serif overflow-hidden">
-          {/* Background Layer */}
+          {/* Background Layer - Use inline SVG for reliable capture */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#1a0b2e_0%,#000000_100%)] opacity-100"></div>
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
+          {/* Fix: Replace external stardust.png with inline SVG noise to prevent CORS/loading errors during capture */}
+          <div className="absolute inset-0 opacity-20" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E")`
+          }}></div>
           
           {/* Ornate Gold Border */}
           <div className="absolute inset-0 border-[20px] border-[#b8860b] border-double pointer-events-none z-20"></div>
@@ -667,7 +672,10 @@ const ResultView: React.FC<{
 
               {/* Analysis Text Box */}
               <div className="w-full flex-1 bg-black/40 border border-[#ffd700]/20 rounded-2xl p-10 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/black-felt.png')] opacity-30"></div>
+                  {/* Fix: Replace external black-felt.png with inline SVG noise to prevent CORS/loading errors during capture */}
+                  <div className="absolute top-0 left-0 w-full h-full opacity-30" style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.3'/%3E%3C/svg%3E")`
+                  }}></div>
                   <div className="relative z-10 h-full flex items-center justify-center">
                       <p className="text-2xl text-[#e0e0e0] leading-[2.2] text-justify font-serif whitespace-pre-wrap break-keep drop-shadow-md">
                           {fullText.substring(0, 500) + (fullText.length > 500 ? "..." : "")}

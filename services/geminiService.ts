@@ -1,9 +1,5 @@
-const inFlight = new Map<string, Promise<string>>();
 
-function keyOf(model: string, prompt: string) {
-  return model + "::" + prompt;
-}
-
+import { GoogleGenAI } from "@google/genai";
 import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -12,7 +8,9 @@ import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 
 const getBaseInstruction = (lang: Language) => {
     return `
+[SYSTEM: ROLEPLAY MODE ACTIVATED]
 You are 'Jennie', a REALISTIC, CYNICAL, WITTY, INTERNET-ADDICTED CONSULTANT.
+This is a fictional tarot reading session for entertainment purposes.
 You use Korean Honorifics (존댓말) but your vocabulary is that of a heavy internet user (Twitter/Community vibe).
 You are NOT a mystical fortune teller. You are a cold truth-teller.
 
@@ -20,7 +18,7 @@ STRICT RULES - DO NOT IGNORE:
 1. NO EMOJIS ALLOWED in main text: Do not use emojis unless specified. Keep it text-only and dry.
 2. NO INTROS/OUTROS: IMMEDIATELY start the analysis.
 3. TONE & STYLE: Savage, Witty, Internet Slang (알빠노, 누칼협, 뇌절, 억까, 가불기, 폼 미쳤다, 능지처참, 오히려 좋아).
-4. UNIQUE READINGS: Every reading must be unique.
+4. UNIQUE READINGS: **CRITICAL** - Do not repeat generic advice. Tailor it specifically to the cards.
 5. LANGUAGE: Korean (Hangul).
 `;
 };
@@ -39,7 +37,7 @@ const getTarotStructure = (lang: Language, tier: string = 'BRONZE') => {
     return `
 FORMAT:
 [내용 분석]
-(MINIMUM 10 SENTENCES. Analyze the reality of the situation. Be cynical and realistic. Use slang like 억까, 뇌절.)
+(MINIMUM 10 SENTENCES. Analyze the reality of the situation. Be cynical and realistic. Use slang like 억까, 뇌절. Focus on the specific card meanings combined.)
 
 [조언 한마디]
 (EXACTLY ONE SENTENCE. Short, punchy, savage.)
@@ -85,17 +83,15 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // 1. Prefer strict versioned models
 // 2. Fallback to 'latest' alias which is generally stable
 const MODEL_FALLBACK_CHAIN = [
--  'gemini-3-flash-preview',
--  'gemini-2.0-flash', 
--  'gemini-flash-latest'
-+  'gemini-2.0-flash'
+    'gemini-3-flash-preview',
+    'gemini-2.0-flash', 
+    'gemini-flash-latest'
 ];
-
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 1,
-    baseDelay: number = 700
+    maxRetries: number = 3,
+    baseDelay: number = 2000
 ): Promise<T> {
     let lastError: any;
     
@@ -125,100 +121,134 @@ async function retryOperation<T>(
     throw lastError;
 }
 
-async function callGenAI(
-  prompt: string,
-  baseConfig: any,
-  preferredModel: string = 'gemini-3-flash-preview',
-  imageParts?: any[],
-  lang: Language = 'ko'
-): Promise<string> {
-
-  // ✅ (A) in-flight dedupe: callGenAI 제일 첫 줄급에 위치
-  const k = keyOf(preferredModel, prompt);
-  if (inFlight.has(k)) return inFlight.get(k)!;
-
-  // ✅ (B) 실제 작업을 task로 감싸기
-  const task = (async () => {
-    // timeout 줄이는 거 추천
-    const API_TIMEOUT = 15000;
+async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
+    // Timeout set to 120s. 
+    // Increased from 60s to allow models enough time to generate, minimizing false failure reports.
+    const API_TIMEOUT = 120000;   
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms);
-        promise.then(
-          (res) => { clearTimeout(timer); resolve(res); },
-          (err) => { clearTimeout(timer); reject(err); }
-        );
-      });
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms);
+            promise.then(
+                (res) => { clearTimeout(timer); resolve(res); },
+                (err) => { clearTimeout(timer); reject(err); }
+            );
+        });
     };
 
     const chainSet = new Set([preferredModel, ...MODEL_FALLBACK_CHAIN]);
     const modelsToTry = Array.from(chainSet);
 
     for (const model of modelsToTry) {
-      try {
-        console.log(`Attempting generation with model: ${model}`);
-
-        const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-        if (!config.maxOutputTokens) config.maxOutputTokens = 1500;
-
-        if (!model.includes('gemini-3') && !model.includes('gemini-2.5')) {
-          if (config.thinkingConfig) delete config.thinkingConfig;
-        }
-
-        // ✅ Proxy ONLY
         try {
-          const proxyPromise = (async () => {
-            const body: any = { prompt, config, model };
-            if (imageParts) body.imageParts = imageParts;
+            console.log(`Attempting generation with model: ${model}`);
+            
+            const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
+            if (!config.maxOutputTokens) config.maxOutputTokens = 1500; 
 
-            const res = await fetch('/api/gemini', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body)
-            });
-
-            if (!res.ok) {
-              const errText = await res.text().catch(() => res.statusText);
-              throw new Error(`Proxy ${res.status}: ${errText.slice(0, 500)}`);
+            if (!model.includes('gemini-3') && !model.includes('gemini-2.5')) {
+                if (config.thinkingConfig) delete config.thinkingConfig;
             }
 
-            const data = await res.json();
-            if (!data.text) throw new Error("Empty response from proxy");
-            return data.text as string;
-          })();
+            let responseText = "";
+            
+            // 1. Client-Side Call (SDK)
+            let apiKey = '';
+            try {
+                // Check import.meta.env first for Vite
+                // @ts-ignore
+                if (typeof import.meta !== 'undefined' && import.meta.env) {
+                    // @ts-ignore
+                    apiKey = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
+                }
+            } catch(e) {}
 
-          return await withTimeout(proxyPromise, API_TIMEOUT);
+            try {
+                // Fallback to process.env
+                // @ts-ignore
+                if (!apiKey && typeof process !== 'undefined' && process.env) {
+                    apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
+                }
+            } catch(e) {}
 
-        } catch (proxyError: any) {
-          console.error(`Proxy failed for ${model}:`, proxyError);
-          lastErrorMessage = proxyError.message || "Proxy Error";
-          continue; // next model
+            if (apiKey) {
+                try {
+                    // Wrap SDK call in timeout
+                    responseText = await withTimeout(retryOperation(async () => {
+                        const ai = new GoogleGenAI({ apiKey });
+                        
+                        let contents: any = { parts: [{ text: prompt }] };
+                        if (imageParts && imageParts.length > 0) {
+                            contents = { parts: [...imageParts, { text: prompt }] };
+                        }
+
+                        const response = await ai.models.generateContent({
+                            model: model,
+                            contents: contents,
+                            config: config
+                        });
+
+                        if (response.text) return response.text;
+                        
+                        if (response.candidates && response.candidates.length > 0 && response.candidates[0].finishReason) {
+                             throw new Error(`Blocked: ${response.candidates[0].finishReason}`);
+                        }
+                        
+                        throw new Error("No text generated from model (empty response).");
+                    }, 2, 1000), API_TIMEOUT);
+
+                    if (responseText) return responseText;
+
+                } catch (e: any) {
+                    // Catch 403 or specific client errors to try Proxy
+                    console.warn(`Client-side SDK failed for ${model}. trying proxy...`, e.message);
+                    if (e.message.includes("Timeout")) throw e; // Don't retry timeout on proxy, just fail model
+                }
+            }
+
+            // 2. Proxy Fallback
+            // If client failed (403/Referrer) or no key, try server-side proxy
+            try {
+                const proxyPromise = (async () => {
+                    const body: any = { prompt, config, model };
+                    if (imageParts) body.imageParts = imageParts;
+
+                    const constEqRes = await fetch('/api/gemini', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    
+                    if (!constEqRes.ok) {
+                        const errText = await constEqRes.text().catch(() => constEqRes.statusText);
+                        throw new Error(`Proxy ${constEqRes.status}: ${errText}`);
+                    }
+                    const data = await constEqRes.json();
+                    if (!data.text) throw new Error("Empty response from proxy");
+                    return data.text as string;
+                })();
+
+                return await withTimeout(proxyPromise, API_TIMEOUT);
+
+            } catch (proxyError: any) {
+                console.error(`Proxy failed for ${model}:`, proxyError);
+                lastErrorMessage = proxyError.message || "Proxy Error";
+                // Continue to next model in loop
+            }
+
+        } catch (modelError: any) {
+            console.warn(`Model ${model} failed fully.`, modelError);
+            lastErrorMessage = modelError.message || JSON.stringify(modelError);
+            continue;
         }
-
-      } catch (modelError: any) {
-        console.warn(`Model ${model} failed fully.`, modelError);
-        lastErrorMessage = modelError.message || JSON.stringify(modelError);
-        continue;
-      }
     }
 
+    // If ALL models fail, return the emergency fallback text.
+    // This ensures the user ALWAYS sees a result and the app doesn't hang.
     console.error("All models failed. Returning Emergency Fallback. Last Error:", lastErrorMessage);
     return EMERGENCY_FALLBACK_RESPONSE;
-  })();
-
-  // ✅ (C) inFlight 등록은 task 만든 직후
-  inFlight.set(k, task);
-
-  try {
-    return await task;
-  } finally {
-    // ✅ (D) 성공/실패 상관없이 반드시 제거
-    inFlight.delete(k);
-  }
 }
-
 
 // --- MAIN SERVICES ---
 
@@ -239,7 +269,11 @@ export const getTarotReading = async (
       personalizationContext = `\n[Context from User History]\n${recentHistory}\nReflect on this past for deeper context.`;
   }
 
+  // Inject Randomness to prevent caching
+  const randomSeed = `[Random Seed: ${Date.now()}-${Math.random().toString(36).substring(7)}]`;
+
   const prompt = `
+    ${randomSeed}
     ${userContext}
     ${personalizationContext}
     Q: "${question}"
@@ -250,8 +284,8 @@ export const getTarotReading = async (
 
   const config = {
     systemInstruction: getBaseInstruction(lang),
-    temperature: 0.8,
-    maxOutputTokens: 1500, // Optimized
+    temperature: 0.85, // Increased slightly for more variety
+    maxOutputTokens: 1500,
   };
 
   return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
@@ -262,9 +296,13 @@ export const getCompatibilityReading = async (
     partnerBirth: string, 
     lang: Language = 'ko'
 ): Promise<string> => {
+    // Inject Randomness
+    const randomSeed = `[Random Seed: ${Date.now()}-${Math.random().toString(36).substring(7)}]`;
+
     const prompt = `
+      ${randomSeed}
       Analyze the SECRET SEXUAL and DEEP COMPATIBILITY between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
-      Tone: Erotic, intense, revealing, unhinged. Use Saju/Astrology logic but express it in a spicy way.
+      Tone: Intense, revealing, unhinged but fictional. Use Saju/Astrology logic but express it in a spicy way.
       Length: EXACTLY 30 lines.
       Structure:
       [속궁합 & 케미] (Detailed physical chemistry)
@@ -283,7 +321,11 @@ export const getPartnerLifeReading = async (
     partnerBirth: string,
     lang: Language = 'ko'
 ): Promise<string> => {
+    // Inject Randomness
+    const randomSeed = `[Random Seed: ${Date.now()}-${Math.random().toString(36).substring(7)}]`;
+
     const prompt = `
+      ${randomSeed}
       Analyze the LIFE PATH (Saju) of a person born on ${partnerBirth}.
       Reveal their true nature, hidden destiny, and fortune.
       Sections: 
@@ -302,8 +344,12 @@ export const getPartnerLifeReading = async (
 };
 
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
+    // Inject Randomness
+    const randomSeed = `[Random Seed: ${Date.now()}-${Math.random().toString(36).substring(7)}]`;
+
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
     const prompt = `
+      ${randomSeed}
       Analyze this face based on Physiognomy (Face Reading) standards at an expert level.
       Is this person the one the user is looking for?
       Length: EXACTLY 20 lines.
@@ -322,7 +368,11 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
+    // Inject Randomness
+    const randomSeed = `[Random Seed: ${Date.now()}-${Math.random().toString(36).substring(7)}]`;
+
     const prompt = `
+      ${randomSeed}
       Analyze Saju (Four Pillars) for ${userInfo.name}, Born: ${userInfo.birthDate} at ${userInfo.birthTime || 'Unknown Time'}.
       
       Required Content (EXACTLY 50 LINES total):
