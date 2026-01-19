@@ -417,6 +417,18 @@ const Header: React.FC<{
       {user.email === 'Guest' && localStorage.getItem('tarot_device_id') && (
           <button onClick={onLogin} className="text-xs bg-purple-900 border border-purple-500 px-3 py-1 rounded text-white animate-pulse">Login / Join</button>
       )}
+      
+      {/* Profile Icon for Logged-In Users */}
+      {user.email !== 'Guest' && (
+          <button onClick={openProfile} className="w-8 h-8 rounded-full bg-gray-800 border border-gray-600 overflow-hidden hover:border-purple-500 transition-all">
+              {user.userInfo?.profileImage ? (
+                  <img src={user.userInfo.profileImage} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs">👤</div>
+              )}
+          </button>
+      )}
+
       <button 
         onClick={onOpenSettings}
         className="text-gray-400 hover:text-purple-400 transition-colors p-2"
@@ -894,6 +906,9 @@ const App: React.FC = () => {
   const [showAttendancePopup, setShowAttendancePopup] = useState(false);
   const [attendanceReward, setAttendanceReward] = useState(0);
 
+  // Profile Edit State
+  const [editProfileData, setEditProfileData] = useState<UserInfo>({ name: '', birthDate: '', country: '', timezone: '', zodiacSign: '', nameChangeCount: 0, birthDateChanged: false, countryChanged: false });
+
   const [customSkinImage, setCustomSkinImage] = useState<string | null>(null);
   const [isSkinPublic, setIsSkinPublic] = useState(false);
   const [inputSkinCode, setInputSkinCode] = useState('');
@@ -986,55 +1001,33 @@ const App: React.FC = () => {
         let newAttendanceDay = currentUser.attendanceDay;
         let newLastAttendance = currentUser.lastAttendance;
         
-        // Monthly Reset Logic (New requirement: Tier renewal on 1st)
-        // We detect month change via currentMonthlyReward field or just simple check.
-        // If 'lastMonthlyReward' is NOT current month, we treat it as a new month for tier calculation reset.
+        // Monthly Reset Logic (Tier renewal on 1st)
         let newMonthlyCoinsSpent = currentUser.monthlyCoinsSpent || 0;
         let newTier = currentUser.tier;
 
         if (currentMonthlyReward !== currentMonth) {
             // New Month Detected!
-            
-            // 1. Give Monthly Reward based on PREVIOUS Tier
-            if (newTier === UserTier.GOLD) {
-                newCoins = Math.floor(newCoins * 1.5);
-                alert(TRANSLATIONS[lang].reward_popup + " (1.5x)");
-            } else if (newTier === UserTier.PLATINUM) {
-                newCoins = Math.floor(newCoins * 2.0);
-                alert(TRANSLATIONS[lang].reward_popup + " (2.0x)");
+            // Give Monthly Reward based on PREVIOUS Tier - STRICTLY NO REWARD FOR BRONZE
+            if (newTier !== UserTier.BRONZE) {
+                if (newTier === UserTier.GOLD) {
+                    newCoins = Math.floor(newCoins * 1.5);
+                    alert(TRANSLATIONS[lang].reward_popup + " (1.5x)");
+                } else if (newTier === UserTier.PLATINUM) {
+                    newCoins = Math.floor(newCoins * 2.0);
+                    alert(TRANSLATIONS[lang].reward_popup + " (2.0x)");
+                }
             }
             
-            // 2. Reset Spend Counter and Recalculate Tier
-            // Assuming "Renew every 1st" means starting fresh or re-evaluating. 
-            // Standard gamification: You keep tier based on past performance OR drop.
-            // Given "Silver is when you USED 400 coins", let's assume it resets to 0 and you must earn back, 
-            // OR more gracefully, we just reset the counter for the new month's tracking. 
-            // Let's implement strict monthly reset as implied by "renew": 
-            // Reset spending to 0. Tier drops to Bronze until they spend again? 
-            // Or keep tier based on last month? 
-            // The prompt says "Renew tier every 1st". Let's reset to Bronze and 0 spent.
+            // Reset Spend Counter
             newMonthlyCoinsSpent = 0;
+            // Recalculate Tier (Resets to Bronze until spend again, as per prompt logic of "renewal")
             newTier = UserTier.BRONZE; 
             
             currentMonthlyReward = currentMonth;
+        } else {
+            // Recalculate tier based on current month's spending if same month
+            newTier = calculateTier(newMonthlyCoinsSpent);
         }
-
-        // Recalculate tier based on current month's spending (which might be 0 if just reset)
-        newTier = calculateTier(newMonthlyCoinsSpent);
-
-        // Demotion Check (Legacy logic - can be removed or kept. Keeping for safety but effectively overridden by monthly reset)
-        /* 
-        if (isFirstDay && currentUser.lastLoginDate !== today) {
-           const lastMonthLogins = newLoginDates.filter(d => {
-               const dDate = new Date(d);
-               return dDate.getMonth() === todayDate.getMonth() - 1;
-           }).length;
-           if (lastMonthLogins < 20 && (newTier === UserTier.GOLD || newTier === UserTier.PLATINUM)) {
-               newTier = UserTier.SILVER;
-               alert("출석 부족으로 등급이 SILVER로 조정되었습니다.");
-           }
-        }
-        */
 
         // Daily Attendance - STRICT CHECK
         // Only trigger if saved date is NOT today
@@ -1084,7 +1077,7 @@ const App: React.FC = () => {
     } catch (err: any) {
         console.warn("Session check failed:", err);
     }
-  }, [lang]); // Removed 'user' from dependency to prevent loop
+  }, [lang]); 
 
   useEffect(() => {
     checkUser();
@@ -1198,12 +1191,86 @@ const App: React.FC = () => {
       updateUser(prev => ({ ...prev, rugColor: color }));
   };
 
-  const deleteAccount = () => {
+  // Open Profile Handler: Initialize local edit state
+  const handleOpenProfile = () => {
+      if (user.userInfo) {
+          setEditProfileData({ ...user.userInfo });
+      }
+      setShowProfile(true);
+  };
+
+  // Save Profile Handler with Limits
+  const handleSaveProfile = () => {
+      if (!user.userInfo) return;
+      
+      const newInfo = { ...editProfileData };
+      let updatedUser = { ...user };
+      let changed = false;
+
+      // Name Logic (Max 3)
+      if (newInfo.name !== user.userInfo.name) {
+          if (user.userInfo.nameChangeCount >= 3) {
+              alert("이름은 최대 3회까지만 변경 가능합니다.");
+              return;
+          }
+          newInfo.nameChangeCount = (user.userInfo.nameChangeCount || 0) + 1;
+          changed = true;
+      }
+
+      // Birthdate Logic (Max 1)
+      if (newInfo.birthDate !== user.userInfo.birthDate) {
+          if (user.userInfo.birthDateChanged) {
+              alert("생년월일은 1회만 변경 가능합니다.");
+              return;
+          }
+          newInfo.birthDateChanged = true;
+          changed = true;
+      }
+
+      // Country Logic (Max 1)
+      if (newInfo.country !== user.userInfo.country) {
+          if (user.userInfo.countryChanged) {
+              alert("국가는 1회만 변경 가능합니다.");
+              return;
+          }
+          newInfo.countryChanged = true;
+          changed = true;
+      }
+
+      // Bio & Image (No limits)
+      if (newInfo.bio !== user.userInfo.bio || newInfo.profileImage !== user.userInfo.profileImage) {
+          changed = true;
+      }
+
+      if (changed) {
+          updatedUser.userInfo = newInfo;
+          updateUser(() => updatedUser);
+          alert("프로필이 업데이트 되었습니다.");
+      }
+      setShowProfile(false);
+  };
+
+  const handleDeleteAccount = async () => {
       if (confirm(TRANSLATIONS[lang].delete_confirm)) {
-          supabase.auth.signOut();
-          const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0 };
+          await supabase.auth.signOut();
+          localStorage.removeItem('black_tarot_user'); 
+          localStorage.removeItem('tarot_device_id');
+          // Reset to clean guest state
+          const cleanUser = { 
+              email: 'Guest', 
+              coins: 0, 
+              history: [], 
+              totalSpent: 0, 
+              tier: UserTier.BRONZE, 
+              attendanceDay: 0, 
+              ownedSkins: ['default'], 
+              currentSkin: 'default', 
+              readingsToday: 0, 
+              loginDates: [], 
+              monthlyCoinsSpent: 0,
+              lastAppState: AppState.WELCOME
+          };
           setUser(cleanUser);
-          localStorage.removeItem('black_tarot_user'); // Clear storage
           setAppState(AppState.WELCOME);
           setShowProfile(false);
       }
@@ -1348,7 +1415,7 @@ const App: React.FC = () => {
                     onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }}
                     onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }}
                     onLogin={() => setAuthMode("LOGIN")}
-                    openProfile={() => setShowProfile(true)}
+                    openProfile={handleOpenProfile}
                  />
               </div>
           )}
@@ -1379,34 +1446,73 @@ const App: React.FC = () => {
               </div>
           )}
 
-          {/* PROFILE MODAL */}
+          {/* PROFILE MODAL (EDITABLE) */}
           {showProfile && user.email !== 'Guest' && (
               <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
                   <div className="bg-gray-900 border border-purple-500 rounded-lg max-w-md w-full p-6 relative overflow-y-auto max-h-[90vh]">
-                      <button onClick={() => setShowProfile(false)} className="absolute top-4 right-4 text-gray-400">✕</button>
+                      <button onClick={() => setShowProfile(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">✕</button>
                       <h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{TRANSLATIONS[lang].profile_edit}</h2>
                       
                       <div className="flex justify-center mb-6">
                           <div className="w-24 h-24 rounded-full bg-gray-800 border-2 border-purple-500 flex items-center justify-center overflow-hidden relative group cursor-pointer">
-                              {user.userInfo?.profileImage ? <img src={user.userInfo.profileImage} className="w-full h-full object-cover" /> : <span className="text-4xl">👤</span>}
+                              {editProfileData.profileImage ? <img src={editProfileData.profileImage} className="w-full h-full object-cover" /> : <span className="text-4xl">👤</span>}
                               <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-xs text-white">Change</div>
-                              <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{ const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onload=()=>updateUser(prev => ({...prev, userInfo: {...prev.userInfo!, profileImage: r.result as string}})); r.readAsDataURL(f); } }}/>
+                              <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{ const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onload=()=>setEditProfileData(prev => ({...prev, profileImage: r.result as string})); r.readAsDataURL(f); } }}/>
                           </div>
                       </div>
 
                       <div className="space-y-4">
                           <div>
-                              <label className="text-xs text-gray-500 block mb-1">Name</label>
-                              <input value={user.userInfo?.name} onChange={(e) => updateUser(prev => ({...prev, userInfo: {...prev.userInfo!, name: e.target.value}}))} className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white" />
+                              <label className="text-xs text-gray-500 block mb-1">Name (Changed: {user.userInfo?.nameChangeCount || 0}/3)</label>
+                              <input 
+                                  value={editProfileData.name} 
+                                  onChange={(e) => setEditProfileData(prev => ({...prev, name: e.target.value}))} 
+                                  className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.nameChangeCount && user.userInfo.nameChangeCount >= 3 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  disabled={!!(user.userInfo?.nameChangeCount && user.userInfo.nameChangeCount >= 3)}
+                              />
                           </div>
                           <div>
-                              <label className="text-xs text-gray-500 block mb-1">Bio</label>
-                              <textarea value={user.userInfo?.bio || ''} onChange={(e) => updateUser(prev => ({...prev, userInfo: {...prev.userInfo!, bio: e.target.value}}))} className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white h-20" />
+                              <label className="text-xs text-gray-500 block mb-1">Birthdate (Changeable Once)</label>
+                              <input 
+                                  value={editProfileData.birthDate} 
+                                  onChange={(e) => setEditProfileData(prev => ({...prev, birthDate: e.target.value}))} 
+                                  placeholder="YYYYMMDD"
+                                  className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.birthDateChanged ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  disabled={user.userInfo?.birthDateChanged}
+                              />
+                          </div>
+                          <div>
+                              <label className="text-xs text-gray-500 block mb-1">Country (Changeable Once)</label>
+                              <select 
+                                  value={COUNTRIES.find(c => c.nameEn === editProfileData.country)?.code || ''} 
+                                  onChange={(e) => {
+                                      const c = COUNTRIES.find(cnt => cnt.code === e.target.value);
+                                      if(c) setEditProfileData(prev => ({...prev, country: c.nameEn}));
+                                  }}
+                                  className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.countryChanged ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  disabled={user.userInfo?.countryChanged}
+                              >
+                                  {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.nameKo}</option>)}
+                              </select>
+                          </div>
+                          <div>
+                              <label className="text-xs text-gray-500 block mb-1">Bio (Public Description)</label>
+                              <textarea 
+                                  value={editProfileData.bio || ''} 
+                                  onChange={(e) => setEditProfileData(prev => ({...prev, bio: e.target.value}))} 
+                                  className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white h-20 resize-none" 
+                                  placeholder="Introduce yourself..."
+                              />
                           </div>
                       </div>
 
+                      <div className="mt-6 flex gap-2">
+                          <button onClick={() => setShowProfile(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 font-bold">Cancel</button>
+                          <button onClick={handleSaveProfile} className="flex-1 py-2 bg-purple-700 hover:bg-purple-600 rounded text-white font-bold">Save Changes</button>
+                      </div>
+
                       <div className="mt-8 pt-6 border-t border-gray-800">
-                          <button onClick={deleteAccount} className="w-full py-3 bg-red-900/50 text-red-400 font-bold rounded border border-red-900 hover:bg-red-900 hover:text-white transition-colors">{TRANSLATIONS[lang].delete_account}</button>
+                          <button onClick={handleDeleteAccount} className="w-full py-3 bg-red-900/50 text-red-400 font-bold rounded border border-red-900 hover:bg-red-900 hover:text-white transition-colors">{TRANSLATIONS[lang].delete_account}</button>
                       </div>
                   </div>
               </div>
@@ -1414,7 +1520,7 @@ const App: React.FC = () => {
 
           {appState === AppState.WELCOME && (
               <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center animate-fade-in relative z-10">
-                <Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => setShowShop(true)} onLogin={() => setAuthMode("LOGIN")} openProfile={() => setShowProfile(true)} />
+                <Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => setShowShop(true)} onLogin={() => setAuthMode("LOGIN")} openProfile={handleOpenProfile} />
                 <Logo size="large" />
                 <p className="font-serif-en text-sm md:text-base italic mb-12 text-gold-gradient font-bold tracking-widest uppercase drop-shadow-sm opacity-90">{TRANSLATIONS[lang].welcome_sub}</p>
                 <button onClick={handleStart} className="btn-gold-3d mb-8">{TRANSLATIONS[lang].enter}</button>
