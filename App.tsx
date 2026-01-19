@@ -780,7 +780,7 @@ const ResultView: React.FC<{
   );
 };
 
-const AuthForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const AuthForm: React.FC<{ onClose: () => void; onLoginSuccess: () => void }> = ({ onClose, onLoginSuccess }) => {
     const [isSignup, setIsSignup] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -818,7 +818,7 @@ const AuthForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     }
                     throw error;
                 }
-                onClose();
+                onLoginSuccess();
             }
         } catch (e: any) {
             setMsg(e.message || "An error occurred");
@@ -939,155 +939,156 @@ const App: React.FC = () => {
       });
   };
 
+  const checkUser = useCallback(async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayDate = new Date();
+    const isFirstDay = todayDate.getDate() === 1;
+    const currentMonth = today.substring(0, 7);
+
+    // 1. Try to load from LocalStorage first for instant resumption
+    let localUser: User | null = null;
+    try {
+        const stored = localStorage.getItem('black_tarot_user');
+        if (stored) {
+            localUser = JSON.parse(stored);
+            if (localUser) setUser(localUser);
+        }
+    } catch (e) {}
+
+    try {
+        const { data, error } = await supabase.auth.getSession();
+        // If no session, rely on local guest data or default
+        if (error || !data.session?.user) {
+           if (localUser && localUser.email === 'Guest') {
+               // Already loaded
+           } else {
+               const newGuest: User = { ...user, email: "Guest", lastLoginDate: today };
+               setUser(newGuest);
+               setAppState(AppState.WELCOME);
+           }
+           localStorage.setItem('tarot_device_id', 'true');
+           return;
+        }
+        
+        // User is logged in
+        const u = data.session.user;
+        const email = u.email || "User";
+
+        // Merge local data if email matches, otherwise start fresh or fetch from DB
+        let currentUser = (localUser && localUser.email === email) ? localUser : { ...user, email };
+
+        // --- LOGIC: ATTENDANCE & REWARDS & TIER RESET ---
+        let newLoginDates = [...(currentUser.loginDates || [])];
+        if (!newLoginDates.includes(today)) newLoginDates.push(today);
+        
+        let newCoins = currentUser.coins;
+        let currentMonthlyReward = currentUser.lastMonthlyReward;
+        let newAttendanceDay = currentUser.attendanceDay;
+        let newLastAttendance = currentUser.lastAttendance;
+        
+        // Monthly Reset Logic (New requirement: Tier renewal on 1st)
+        // We detect month change via currentMonthlyReward field or just simple check.
+        // If 'lastMonthlyReward' is NOT current month, we treat it as a new month for tier calculation reset.
+        let newMonthlyCoinsSpent = currentUser.monthlyCoinsSpent || 0;
+        let newTier = currentUser.tier;
+
+        if (currentMonthlyReward !== currentMonth) {
+            // New Month Detected!
+            
+            // 1. Give Monthly Reward based on PREVIOUS Tier
+            if (newTier === UserTier.GOLD) {
+                newCoins = Math.floor(newCoins * 1.5);
+                alert(TRANSLATIONS[lang].reward_popup + " (1.5x)");
+            } else if (newTier === UserTier.PLATINUM) {
+                newCoins = Math.floor(newCoins * 2.0);
+                alert(TRANSLATIONS[lang].reward_popup + " (2.0x)");
+            }
+            
+            // 2. Reset Spend Counter and Recalculate Tier
+            // Assuming "Renew every 1st" means starting fresh or re-evaluating. 
+            // Standard gamification: You keep tier based on past performance OR drop.
+            // Given "Silver is when you USED 400 coins", let's assume it resets to 0 and you must earn back, 
+            // OR more gracefully, we just reset the counter for the new month's tracking. 
+            // Let's implement strict monthly reset as implied by "renew": 
+            // Reset spending to 0. Tier drops to Bronze until they spend again? 
+            // Or keep tier based on last month? 
+            // The prompt says "Renew tier every 1st". Let's reset to Bronze and 0 spent.
+            newMonthlyCoinsSpent = 0;
+            newTier = UserTier.BRONZE; 
+            
+            currentMonthlyReward = currentMonth;
+        }
+
+        // Recalculate tier based on current month's spending (which might be 0 if just reset)
+        newTier = calculateTier(newMonthlyCoinsSpent);
+
+        // Demotion Check (Legacy logic - can be removed or kept. Keeping for safety but effectively overridden by monthly reset)
+        /* 
+        if (isFirstDay && currentUser.lastLoginDate !== today) {
+           const lastMonthLogins = newLoginDates.filter(d => {
+               const dDate = new Date(d);
+               return dDate.getMonth() === todayDate.getMonth() - 1;
+           }).length;
+           if (lastMonthLogins < 20 && (newTier === UserTier.GOLD || newTier === UserTier.PLATINUM)) {
+               newTier = UserTier.SILVER;
+               alert("출석 부족으로 등급이 SILVER로 조정되었습니다.");
+           }
+        }
+        */
+
+        // Daily Attendance - STRICT CHECK
+        // Only trigger if saved date is NOT today
+        if (newLastAttendance !== today) {
+            if (newAttendanceDay < 10) newAttendanceDay += 1;
+            else newAttendanceDay = 1; 
+            
+            const reward = ATTENDANCE_REWARDS[Math.min(newAttendanceDay, 10) - 1] || 20;
+            newCoins += reward;
+            newLastAttendance = today;
+            setAttendanceReward(reward);
+            setShowAttendancePopup(true);
+        }
+        
+        const updatedUser = {
+          ...currentUser,
+          email: email,
+          tier: newTier,
+          coins: newCoins,
+          lastLoginDate: today,
+          loginDates: newLoginDates,
+          readingsToday: currentUser.lastReadingDate === today ? currentUser.readingsToday : 0,
+          lastReadingDate: today,
+          lastMonthlyReward: currentMonthlyReward,
+          attendanceDay: newAttendanceDay,
+          lastAttendance: newLastAttendance,
+          monthlyCoinsSpent: newMonthlyCoinsSpent
+        };
+
+        setUser(updatedUser);
+        saveUserState(updatedUser, updatedUser.lastAppState || AppState.WELCOME);
+
+        // --- LOGIC: AUTO-NAVIGATION ---
+        // If we have state history, resume it
+        if (updatedUser.lastAppState && updatedUser.lastAppState !== AppState.WELCOME) {
+            setAppState(updatedUser.lastAppState);
+        } else {
+            // Else if info exists, skip to Category
+            if (updatedUser.userInfo?.name && updatedUser.userInfo?.birthDate) {
+                setAppState(AppState.CATEGORY_SELECT);
+                saveUserState(updatedUser, AppState.CATEGORY_SELECT);
+            } else {
+                setAppState(AppState.INPUT_INFO);
+            }
+        }
+
+    } catch (err: any) {
+        console.warn("Session check failed:", err);
+    }
+  }, [lang]); // Removed 'user' from dependency to prevent loop
+
   useEffect(() => {
-    const checkUser = async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const todayDate = new Date();
-      const isFirstDay = todayDate.getDate() === 1;
-      const currentMonth = today.substring(0, 7);
-
-      // 1. Try to load from LocalStorage first for instant resumption
-      let localUser: User | null = null;
-      try {
-          const stored = localStorage.getItem('black_tarot_user');
-          if (stored) {
-              localUser = JSON.parse(stored);
-              if (localUser) setUser(localUser);
-          }
-      } catch (e) {}
-
-      try {
-          const { data, error } = await supabase.auth.getSession();
-          // If no session, rely on local guest data or default
-          if (error || !data.session?.user) {
-             if (localUser && localUser.email === 'Guest') {
-                 // Already loaded
-             } else {
-                 const newGuest: User = { ...user, email: "Guest", lastLoginDate: today };
-                 setUser(newGuest);
-                 setAppState(AppState.WELCOME);
-             }
-             localStorage.setItem('tarot_device_id', 'true');
-             return;
-          }
-          
-          // User is logged in
-          const u = data.session.user;
-          const email = u.email || "User";
-
-          // Merge local data if email matches, otherwise start fresh or fetch from DB
-          let currentUser = (localUser && localUser.email === email) ? localUser : { ...user, email };
-
-          // --- LOGIC: ATTENDANCE & REWARDS & TIER RESET ---
-          let newLoginDates = [...(currentUser.loginDates || [])];
-          if (!newLoginDates.includes(today)) newLoginDates.push(today);
-          
-          let newCoins = currentUser.coins;
-          let currentMonthlyReward = currentUser.lastMonthlyReward;
-          let newAttendanceDay = currentUser.attendanceDay;
-          let newLastAttendance = currentUser.lastAttendance;
-          
-          // Monthly Reset Logic (New requirement: Tier renewal on 1st)
-          // We detect month change via currentMonthlyReward field or just simple check.
-          // If 'lastMonthlyReward' is NOT current month, we treat it as a new month for tier calculation reset.
-          let newMonthlyCoinsSpent = currentUser.monthlyCoinsSpent || 0;
-          let newTier = currentUser.tier;
-
-          if (currentMonthlyReward !== currentMonth) {
-              // New Month Detected!
-              
-              // 1. Give Monthly Reward based on PREVIOUS Tier
-              if (newTier === UserTier.GOLD) {
-                  newCoins = Math.floor(newCoins * 1.5);
-                  alert(TRANSLATIONS[lang].reward_popup + " (1.5x)");
-              } else if (newTier === UserTier.PLATINUM) {
-                  newCoins = Math.floor(newCoins * 2.0);
-                  alert(TRANSLATIONS[lang].reward_popup + " (2.0x)");
-              }
-              
-              // 2. Reset Spend Counter and Recalculate Tier
-              // Assuming "Renew every 1st" means starting fresh or re-evaluating. 
-              // Standard gamification: You keep tier based on past performance OR drop.
-              // Given "Silver is when you USED 400 coins", let's assume it resets to 0 and you must earn back, 
-              // OR more gracefully, we just reset the counter for the new month's tracking. 
-              // Let's implement strict monthly reset as implied by "renew": 
-              // Reset spending to 0. Tier drops to Bronze until they spend again? 
-              // Or keep tier based on last month? 
-              // The prompt says "Renew tier every 1st". Let's reset to Bronze and 0 spent.
-              newMonthlyCoinsSpent = 0;
-              newTier = UserTier.BRONZE; 
-              
-              currentMonthlyReward = currentMonth;
-          }
-
-          // Recalculate tier based on current month's spending (which might be 0 if just reset)
-          newTier = calculateTier(newMonthlyCoinsSpent);
-
-          // Demotion Check (Legacy logic - can be removed or kept. Keeping for safety but effectively overridden by monthly reset)
-          /* 
-          if (isFirstDay && currentUser.lastLoginDate !== today) {
-             const lastMonthLogins = newLoginDates.filter(d => {
-                 const dDate = new Date(d);
-                 return dDate.getMonth() === todayDate.getMonth() - 1;
-             }).length;
-             if (lastMonthLogins < 20 && (newTier === UserTier.GOLD || newTier === UserTier.PLATINUM)) {
-                 newTier = UserTier.SILVER;
-                 alert("출석 부족으로 등급이 SILVER로 조정되었습니다.");
-             }
-          }
-          */
-
-          // Daily Attendance - STRICT CHECK
-          // Only trigger if saved date is NOT today
-          if (newLastAttendance !== today) {
-              if (newAttendanceDay < 10) newAttendanceDay += 1;
-              else newAttendanceDay = 1; 
-              
-              const reward = ATTENDANCE_REWARDS[Math.min(newAttendanceDay, 10) - 1] || 20;
-              newCoins += reward;
-              newLastAttendance = today;
-              setAttendanceReward(reward);
-              setShowAttendancePopup(true);
-          }
-          
-          const updatedUser = {
-            ...currentUser,
-            email: email,
-            tier: newTier,
-            coins: newCoins,
-            lastLoginDate: today,
-            loginDates: newLoginDates,
-            readingsToday: currentUser.lastReadingDate === today ? currentUser.readingsToday : 0,
-            lastReadingDate: today,
-            lastMonthlyReward: currentMonthlyReward,
-            attendanceDay: newAttendanceDay,
-            lastAttendance: newLastAttendance,
-            monthlyCoinsSpent: newMonthlyCoinsSpent
-          };
-
-          setUser(updatedUser);
-          saveUserState(updatedUser, updatedUser.lastAppState || AppState.WELCOME);
-
-          // --- LOGIC: AUTO-NAVIGATION ---
-          // If we have state history, resume it
-          if (updatedUser.lastAppState && updatedUser.lastAppState !== AppState.WELCOME) {
-              setAppState(updatedUser.lastAppState);
-          } else {
-              // Else if info exists, skip to Category
-              if (updatedUser.userInfo?.name && updatedUser.userInfo?.birthDate) {
-                  setAppState(AppState.CATEGORY_SELECT);
-                  saveUserState(updatedUser, AppState.CATEGORY_SELECT);
-              } else {
-                  setAppState(AppState.INPUT_INFO);
-              }
-          }
-
-      } catch (err: any) {
-          console.warn("Session check failed:", err);
-      }
-    };
     checkUser();
-  }, []);
+  }, [checkUser]);
 
   const handleStart = () => {
       initSounds(); 
@@ -1820,7 +1821,13 @@ const App: React.FC = () => {
                  <div className="bg-gray-900 p-8 rounded-lg border border-purple-500 w-full max-w-md shadow-[0_0_30px_rgba(147,51,234,0.3)] relative">
                      <button onClick={() => setAuthMode(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
                      <h2 className="text-2xl mb-6 text-center text-purple-200 font-occult">Connect with Fate</h2>
-                     <AuthForm onClose={() => setAuthMode(null)} />
+                     <AuthForm 
+                        onClose={() => setAuthMode(null)} 
+                        onLoginSuccess={() => {
+                            setAuthMode(null);
+                            checkUser().then(() => navigateTo(AppState.CATEGORY_SELECT));
+                        }}
+                     />
                  </div>
              </div>
           )}
