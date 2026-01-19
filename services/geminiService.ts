@@ -121,9 +121,9 @@ async function retryOperation<T>(
 }
 
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.0-flash', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Timeout set to 12s. 
-    // Drastically reduced to ensure failover happens quickly and user doesn't wait forever.
-    const API_TIMEOUT = 12000;   
+    // Timeout set to 60s (was 12s). 
+    // Increased to allow full 4000 token generation without premature timeout.
+    const API_TIMEOUT = 60000;   
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -145,7 +145,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             console.log(`Attempting generation with model: ${model}`);
             
             const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-            if (!config.maxOutputTokens) config.maxOutputTokens = 1000; // Lower token count for speed
+            if (!config.maxOutputTokens) config.maxOutputTokens = 4000; // Ensure max tokens for full reading
 
             // Clean up config for flash models
             if (config.thinkingConfig) delete config.thinkingConfig;
@@ -279,7 +279,7 @@ export const getTarotReading = async (
   const config = {
     systemInstruction: getBaseInstruction(lang),
     temperature: 0.9, 
-    maxOutputTokens: 1500,
+    maxOutputTokens: 4000,
   };
 
   // UPDATED: Use 'gemini-2.0-flash' for maximum speed and reliability
@@ -307,7 +307,7 @@ export const getCompatibilityReading = async (
     const config = {
         systemInstruction: getBaseInstruction(lang),
         temperature: 0.9,
-        maxOutputTokens: 1000,
+        maxOutputTokens: 2000,
     };
     return await callGenAI(prompt, config, 'gemini-2.0-flash', undefined, lang);
 };
@@ -333,7 +333,7 @@ export const getPartnerLifeReading = async (
     const config = {
         systemInstruction: getBaseInstruction(lang),
         temperature: 0.8,
-        maxOutputTokens: 1500,
+        maxOutputTokens: 4000,
     };
     return await callGenAI(prompt, config, 'gemini-2.0-flash', undefined, lang);
 };
@@ -356,7 +356,7 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     const config = { 
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.7, 
-        maxOutputTokens: 800,
+        maxOutputTokens: 2000,
     };
     // Prioritize 2.5-flash-image for vision tasks, fallback to 2.0-flash if needed (though 2.0-flash handles images too)
     return await callGenAI(prompt, config, 'gemini-2.0-flash', [imagePart], lang);
@@ -382,7 +382,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
     const config = { 
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.8, 
-        maxOutputTokens: 1500, 
+        maxOutputTokens: 4000, 
     };
     return await callGenAI(prompt, config, 'gemini-2.0-flash', undefined, lang);
 };
