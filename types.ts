@@ -12,6 +12,7 @@ export enum AppState {
   FACE_UPLOAD = 'FACE_UPLOAD', 
   LIFE_INPUT = 'LIFE_INPUT',
   PARTNER_INPUT = 'PARTNER_INPUT',
+  CHAT_ROOM = 'CHAT_ROOM',
 }
 
 export type CategoryKey = 'FANDOM' | 'LOVE' | 'APPEARANCE' | 'CAREER' | 'WEALTH' | 'HEALTH' | 'STUDY' | 'RELATIONSHIP' | 'FACE' | 'LIFE' | 'SECRET_COMPAT' | 'PARTNER_LIFE';
@@ -69,6 +70,13 @@ export interface UserInfo {
   countryChanged: boolean; // Max 1
 }
 
+export interface CustomSkin {
+  id: string;
+  imageUrl: string;
+  isPublic: boolean;
+  shareCode?: string; // Only if Public
+}
+
 export interface User {
   email: string;
   coins: number;
@@ -94,7 +102,22 @@ export interface User {
   ownedSkins: string[]; 
   currentSkin: string; 
   
+  // Custom Skins (Silver+)
+  customSkins?: CustomSkin[];
+  activeCustomSkin?: CustomSkin | null;
+
   lastMonthlyReward?: string; 
+}
+
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  nickname: string;
+  avatarUrl?: string;
+  text?: string;
+  imageUrl?: string;
+  timestamp: number;
+  tier: UserTier;
 }
 
 export interface Country {

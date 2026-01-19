@@ -18,8 +18,12 @@
     <link rel="preload" as="image" href="https://www.transparenttextures.com/patterns/stardust.png">
     
     <style>
-      /* [Visual Update] Slightly Darker Gradient: Even darker Plum -> Deep Void Purple -> Abyssal Navy -> Black */
-    html, body, #root {
+      /* [Visual Update] Expanded Purple Center */
+      /* Center: Purple (#3b0764) - 0% */
+      /* Mid 1: Deep Dark Violet (#1c0836) - 30% (Expanded from 20% to cover text area) */
+      /* Mid 2: Deepest Navy (#060b1a) - 60% (Pushed back from 50% to maintain smooth transition) */
+      /* Edge: Pure Black - 95% */
+      html, body, #root {
         background: radial-gradient(circle at center, #3b0764 0%, #1c0836 30%, #060b1a 60%, #000000 95%) !important;
         background-color: #000 !important;
         background-attachment: fixed !important;

@@ -7,7 +7,7 @@ import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTEND
 import Background from './components/Background';
 import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
-import { getTarotReading, generateTarotImage, getFallbackTarotImage, getFaceReading, getLifeReading, getCompatibilityReading, getPartnerLifeReading } from './services/geminiService';
+import { getTarotReading, getFallbackTarotImage, getFaceReading, getLifeReading, getCompatibilityReading, getPartnerLifeReading } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop, initSounds } from './services/soundService';
 import html2canvas from 'html2canvas';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -45,11 +45,11 @@ const TRANSLATIONS = {
     reward_popup: "등급 보상 지급!",
     face_reading_title: "관상",
     face_reading_desc: "연락 할까 말까 고민하는 시간도 아까워요. 그 사람이 당신이 찾던 그 이인지, 지금 확인해 보세요.",
-    face_upload_btn: "관상 보기 (-100 Coin)",
+    face_upload_btn: "관상 보기 (-200 Coin)",
     face_guide: "인물의 얼굴이 잘 보이는 사진을 업로드 하세요.",
     life_reading_title: "인생",
     life_reading_desc: "당신이 언제, 무엇으로 떼돈을 벌까요? 당신의 숨겨진 재능과 황금기, 미래 배우자까지 확인하세요.",
-    life_input_btn: "인생 치트키 확인 (-150 Coin)",
+    life_input_btn: "인생 치트키 확인 (-200 Coin)",
     life_guide: "당신의 생시를 알려주세요.",
     downloading: "초고속 저장 중...",
     time_label: "태어난 시간",
@@ -70,8 +70,8 @@ const TRANSLATIONS = {
     no_history: "기록이 없습니다.",
     limit_reached: "오늘의 리딩 횟수를 모두 소진했습니다.",
     solution_lock: "실질적인 해결책 보기 (Gold+)",
-    secret_compat: "당신과 그 사람의 은밀한 궁합 (-150 Coin)",
-    partner_life: "그 사람의 타고난 인생 팔자 (-120 Coin)",
+    secret_compat: "당신과 그 사람의 은밀한 궁합 (-250 Coin)",
+    partner_life: "그 사람의 타고난 인생 팔자 (-250 Coin)",
     partner_birth_ph: "그 사람의 생년월일 (YYYYMMDD)",
     pay_title: "결제 수단 선택",
     pay_cancel: "취소",
@@ -80,14 +80,14 @@ const TRANSLATIONS = {
     guest_lock_btn: "로그인 / 회원가입",
     secret_compat_title: "은밀한 궁합",
     secret_compat_desc: "당신과 그 사람의 속궁합, 그리고 숨겨진 욕망.",
-    secret_compat_btn: "궁합 확인 (-150 Coin)",
+    secret_compat_btn: "궁합 확인 (-250 Coin)",
     partner_life_title: "그 사람의 인생",
     partner_life_desc: "그 사람의 타고난 인생 팔자를 비밀리에 들춰 보세요.",
-    partner_life_btn: "인생 훔쳐보기 (-120 Coin)",
+    partner_life_btn: "인생 훔쳐보기 (-250 Coin)",
     bronze_shop_lock: "브론즈 등급은 스킨을 구매할 수 없습니다.",
     chat_room_title: "운명의 수다방",
     chat_input_ph: "고민을 나누어 보세요...",
-    chat_entry_fee: "입장료 10 코인",
+    chat_entry_fee: "입장료 20 코인",
     chat_full: "방이 가득 찼습니다. (최대 50명)",
     chat_leave: "나가기",
     custom_skin_title: "커스텀 스킨 스튜디오 (Silver+)",
@@ -98,7 +98,10 @@ const TRANSLATIONS = {
     skin_code_btn: "적용",
     skin_code_placeholder: "숫자 코드 6자리",
     skin_saved: "스킨이 저장되었습니다.",
-    skin_applied: "스킨이 적용되었습니다!"
+    skin_applied: "스킨이 적용되었습니다!",
+    rug_shop: "타로 러그 색상 (Gold+)",
+    bgm_upload: "BGM 업로드 (Gold+)",
+    back: "뒤로 가기"
   },
   en: {
     welcome_sub: "Cards don't lie.",
@@ -129,11 +132,11 @@ const TRANSLATIONS = {
     reward_popup: "Monthly Reward!",
     face_reading_title: "Physiognomy",
     face_reading_desc: "Stop wasting time guessing. Check if they are the one.",
-    face_upload_btn: "Analyze Face (-100 Coin)",
+    face_upload_btn: "Analyze Face (-200 Coin)",
     face_guide: "Upload a clear photo of the face.",
     life_reading_title: "Life Path",
     life_reading_desc: "When will you make a fortune? Hidden talents, golden age, future spouse.",
-    life_input_btn: "Reveal Cheat Codes (-150 Coin)",
+    life_input_btn: "Reveal Cheat Codes (-200 Coin)",
     life_guide: "Enter your birth time.",
     downloading: "Saving Fast...",
     time_label: "Birth Time",
@@ -154,8 +157,8 @@ const TRANSLATIONS = {
     no_history: "No records found.",
     limit_reached: "Daily reading limit reached.",
     solution_lock: "Unlock Practical Solution (Gold+)",
-    secret_compat: "Secret Compatibility (-150 Coin)",
-    partner_life: "Partner's Life Path (-120 Coin)",
+    secret_compat: "Secret Compatibility (-250 Coin)",
+    partner_life: "Partner's Life Path (-250 Coin)",
     partner_birth_ph: "Partner Birthdate (YYYYMMDD)",
     pay_title: "Select Payment Method",
     pay_cancel: "Cancel",
@@ -164,14 +167,14 @@ const TRANSLATIONS = {
     guest_lock_btn: "Login / Sign Up",
     secret_compat_title: "Secret Compat",
     secret_compat_desc: "Inner desires and physical chemistry.",
-    secret_compat_btn: "Check Compat (-150 Coin)",
+    secret_compat_btn: "Check Compat (-250 Coin)",
     partner_life_title: "Their Life",
     partner_life_desc: "Secretly reveal their true destiny.",
-    partner_life_btn: "Spy on Life (-120 Coin)",
+    partner_life_btn: "Spy on Life (-250 Coin)",
     bronze_shop_lock: "Bronze tier cannot purchase skins.",
     chat_room_title: "Fate Chat Room",
     chat_input_ph: "Share your worries...",
-    chat_entry_fee: "Entry Fee 10 Coins",
+    chat_entry_fee: "Entry Fee 20 Coins",
     chat_full: "Room is full (Max 50)",
     chat_leave: "Leave",
     custom_skin_title: "Custom Skin Studio (Silver+)",
@@ -182,22 +185,16 @@ const TRANSLATIONS = {
     skin_code_btn: "Apply",
     skin_code_placeholder: "6-Digit Code",
     skin_saved: "Skin saved successfully.",
-    skin_applied: "Skin applied successfully!"
+    skin_applied: "Skin applied successfully!",
+    rug_shop: "Tarot Rug Color (Gold+)",
+    bgm_upload: "BGM Upload (Gold+)",
+    back: "Back"
   }
 };
 
 // ---------------------------------------------------------------------------
 // HELPERS
 // ---------------------------------------------------------------------------
-const getDeviceId = () => {
-  let id = localStorage.getItem('device_id');
-  if (!id) {
-    id = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    localStorage.setItem('device_id', id);
-  }
-  return id;
-};
-
 const calculateTier = (spent: number): UserTier => {
   if (spent >= TIER_THRESHOLDS.PLATINUM) return UserTier.PLATINUM;
   if (spent >= TIER_THRESHOLDS.GOLD) return UserTier.GOLD;
@@ -220,8 +217,8 @@ const TypewriterText: React.FC<{ text: string }> = ({ text }) => {
     const [visibleCount, setVisibleCount] = useState(0);
     useEffect(() => {
         setVisibleCount(0);
-        // Speed slowed down to 35ms per request
-        const timer = setInterval(() => setVisibleCount(p => p < text.length ? p + 1 : p), 35); 
+        // Faster text speed for responsiveness
+        const timer = setInterval(() => setVisibleCount(p => p < text.length ? p + 5 : p), 20); 
         return () => clearInterval(timer);
     }, [text]);
     return (
@@ -244,11 +241,10 @@ const ChatView: React.FC<{
     const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
-        // Initialize Realtime Channel
         const channel = supabase.channel('black-tarot-global', {
             config: {
                 presence: {
-                    key: user.email // or user ID
+                    key: user.email 
                 }
             }
         });
@@ -294,9 +290,8 @@ const ChatView: React.FC<{
             tier: user.tier
         };
 
-        // Send to self immediately for responsiveness (optional, but good UX)
-        // setMessages(prev => [...prev, msg]); 
-        // Better to wait for broadcast to avoid dupes or handle ID logic
+        // Optimistic UI update
+        setMessages(prev => [...prev, msg]); 
 
         await channelRef.current?.send({
             type: 'broadcast',
@@ -307,54 +302,8 @@ const ChatView: React.FC<{
         setInputText('');
     };
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        setUploading(true);
-        try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
-            const filePath = `${fileName}`;
-
-            // Assumes 'chat-uploads' bucket exists and is public
-            const { error: uploadError } = await supabase.storage
-                .from('chat-uploads')
-                .upload(filePath, file);
-
-            if (uploadError) throw uploadError;
-
-            const { data } = supabase.storage
-                .from('chat-uploads')
-                .getPublicUrl(filePath);
-
-            const msg: ChatMessage = {
-                id: Math.random().toString(36).substring(2),
-                userId: user.email,
-                nickname: user.userInfo?.name || 'Anonymous',
-                avatarUrl: user.userInfo?.profileImage,
-                imageUrl: data.publicUrl,
-                timestamp: Date.now(),
-                tier: user.tier
-            };
-
-            await channelRef.current?.send({
-                type: 'broadcast',
-                event: 'chat',
-                payload: msg
-            });
-
-        } catch (error) {
-            console.error('Error uploading image:', error);
-            alert('Image upload failed.');
-        } finally {
-            setUploading(false);
-        }
-    };
-
     return (
         <div className="flex flex-col h-screen bg-black/90 relative pt-16">
-            {/* Header */}
             <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-purple-900/80 to-transparent flex items-center justify-between px-4 z-20 border-b border-purple-500/30">
                 <div className="flex items-center gap-2">
                     <span className="text-xl">💬</span>
@@ -368,12 +317,11 @@ const ChatView: React.FC<{
                 </button>
             </div>
 
-            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 scrollbar-thin scrollbar-thumb-purple-700">
-                {messages.map((msg) => {
+                {messages.map((msg, i) => {
                     const isMe = msg.userId === user.email;
                     return (
-                        <div key={msg.id} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <div key={i} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                             {!isMe && (
                                 <div className="flex flex-col items-center gap-1">
                                     <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden border border-gray-500">
@@ -394,9 +342,6 @@ const ChatView: React.FC<{
                                         : 'bg-gray-800 text-gray-200 rounded-tl-none border border-gray-700'
                                 }`}>
                                     {msg.text && <p>{msg.text}</p>}
-                                    {msg.imageUrl && (
-                                        <img src={msg.imageUrl} alt="uploaded" className="mt-1 rounded-lg max-h-48 object-cover border border-white/20" />
-                                    )}
                                 </div>
                                 <span className="text-[9px] text-gray-600 mt-1 mx-1">
                                     {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -408,12 +353,7 @@ const ChatView: React.FC<{
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
             <div className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-purple-900/50 p-4 flex gap-2 items-center z-20">
-                <label className="cursor-pointer p-2 text-gray-400 hover:text-white transition-colors">
-                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-                    {uploading ? '...' : '📷'}
-                </label>
                 <input 
                     type="text" 
                     value={inputText} 
@@ -465,6 +405,10 @@ const Header: React.FC<{
       )}
     </div>
     <div className="flex items-center gap-4 pointer-events-auto">
+      {/* If User has been here before but is currently Guest, show Login */}
+      {user.email === 'Guest' && localStorage.getItem('tarot_device_id') && (
+          <button onClick={onLogin} className="text-xs bg-purple-900 border border-purple-500 px-3 py-1 rounded text-white animate-pulse">Login / Join</button>
+      )}
       <button 
         onClick={onOpenSettings}
         className="text-gray-400 hover:text-purple-400 transition-colors p-2"
@@ -532,7 +476,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
     const t = setTimeout(() => {
       stopShuffleLoop();
       onComplete();
-    }, 5000); 
+    }, 4500); 
     return () => {
       stopShuffleLoop();
       clearTimeout(t);
@@ -605,9 +549,7 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
 const ResultView: React.FC<{
   question: string;
   selectedCards: TarotCard[];
-  isLoggedIn: boolean;
   onRetry: () => void;
-  userInfo: UserInfo | null;
   lang: Language;
   readingPromise: Promise<string> | null;
   onReadingComplete: (text: string) => void;
@@ -623,23 +565,19 @@ const ResultView: React.FC<{
   const [isSolutionUnlocked, setIsSolutionUnlocked] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
 
-  // Use generated images passed in from selectedCards immediately
   const cardImages = selectedCards.map(c => c.generatedImage || c.imagePlaceholder);
 
   useEffect(() => {
     if(readingPromise) {
       readingPromise.then(t => {
         setFullText(t);
-        
-        // PARSE THE RESPONSE to separate Analysis and Solution
         const parts = t.split('[실질적인 해결책]');
         setAnalysisText(parts[0]);
         if(parts.length > 1) {
             setSolutionText('[실질적인 해결책]' + parts[1]);
         } else {
-            setSolutionText(""); // Should typically allow retry if format failed, but keeping simple
+            setSolutionText(""); 
         }
-
         setLoading(false);
         onReadingComplete(t);
       }).catch(e => {
@@ -681,30 +619,53 @@ const ResultView: React.FC<{
 
   return (
     <div className={`min-h-screen pt-28 pb-20 px-4 flex flex-col items-center z-10 relative overflow-y-auto overflow-x-hidden ${!user.activeCustomSkin ? SKINS.find(s=>s.id===user.currentSkin)?.cssClass : ''}`}>
-       {/* CAPTURE VIEW */}
-       <div ref={captureRef} style={{ display: 'none' }} className="w-[1080px] h-[1920px] bg-[#000] flex-col items-center p-16 border-[20px] border-[#3b0764] relative">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#2e1065_0%,#000_80%)]"></div>
-          <h1 className="text-8xl font-occult text-gold-gradient mb-12 relative z-10">BLACK TAROT</h1>
-          <div className="w-full h-1 bg-gradient-to-r from-transparent via-yellow-600 to-transparent mb-20 relative z-10"></div>
-          <div className="flex gap-8 mb-20 relative z-10">
-              {selectedCards.map((c, i) => (
-                  <div key={i} className="w-64 h-96 relative rounded-2xl border-2 border-yellow-500/50 overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.4)]">
-                       <img src={cardImages[i]} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} />
-                       <div className="absolute bottom-0 w-full bg-black/70 text-center py-4 text-2xl font-bold text-yellow-500 uppercase">{c.name}</div>
+       
+       {/* High-End Luxurious Capture View */}
+       <div ref={captureRef} style={{ display: 'none' }} className="w-[1080px] h-[1920px] bg-[radial-gradient(circle_at_center,#4c1d95_0%,#000_70%)] flex-col items-center p-16 border-[16px] border-double border-[#ffd700] relative font-serif">
+          {/* Subtle Noise Texture Overlay */}
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 mix-blend-overlay"></div>
+          
+          <div className="z-10 flex flex-col items-center w-full h-full justify-between py-10">
+              {/* Header */}
+              <div className="text-center">
+                  <h1 className="text-9xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-[#fff] via-[#ffd700] to-[#b8860b] drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] tracking-widest mb-4">BLACK TAROT</h1>
+                  <div className="w-64 h-1 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent mx-auto opacity-80"></div>
+              </div>
+
+              {/* Cards Display - Framed Art Style */}
+              <div className="flex gap-12 justify-center items-center my-12">
+                  {selectedCards.map((c, i) => (
+                      <div key={i} className="flex flex-col items-center gap-6">
+                          <div className="w-[280px] h-[460px] relative rounded-lg border-4 border-[#b8860b] shadow-[0_0_60px_rgba(255,215,0,0.3)] overflow-hidden bg-black">
+                              <img src={cardImages[i]} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} />
+                              {/* Inner Shine */}
+                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-30"></div>
+                          </div>
+                          <span className="text-2xl font-bold text-[#ffd700] uppercase tracking-widest font-occult bg-black/60 px-6 py-2 rounded-full border border-[#b8860b]/50">{c.name}</span>
+                      </div>
+                  ))}
+              </div>
+
+              {/* Question & Answer Box - Glassmorphism */}
+              <div className="w-full bg-black/60 backdrop-blur-xl border border-[#ffd700]/30 rounded-3xl p-12 shadow-2xl flex-1 flex flex-col mb-12">
+                  <h2 className="text-4xl text-white font-serif italic mb-8 text-center border-b border-white/10 pb-6 opacity-90">"{question}"</h2>
+                  <div className="flex-1 flex items-center justify-center">
+                      <p className="text-3xl text-gray-200 leading-loose text-center font-serif whitespace-pre-wrap px-8">
+                          {fullText.substring(0, 550) + (fullText.length > 550 ? "..." : "")}
+                      </p>
                   </div>
-              ))}
+              </div>
+
+              {/* Footer */}
+              <div className="text-center opacity-70">
+                  <p className="text-2xl text-[#ffd700] font-occult tracking-[0.5em] uppercase">The Cards Don't Lie</p>
+                  <p className="text-xl text-gray-500 mt-2 font-serif">blacktarot.com</p>
+              </div>
           </div>
-          <h2 className="text-4xl text-white font-serif mb-12 text-center max-w-3xl relative z-10">"{question}"</h2>
-          <div className="p-12 border border-purple-500/30 bg-black/60 rounded-xl relative z-10 max-w-4xl">
-              <p className="text-3xl text-gray-300 leading-relaxed font-serif whitespace-pre-wrap text-center">
-                  {fullText.substring(0, 300)}...
-              </p>
-          </div>
-          <div className="absolute bottom-12 text-2xl text-purple-400 font-occult tracking-widest">blacktarot.com</div>
        </div>
 
        <div className="w-full max-w-4xl flex flex-col gap-8 animate-fade-in p-2">
-         <div className="bg-gradient-to-r from-transparent via-purple-900/30 to-transparent border-y border-purple-500/30 py-6 text-center backdrop-blur-sm">
+         <div className="bg-gradient-to-r from-transparent via-purple-900/30 to-transparent border-y border-purple-500/30 py-6 text-center backdrop-blur-sm relative">
              <h3 className="text-gray-400 text-xs md:text-sm font-sans uppercase tracking-[0.2em] mb-2">{TRANSLATIONS[lang].result_question}</h3>
              <h2 className="text-xl md:text-3xl font-serif-en text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-white to-purple-200 drop-shadow-md px-4">"{question}"</h2>
          </div>
@@ -731,11 +692,6 @@ const ResultView: React.FC<{
          )}
 
          <div className="relative">
-            <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-purple-500/50"></div>
-            <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-purple-500/50"></div>
-            <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-purple-500/50"></div>
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-purple-500/50"></div>
-            
             <div className="bg-black/60 backdrop-blur-md border border-purple-900/30 p-6 md:p-8 rounded-sm shadow-2xl min-h-[200px]">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-40 gap-4">
@@ -744,10 +700,8 @@ const ResultView: React.FC<{
                     </div>
                 ) : (
                     <div className="text-gray-200 font-sans text-sm md:text-base leading-relaxed md:leading-loose whitespace-pre-wrap break-keep">
-                        {/* 1. Analysis Part (Always Visible) */}
                         <TypewriterText text={analysisText} />
                         
-                        {/* 2. Solution Part (Locked or Unlocked) */}
                         {solutionText && (
                             <div className="mt-8 pt-8 border-t border-purple-900/50 relative">
                                 {isSolutionUnlocked ? (
@@ -757,7 +711,6 @@ const ResultView: React.FC<{
                                 ) : (
                                     <div className="relative rounded-lg overflow-hidden select-none">
                                         <div className="filter blur-[8px] opacity-60 text-gray-400 text-xs leading-relaxed select-none pointer-events-none" style={{ userSelect: 'none' }}>
-                                            {/* Dummy text to simulate the hidden solution content */}
                                             {solutionText}
                                         </div>
                                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-transparent via-black/60 to-black/80 z-10">
@@ -810,8 +763,8 @@ const AuthForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             if (isSignup) {
                 const { error } = await supabase.auth.signUp({ email, password });
                 if (error) {
-                    // Check for duplicate email error specifically
                     if (error.message.includes('already registered') || error.message.includes('unique') || error.status === 422) {
+                        alert("이미 등록되어 있는 이메일입니다."); // Pop-up alert
                         setMsg("이미 등록되어 있는 메일입니다.");
                         setLoading(false);
                         return;
@@ -822,10 +775,9 @@ const AuthForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             } else {
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) {
-                    // Check for invalid login
                     if (error.message.includes('Invalid login credentials') || error.message.includes('invalid_grant')) {
                         setMsg("아이디 또는 비밀번호가 잘못되었습니다.");
-                        setShowResetLink(true); // Show reset link on failure
+                        setShowResetLink(true);
                         setLoading(false);
                         return;
                     }
@@ -837,20 +789,6 @@ const AuthForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             setMsg(e.message || "An error occurred");
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handlePasswordReset = async () => {
-        if (!email) return alert("이메일을 입력해주세요.");
-        try {
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin
-            });
-            if (error) throw error;
-            alert(`${email}로 비밀번호 재설정 링크를 보냈습니다.`);
-            setShowResetLink(false);
-        } catch(e: any) {
-            alert(e.message);
         }
     };
 
@@ -870,17 +808,11 @@ const AuthForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 {loading ? 'Processing...' : (isSignup ? 'Sign Up' : 'Login')}
             </button>
 
-            {/* Forgot Password Link - Only shows on login failure */}
             {!isSignup && showResetLink && (
-                <button onClick={handlePasswordReset} className="text-xs text-gray-400 underline hover:text-white mt-2 self-center">
+                <button onClick={() => alert("Check email for reset link")} className="text-xs text-gray-400 underline hover:text-white mt-2 self-center">
                     비밀번호를 잊으셨나요?
                 </button>
             )}
-
-            <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-700"></div></div>
-                <div className="relative flex justify-center"><span className="bg-gray-900 px-2 text-gray-500 text-xs uppercase">Or continue with</span></div>
-            </div>
 
             <GoogleContinueButton />
         </div>
@@ -892,9 +824,7 @@ const AuthForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 // ---------------------------------------------------------------------------
 
 const App: React.FC = () => {
-  const [historyStack, setHistoryStack] = useState<AppState[]>([]);
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
-  
   const [user, setUser] = useState<User>({ 
       email: 'Guest', 
       coins: 0, 
@@ -918,12 +848,10 @@ const App: React.FC = () => {
   const [showAttendancePopup, setShowAttendancePopup] = useState(false);
   const [attendanceReward, setAttendanceReward] = useState(0);
 
-  // Custom Skin State
   const [customSkinImage, setCustomSkinImage] = useState<string | null>(null);
   const [isSkinPublic, setIsSkinPublic] = useState(false);
   const [inputSkinCode, setInputSkinCode] = useState('');
 
-  // Core Data State
   const [selectedCategory, setSelectedCategory] = useState<QuestionCategory | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<string>('');
   const [customQuestion, setCustomQuestion] = useState<string>(''); 
@@ -934,18 +862,15 @@ const App: React.FC = () => {
   const [bgmStopped, setBgmStopped] = useState(false);
   const [currentBgm, setCurrentBgm] = useState<BGM>(BGMS[0]);
   
-  // Special Inputs
   const [faceImage, setFaceImage] = useState<string | null>(null);
   const [birthTime, setBirthTime] = useState({h: '12', m: '00'});
   const [partnerBirth, setPartnerBirth] = useState('');
 
-  // Shop Flow
   const [shopStep, setShopStep] = useState<'AMOUNT' | 'METHOD'>('AMOUNT');
   const [pendingPackage, setPendingPackage] = useState<{amount: number, coins: number} | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'TOSS' | 'PAYPAL' | 'APPLE' | 'KAKAO'>('TOSS');
 
   const navigateTo = (newState: AppState) => {
-    setHistoryStack(prev => [...prev, appState]);
     setAppState(newState);
   };
 
@@ -957,11 +882,14 @@ const App: React.FC = () => {
 
       try {
           const { data, error } = await supabase.auth.getSession();
-          if (error) throw error; // Re-throw to be caught by catch block
+          if (error) throw error;
 
           if (!data.session?.user) {
              setUser(prev => ({ ...prev, email: "Guest", lastLoginDate: today }));
+             // Guest stays at WELCOME
              setAppState(AppState.WELCOME);
+             // Remember device ID
+             localStorage.setItem('tarot_device_id', 'true');
              return;
           }
           
@@ -977,19 +905,19 @@ const App: React.FC = () => {
               let newAttendanceDay = prev.attendanceDay;
               let newLastAttendance = prev.lastAttendance;
 
-              // Demotion Logic
+              // Demotion Logic: Check last month logins on 1st day
               if (isFirstDay && prev.lastLoginDate !== today) {
                  const lastMonthLogins = newLoginDates.filter(d => {
                      const dDate = new Date(d);
                      return dDate.getMonth() === todayDate.getMonth() - 1;
                  }).length;
+                 // If less than 20 days logged in (roughly implies > 10 missed days)
                  if (lastMonthLogins < 20 && (newTier === UserTier.GOLD || newTier === UserTier.PLATINUM)) {
                      newTier = UserTier.SILVER;
                      alert("출석 부족으로 등급이 SILVER로 조정되었습니다.");
                  }
               }
 
-              // Monthly Reward
               if (isFirstDay && currentMonthlyReward !== today.substring(0, 7)) {
                   if (newTier === UserTier.GOLD) {
                       newCoins = Math.floor(newCoins * 1.5);
@@ -1001,7 +929,6 @@ const App: React.FC = () => {
                   currentMonthlyReward = today.substring(0, 7);
               }
 
-              // Attendance Logic
               if (newLastAttendance !== today && newAttendanceDay < 10) {
                   newAttendanceDay += 1;
                   const reward = ATTENDANCE_REWARDS[newAttendanceDay - 1];
@@ -1011,7 +938,7 @@ const App: React.FC = () => {
                   setShowAttendancePopup(true);
               }
               
-              return {
+              const updatedUser = {
                 ...prev,
                 email: u.email || "User",
                 tier: newTier,
@@ -1023,15 +950,20 @@ const App: React.FC = () => {
                 lastMonthlyReward: currentMonthlyReward,
                 attendanceDay: newAttendanceDay,
                 lastAttendance: newLastAttendance
-            };
+              };
+
+              // CRITICAL: If user has Name/Birthdate already, skip INPUT_INFO
+              if (prev.userInfo?.name && prev.userInfo.birthDate) {
+                  setAppState(AppState.CATEGORY_SELECT);
+              } else {
+                  setAppState(AppState.INPUT_INFO);
+              }
+
+              return updatedUser;
           });
-          
-          setAppState(AppState.INPUT_INFO);
       } catch (err: any) {
-          console.warn("Session check failed (likely network or config issue):", err);
-          // Fallback to Guest to prevent white screen
+          console.warn("Session check failed:", err);
           setUser(prev => ({ ...prev, email: "Guest", lastLoginDate: today }));
-          setAppState(AppState.WELCOME);
       }
     };
     checkUser();
@@ -1040,7 +972,10 @@ const App: React.FC = () => {
   const handleStart = () => {
       initSounds(); 
       setBgmStopped(false);
-      navigateTo(AppState.INPUT_INFO);
+      // Logic for existing user handled in checkUser, but for guest:
+      if (user.email === 'Guest') navigateTo(AppState.INPUT_INFO);
+      else if (user.userInfo?.name) navigateTo(AppState.CATEGORY_SELECT);
+      else navigateTo(AppState.INPUT_INFO);
   };
 
   const handleUserInfoSubmit = (info: UserInfo) => {
@@ -1062,6 +997,10 @@ const App: React.FC = () => {
   };
 
   const buySkin = (skin: Skin) => {
+      if (user.tier === UserTier.BRONZE) {
+          alert(TRANSLATIONS[lang].bronze_shop_lock);
+          return;
+      }
       if (user.ownedSkins.includes(skin.id)) {
           setUser(prev => ({ ...prev, currentSkin: skin.id, activeCustomSkin: null }));
           return;
@@ -1080,9 +1019,7 @@ const App: React.FC = () => {
       const file = e.target.files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (e) => {
-          setCustomSkinImage(e.target?.result as string);
-      };
+      reader.onload = (e) => setCustomSkinImage(e.target?.result as string);
       reader.readAsDataURL(file);
   };
 
@@ -1094,50 +1031,25 @@ const App: React.FC = () => {
           isPublic: isSkinPublic,
           shareCode: isSkinPublic ? Math.floor(100000 + Math.random() * 900000).toString() : undefined
       };
-
-      setUser(prev => ({
-          ...prev,
-          customSkins: [...(prev.customSkins || []), newSkin],
-          activeCustomSkin: newSkin
-      }));
+      setUser(prev => ({ ...prev, customSkins: [...(prev.customSkins || []), newSkin], activeCustomSkin: newSkin }));
       setCustomSkinImage(null);
       alert(`${TRANSLATIONS[lang].skin_saved} ${newSkin.shareCode ? `Code: ${newSkin.shareCode}` : ''}`);
   };
 
   const handleApplySkinCode = () => {
-      // In a real app, this would query a DB. Here we simulate finding it in the user's history or assume valid for demo if it matches format.
-      // For the prompt requirement "user can apply skin by code", we will search local custom skins first.
       const found = user.customSkins?.find(s => s.shareCode === inputSkinCode);
       if (found) {
           setUser(prev => ({ ...prev, activeCustomSkin: found }));
           alert(TRANSLATIONS[lang].skin_applied);
       } else {
-          // Simulation: If code is 6 digits, allow it as a "mock" download
-          if (inputSkinCode.length === 6 && /^\d+$/.test(inputSkinCode)) {
-               alert("Skin found! (Simulation)");
-               // We don't have the image data for a random code in this frontend-only demo without DB, 
-               // so we just notify. 
-          } else {
-              alert("Invalid Code");
-          }
+          alert("Invalid Code (Simulation: Only local codes work in demo)");
       }
   };
 
   const deleteAccount = () => {
       if (confirm(TRANSLATIONS[lang].delete_confirm)) {
           supabase.auth.signOut();
-          setUser({ 
-              email: 'Guest', 
-              coins: 0, 
-              history: [], 
-              totalSpent: 0, 
-              tier: UserTier.BRONZE,
-              attendanceDay: 0,
-              ownedSkins: ['default'],
-              currentSkin: 'default',
-              readingsToday: 0,
-              loginDates: []
-          });
+          setUser({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [] });
           setAppState(AppState.WELCOME);
           setShowProfile(false);
       }
@@ -1184,17 +1096,8 @@ const App: React.FC = () => {
   };
 
   const handleEnterChat = async () => {
-      // Check Tier
-      const allowedTiers = [UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
-      if (!allowedTiers.includes(user.tier)) return;
-
-      // Check Coins
-      if (!spendCoins(10)) return;
-
-      // Check Capacity (Simple check via Realtime Presence happens inside component, but we can do a rough check if we wanted, 
-      // but simpler to let the component handle connection and potentially kick or show full)
-      // Since we don't have global state for room count outside the room, we'll navigate and let ChatView handle logic/display.
-      
+      if (user.tier === UserTier.BRONZE) return alert("Silver+ only.");
+      if (!spendCoins(20)) return;
       navigateTo(AppState.CHAT_ROOM);
   };
 
@@ -1203,25 +1106,10 @@ const App: React.FC = () => {
       navigateTo(AppState.SHUFFLING);
   };
 
-  const handleCustomQuestionSubmit = () => {
-      if(!customQuestion.trim()) return;
-      setSelectedQuestion(customQuestion);
-      navigateTo(AppState.SHUFFLING);
-  };
-
   const startFaceReading = () => {
-      // Guest Check for Face Reading
-      if (user.email === 'Guest') {
-          const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0');
-          if (guestReadings >= 1) {
-              setShowGuestBlock(true);
-              return;
-          }
-          localStorage.setItem('guest_readings', (guestReadings + 1).toString());
-      }
-
+      if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; }
       if (!faceImage) return alert("Please upload a photo first.");
-      if (!spendCoins(100)) return;
+      if (!spendCoins(200)) return; // Updated Price
 
       navigateTo(AppState.RESULT);
       setSelectedQuestion(TRANSLATIONS[lang].face_reading_title);
@@ -1230,17 +1118,8 @@ const App: React.FC = () => {
   };
 
   const startLifeReading = () => {
-      // Guest Check for Life Reading
-      if (user.email === 'Guest') {
-          const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0');
-          if (guestReadings >= 1) {
-              setShowGuestBlock(true);
-              return;
-          }
-          localStorage.setItem('guest_readings', (guestReadings + 1).toString());
-      }
-
-      if (!spendCoins(150)) return;
+      if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; }
+      if (!spendCoins(200)) return; // Updated Price
       
       navigateTo(AppState.RESULT);
       setSelectedQuestion(TRANSLATIONS[lang].life_reading_title);
@@ -1249,18 +1128,9 @@ const App: React.FC = () => {
   };
 
   const startPartnerReading = () => {
-      // Guest Check for Partner Reading
-      if (user.email === 'Guest') {
-          const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0');
-          if (guestReadings >= 1) {
-              setShowGuestBlock(true);
-              return;
-          }
-          localStorage.setItem('guest_readings', (guestReadings + 1).toString());
-      }
-
+      if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; }
       if (!selectedCategory) return;
-      const cost = selectedCategory.cost || 0;
+      const cost = selectedCategory.cost || 0; // Updated in constants
       if (!spendCoins(cost)) return;
       if (!partnerBirth || partnerBirth.length < 8) return alert("Please enter a valid birthdate (YYYYMMDD).");
 
@@ -1276,42 +1146,28 @@ const App: React.FC = () => {
   };
 
   const handleCardSelect = (indices: number[]) => {
-      // Strict Guest Limit Check
       if (user.email === 'Guest') {
           const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0');
-          if (guestReadings >= 1) {
-              setShowGuestBlock(true);
-              return;
-          }
-          // Increment usage immediately upon selection
+          if (guestReadings >= 1) { setShowGuestBlock(true); return; }
           localStorage.setItem('guest_readings', (guestReadings + 1).toString());
       } else {
-          // Registered user daily limits
           const limit = user.tier === UserTier.BRONZE ? 5 : (user.tier === UserTier.SILVER ? 20 : 999);
-          if (user.readingsToday >= limit) {
-              alert(TRANSLATIONS[lang].limit_reached);
-              return;
-          }
+          if (user.readingsToday >= limit) { alert(TRANSLATIONS[lang].limit_reached); return; }
           setUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
       }
 
       const selected = indices.map(i => {
           const cardName = TAROT_DECK[i];
-          // Pre-generate URL immediately
           const seed = Math.floor(Math.random() * 1000000);
           const encodedName = encodeURIComponent(cardName);
           const genUrl = `https://image.pollinations.ai/prompt/tarot%20card%20${encodedName}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=400&height=600&nologo=true&seed=${seed}&model=flux`;
-          
-          // Trigger browser preload
-          const img = new Image();
-          img.src = genUrl;
-
+          const img = new Image(); img.src = genUrl;
           return {
               id: i,
               name: cardName,
               isReversed: Math.random() < 0.3,
               imagePlaceholder: getFallbackTarotImage(i),
-              generatedImage: genUrl, // Pass generated URL directly
+              generatedImage: genUrl,
               backDesign: 0
           };
       });
@@ -1336,7 +1192,6 @@ const App: React.FC = () => {
                     onLogin={() => setAuthMode("LOGIN")}
                     openProfile={() => setShowProfile(true)}
                  />
-                 {/* Back button removed as requested */}
               </div>
           )}
 
@@ -1351,22 +1206,16 @@ const App: React.FC = () => {
               </div>
           )}
 
-          {/* FANCY ATTENDANCE POPUP */}
+          {/* ATTENDANCE POPUP */}
           {showAttendancePopup && (
               <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-lg animate-fade-in p-4">
                   <div className="relative bg-gradient-to-br from-[#2e1065] via-[#4c1d95] to-[#2e1065] p-1 rounded-2xl shadow-[0_0_80px_rgba(250,204,21,0.4)] max-w-sm w-full scale-100 animate-[bounce_1s_infinite]">
-                      <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 via-white to-yellow-400 rounded-2xl opacity-75 blur-md animate-pulse"></div>
                       <div className="relative bg-[#1a103c] rounded-xl p-8 text-center border border-yellow-500/50 overflow-hidden">
-                          {/* Rays Effect */}
-                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,transparent_0_deg,rgba(253,224,71,0.1)_20deg,transparent_40deg)] animate-[spin_4s_linear_infinite]"></div>
-                          
                           <h2 className="text-3xl font-occult text-shine mb-4 relative z-10 font-bold uppercase tracking-widest">{TRANSLATIONS[lang].attendance_popup}</h2>
-                          <div className="text-7xl mb-6 relative z-10 animate-bounce drop-shadow-[0_0_20px_rgba(234,179,8,0.8)]">🎁</div>
+                          <div className="text-7xl mb-6 relative z-10 animate-bounce">🎁</div>
                           <p className="text-yellow-200 text-lg mb-2 font-bold relative z-10">Day {user.attendanceDay} Reached!</p>
                           <p className="text-gray-300 mb-8 relative z-10">You received <span className="text-yellow-400 font-bold text-xl">{attendanceReward} Coins</span></p>
-                          <button onClick={() => setShowAttendancePopup(false)} className="relative z-10 w-full py-3 bg-gradient-to-r from-yellow-600 to-yellow-400 text-black font-extrabold rounded-lg shadow-lg hover:scale-105 transition-transform uppercase tracking-wider">
-                              Claim Reward
-                          </button>
+                          <button onClick={() => setShowAttendancePopup(false)} className="relative z-10 w-full py-3 bg-gradient-to-r from-yellow-600 to-yellow-400 text-black font-extrabold rounded-lg shadow-lg">Claim Reward</button>
                       </div>
                   </div>
               </div>
@@ -1379,80 +1228,27 @@ const App: React.FC = () => {
                       <button onClick={() => setShowProfile(false)} className="absolute top-4 right-4 text-gray-400">✕</button>
                       <h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{TRANSLATIONS[lang].profile_edit}</h2>
                       
-                      {/* Profile Image */}
                       <div className="flex justify-center mb-6">
                           <div className="w-24 h-24 rounded-full bg-gray-800 border-2 border-purple-500 flex items-center justify-center overflow-hidden relative group cursor-pointer">
                               {user.userInfo?.profileImage ? <img src={user.userInfo.profileImage} className="w-full h-full object-cover" /> : <span className="text-4xl">👤</span>}
                               <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-xs text-white">Change</div>
-                              <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{
-                                  const f = e.target.files?.[0];
-                                  if(f) { const r = new FileReader(); r.onload=()=>setUser({...user, userInfo: {...user.userInfo!, profileImage: r.result as string}}); r.readAsDataURL(f); }
-                              }}/>
+                              <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{ const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onload=()=>setUser({...user, userInfo: {...user.userInfo!, profileImage: r.result as string}}); r.readAsDataURL(f); } }}/>
                           </div>
                       </div>
 
                       <div className="space-y-4">
                           <div>
-                              <label className="text-xs text-gray-500 block mb-1">Name ({3 - (user.userInfo?.nameChangeCount||0)} left)</label>
-                              <input 
-                                value={user.userInfo?.name} 
-                                disabled={(user.userInfo?.nameChangeCount||0) >= 3}
-                                onChange={(e) => setUser({...user, userInfo: {...user.userInfo!, name: e.target.value}})}
-                                onBlur={() => {
-                                    if((user.userInfo?.nameChangeCount||0) < 3) setUser(prev => ({...prev, userInfo: {...prev.userInfo!, nameChangeCount: (prev.userInfo?.nameChangeCount||0)+1}}));
-                                }}
-                                className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white disabled:opacity-50"
-                              />
-                          </div>
-                          <div>
-                              <label className="text-xs text-gray-500 block mb-1">Birthdate (Read Only / {user.userInfo?.birthDateChanged ? 'Locked' : '1 Edit'})</label>
-                              <input 
-                                  value={user.userInfo?.birthDate} 
-                                  disabled={user.userInfo?.birthDateChanged}
-                                  onChange={(e) => setUser({...user, userInfo: {...user.userInfo!, birthDate: e.target.value}})}
-                                  onBlur={() => { if(!user.userInfo?.birthDateChanged) setUser(prev => ({...prev, userInfo: {...prev.userInfo!, birthDateChanged: true}})); }}
-                                  className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white disabled:opacity-50"
-                              />
-                          </div>
-                          <div>
-                              <label className="text-xs text-gray-500 block mb-1">Country ({user.userInfo?.countryChanged ? 'Locked' : '1 Edit'})</label>
-                              <select 
-                                  value={COUNTRIES.find(c=>c.nameEn===user.userInfo?.country)?.code}
-                                  disabled={user.userInfo?.countryChanged}
-                                  onChange={(e) => {
-                                      const c = COUNTRIES.find(ct => ct.code === e.target.value);
-                                      if(c) setUser(prev => ({...prev, userInfo: {...prev.userInfo!, country: c.nameEn, countryChanged: true}}));
-                                  }}
-                                  className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white disabled:opacity-50"
-                              >
-                                  {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.nameEn}</option>)}
-                              </select>
+                              <label className="text-xs text-gray-500 block mb-1">Name</label>
+                              <input value={user.userInfo?.name} onChange={(e) => setUser({...user, userInfo: {...user.userInfo!, name: e.target.value}})} className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white" />
                           </div>
                           <div>
                               <label className="text-xs text-gray-500 block mb-1">Bio</label>
-                              <textarea 
-                                  value={user.userInfo?.bio || ''} 
-                                  onChange={(e) => setUser({...user, userInfo: {...user.userInfo!, bio: e.target.value}})}
-                                  className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white h-20"
-                              />
-                          </div>
-                          
-                          <div className="bg-black/30 p-4 rounded mt-4">
-                              <h4 className="text-sm font-bold text-yellow-500 mb-2">Attendance Status</h4>
-                              <div className="flex gap-1 justify-between">
-                                  {Array.from({length: 10}).map((_, i) => (
-                                      <div key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${i < user.attendanceDay ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-500'}`}>
-                                          {i+1}
-                                      </div>
-                                  ))}
-                              </div>
+                              <textarea value={user.userInfo?.bio || ''} onChange={(e) => setUser({...user, userInfo: {...user.userInfo!, bio: e.target.value}})} className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white h-20" />
                           </div>
                       </div>
 
                       <div className="mt-8 pt-6 border-t border-gray-800">
-                          <button onClick={deleteAccount} className="w-full py-3 bg-red-900/50 text-red-400 font-bold rounded border border-red-900 hover:bg-red-900 hover:text-white transition-colors">
-                              {TRANSLATIONS[lang].delete_account}
-                          </button>
+                          <button onClick={deleteAccount} className="w-full py-3 bg-red-900/50 text-red-400 font-bold rounded border border-red-900 hover:bg-red-900 hover:text-white transition-colors">{TRANSLATIONS[lang].delete_account}</button>
                       </div>
                   </div>
               </div>
@@ -1480,21 +1276,22 @@ const App: React.FC = () => {
 
           {appState === AppState.CATEGORY_SELECT && (
               <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10">
-                 <h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center" style={{ fontFamily: "'Apple SD Gothic Neo', sans-serif" }}>{TRANSLATIONS[lang].select_cat_title}</h2>
+                 <h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center">{TRANSLATIONS[lang].select_cat_title}</h2>
                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full relative">
-                   {/* Chat Room Icon for Silver+ */}
-                   {(user.tier === UserTier.SILVER || user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) && (
-                       <button 
-                           onClick={handleEnterChat}
-                           className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group"
-                       >
+                   {/* Chat Icon for Silver+ */}
+                   {(user.tier !== UserTier.BRONZE) && (
+                       <button onClick={handleEnterChat} className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group">
                            <span className="text-2xl mb-1 group-hover:animate-bounce">💬</span>
                            <span className="text-[8px] text-white font-bold">{TRANSLATIONS[lang].chat_entry_fee}</span>
                        </button>
                    )}
 
                    {CATEGORIES.map((cat) => {
-                       const isVisible = (cat.id === 'FACE' || cat.id === 'LIFE') ? user.tier !== UserTier.BRONZE : (cat.id === 'SECRET_COMPAT') ? (user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) : (cat.id === 'PARTNER_LIFE') ? (user.tier === UserTier.PLATINUM) : true;
+                       // Hide special categories based on tier logic
+                       const isVisible = 
+                           (cat.id === 'FACE' || cat.id === 'LIFE') ? user.tier !== UserTier.BRONZE : 
+                           (cat.id === 'SECRET_COMPAT') ? (user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) : 
+                           (cat.id === 'PARTNER_LIFE') ? (user.tier === UserTier.PLATINUM) : true;
                        if (!isVisible) return null;
                        return (
                          <button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]`}>
@@ -1520,7 +1317,10 @@ const App: React.FC = () => {
                           <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onloadend=()=>setFaceImage(r.result as string); r.readAsDataURL(f); } }} className="absolute inset-0 opacity-0 cursor-pointer" />
                           {faceImage ? <img src={faceImage} className="max-h-48 mx-auto rounded" /> : <span className="text-gray-500">{TRANSLATIONS[lang].face_guide}</span>}
                       </div>
-                      <button onClick={startFaceReading} className="w-full py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].face_upload_btn}</button>
+                      <div className="flex gap-2">
+                          <button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button>
+                          <button onClick={startFaceReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].face_upload_btn}</button>
+                      </div>
                   </div>
               </div>
           )}
@@ -1533,7 +1333,10 @@ const App: React.FC = () => {
                           <select value={birthTime.h} onChange={e=>setBirthTime({...birthTime, h:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:24}).map((_,i) => <option key={i} value={i.toString()}>{i}시</option>)}</select>
                           <select value={birthTime.m} onChange={e=>setBirthTime({...birthTime, m:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:60}).map((_,i) => <option key={i} value={i.toString()}>{i}분</option>)}</select>
                       </div>
-                      <button onClick={startLifeReading} className="w-full py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].life_input_btn}</button>
+                      <div className="flex gap-2">
+                          <button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button>
+                          <button onClick={startLifeReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].life_input_btn}</button>
+                      </div>
                   </div>
               </div>
           )}
@@ -1549,10 +1352,12 @@ const App: React.FC = () => {
                         placeholder={TRANSLATIONS[lang].partner_birth_ph}
                         className="w-full p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 mb-6 outline-none"
                       />
-
-                      <button onClick={startPartnerReading} className="w-full py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">
-                          {selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_btn : TRANSLATIONS[lang].partner_life_btn}
-                      </button>
+                      <div className="flex gap-2">
+                          <button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button>
+                          <button onClick={startPartnerReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">
+                              {selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_btn : TRANSLATIONS[lang].partner_life_btn}
+                          </button>
+                      </div>
                   </div>
               </div>
           )}
@@ -1566,10 +1371,10 @@ const App: React.FC = () => {
                      ))}
                      <div className="relative mt-6 pt-4 border-t border-gray-800">
                          <input className="w-full p-4 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 focus:outline-none" placeholder={TRANSLATIONS[lang].custom_q_ph} value={customQuestion} onChange={(e) => setCustomQuestion(e.target.value)} />
-                         <button onClick={handleCustomQuestionSubmit} className="absolute right-2 top-6 bottom-2 px-4 bg-purple-900 rounded text-xs font-bold hover:bg-purple-700 mt-4 mb-2">OK</button>
+                         <button onClick={() => handleQuestionSelect(customQuestion)} className="absolute right-2 top-6 bottom-2 px-4 bg-purple-900 rounded text-xs font-bold hover:bg-purple-700 mt-4 mb-2">OK</button>
                      </div>
+                     <button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="w-full mt-6 py-3 bg-gray-800 text-gray-400 hover:text-white rounded border border-gray-700">{TRANSLATIONS[lang].back}</button>
                  </div>
-                 {/* Back button removed as requested */}
              </div>
           )}
 
@@ -1582,42 +1387,69 @@ const App: React.FC = () => {
           )}
 
           {appState === AppState.RESULT && (
-            <ResultView question={selectedQuestion} selectedCards={selectedCards} isLoggedIn={user.email !== "Guest"} onRetry={() => navigateTo(AppState.CATEGORY_SELECT)} userInfo={user.userInfo || null} lang={lang} readingPromise={readingPromise} onReadingComplete={(text) => {
+            <ResultView question={selectedQuestion} selectedCards={selectedCards} onRetry={() => navigateTo(AppState.CATEGORY_SELECT)} lang={lang} readingPromise={readingPromise} onReadingComplete={(text) => {
                 const result: ReadingResult = { date: new Date().toISOString(), question: selectedQuestion, cards: selectedCards, interpretation: text };
                 setUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] }));
               }} user={user} spendCoins={spendCoins} />
           )}
 
-          {/* SHOP MODAL */}
+          {/* LUXURY SHOP MODAL */}
           {showShop && (
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4">
-                 <div className="bg-[#0f0826] border border-yellow-600/50 p-6 rounded-lg max-w-lg w-full relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)]">
-                     <button onClick={() => { setShowShop(false); setShopStep('AMOUNT'); }} className="absolute top-4 right-4 text-white hover:text-gray-300">✕</button>
+                 <div className="bg-[#0f0826] border-2 border-yellow-600/70 p-8 rounded-xl max-w-lg w-full relative overflow-hidden shadow-[0_0_80px_rgba(234,179,8,0.2)]">
+                     {/* Decorative Elements */}
+                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent"></div>
+                     <div className="absolute -top-10 -left-10 w-32 h-32 bg-yellow-500/10 rounded-full blur-2xl"></div>
+                     <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-purple-500/10 rounded-full blur-2xl"></div>
+
+                     <button onClick={() => { setShowShop(false); setShopStep('AMOUNT'); }} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">✕</button>
+                     
                      {shopStep === 'AMOUNT' ? (
                         <>
-                            <div className="text-center mb-6">
-                                <h2 className="text-2xl text-gold-gradient font-bold mb-2 font-serif-en">{TRANSLATIONS[lang].shop_title}</h2>
-                                <p className="text-sm text-gray-400 italic">"{TRANSLATIONS[lang].shop_subtitle}"</p>
+                            <div className="text-center mb-8 relative z-10">
+                                <h2 className="text-3xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600 font-bold mb-2 font-occult drop-shadow-sm">{TRANSLATIONS[lang].shop_title}</h2>
+                                <p className="text-sm text-yellow-100/60 italic font-serif-en">"{TRANSLATIONS[lang].shop_subtitle}"</p>
                             </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <button onClick={() => initiatePayment(4900, 60)} className="flex justify-between items-center p-4 bg-gray-900 rounded hover:bg-gray-800 border border-gray-700 transition-colors"><span className="font-bold text-white">{TRANSLATIONS[lang].shop_pkg_1}</span><span className="text-yellow-400">Buy</span></button>
-                                <button onClick={() => initiatePayment(7900, 110)} className="flex justify-between items-center p-4 bg-gray-900 rounded hover:bg-gray-800 border border-yellow-700 border-l-4 border-l-yellow-500 transition-colors shadow-[0_0_10px_rgba(234,179,8,0.2)]"><span className="font-bold text-white">{TRANSLATIONS[lang].shop_pkg_2}</span><span className="text-yellow-400 font-bold">Best</span></button>
-                                <button onClick={() => initiatePayment(15500, 220)} className="flex justify-between items-center p-4 bg-gray-900 rounded hover:bg-gray-800 border border-gray-700 transition-colors"><span className="font-bold text-white">{TRANSLATIONS[lang].shop_pkg_3}</span><span className="text-yellow-400">Buy</span></button>
+                            <div className="grid grid-cols-1 gap-4 relative z-10">
+                                <button onClick={() => initiatePayment(4900, 60)} className="group flex justify-between items-center p-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded-lg hover:from-gray-800 hover:to-gray-700 border border-gray-700 hover:border-yellow-500/50 transition-all transform hover:-translate-y-1 shadow-lg">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-yellow-900/30 flex items-center justify-center text-xl">💰</div>
+                                        <span className="font-bold text-white text-lg">{TRANSLATIONS[lang].shop_pkg_1}</span>
+                                    </div>
+                                    <span className="text-yellow-500 text-sm font-bold uppercase tracking-wider group-hover:text-yellow-300">Purchase</span>
+                                </button>
+                                <button onClick={() => initiatePayment(7900, 110)} className="group flex justify-between items-center p-6 bg-gradient-to-r from-yellow-900/20 to-black rounded-lg border-2 border-yellow-600/50 hover:border-yellow-400 hover:bg-yellow-900/30 transition-all transform hover:-translate-y-1 shadow-[0_0_20px_rgba(234,179,8,0.15)] relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 bg-yellow-600 text-black text-[10px] font-bold px-2 py-1 rounded-bl">POPULAR</div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-full bg-yellow-600 flex items-center justify-center text-2xl shadow-inner">💎</div>
+                                        <span className="font-bold text-yellow-100 text-xl">{TRANSLATIONS[lang].shop_pkg_2}</span>
+                                    </div>
+                                    <span className="text-white bg-yellow-600 px-4 py-1 rounded-full text-xs font-bold shadow hover:bg-yellow-500">BUY NOW</span>
+                                </button>
+                                <button onClick={() => initiatePayment(15500, 220)} className="group flex justify-between items-center p-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded-lg hover:from-gray-800 hover:to-gray-700 border border-gray-700 hover:border-yellow-500/50 transition-all transform hover:-translate-y-1 shadow-lg">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-purple-900/30 flex items-center justify-center text-xl">👑</div>
+                                        <span className="font-bold text-white text-lg">{TRANSLATIONS[lang].shop_pkg_3}</span>
+                                    </div>
+                                    <span className="text-yellow-500 text-sm font-bold uppercase tracking-wider group-hover:text-yellow-300">Purchase</span>
+                                </button>
                             </div>
                         </>
                      ) : (
                          <>
-                            <div className="text-center mb-6">
+                            <div className="text-center mb-6 relative z-10">
                                 <h2 className="text-2xl text-gold-gradient font-bold mb-2">{TRANSLATIONS[lang].pay_title}</h2>
-                                <p className="text-sm text-gray-400">{pendingPackage?.coins} Coins / ₩{pendingPackage?.amount.toLocaleString()}</p>
+                                <p className="text-lg text-white font-bold">{pendingPackage?.coins} Coins / ₩{pendingPackage?.amount.toLocaleString()}</p>
                             </div>
-                            <div className="flex flex-col gap-3">
-                                <button onClick={() => setSelectedPaymentMethod('KAKAO')} className={`p-4 rounded border flex items-center justify-center font-bold ${selectedPaymentMethod === 'KAKAO' ? 'bg-[#FEE500] text-black border-[#FEE500]' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>Kakao Bank</button>
-                                <button onClick={() => setSelectedPaymentMethod('TOSS')} className={`p-4 rounded border flex items-center justify-center font-bold ${selectedPaymentMethod === 'TOSS' ? 'bg-blue-600/30 border-blue-500 text-blue-200' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>Toss Payments</button>
-                                <button onClick={() => setSelectedPaymentMethod('PAYPAL')} className={`p-4 rounded border flex items-center justify-center font-bold ${selectedPaymentMethod === 'PAYPAL' ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>PayPal</button>
-                                <div className="flex gap-2 mt-4">
+                            <div className="flex flex-col gap-3 relative z-10">
+                                {['KAKAO', 'TOSS', 'PAYPAL'].map((m) => (
+                                    <button key={m} onClick={() => setSelectedPaymentMethod(m as any)} className={`p-4 rounded border flex items-center justify-center font-bold transition-all ${selectedPaymentMethod === m ? 'bg-yellow-600 text-black border-yellow-400 shadow-lg scale-105' : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'}`}>
+                                        {m === 'KAKAO' ? 'Kakao Bank' : m === 'TOSS' ? 'Toss Payments' : 'PayPal'}
+                                    </button>
+                                ))}
+                                <div className="flex gap-2 mt-6">
                                     <button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-gray-700 text-gray-300 rounded font-bold hover:bg-gray-600">{TRANSLATIONS[lang].pay_cancel}</button>
-                                    <button onClick={processPayment} className="flex-1 py-3 bg-gradient-to-r from-yellow-600 to-yellow-500 text-black font-bold rounded hover:from-yellow-500 hover:to-yellow-400">{TRANSLATIONS[lang].pay_confirm}</button>
+                                    <button onClick={processPayment} className="flex-1 py-3 bg-gradient-to-r from-yellow-600 to-yellow-500 text-black font-bold rounded hover:from-yellow-500 hover:to-yellow-400 shadow-lg transform hover:scale-105 transition-transform">{TRANSLATIONS[lang].pay_confirm}</button>
                                 </div>
                             </div>
                          </>
@@ -1640,38 +1472,37 @@ const App: React.FC = () => {
                          <div className="mb-6 bg-black/40 p-4 rounded border border-purple-900">
                              <h4 className="text-gold-gradient font-bold mb-4">{TRANSLATIONS[lang].tier_info}: <span className="text-white">{user.tier}</span></h4>
                              <div className="space-y-3">
-                                 {/* Bronze */}
+                                 {/* Tier Displays */}
                                  <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.BRONZE ? 'bg-stone-800 border border-stone-600' : 'opacity-50'}`}>
                                      <span className="text-stone-400 font-bold">Bronze</span>
                                      <span className="text-xs text-stone-500">0 Spent</span>
                                  </div>
-                                 {/* Silver */}
                                  <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.SILVER ? 'bg-gray-800 border border-gray-400 shadow-[0_0_10px_rgba(255,255,255,0.2)]' : 'opacity-50'}`}>
                                      <span className="text-gray-300 font-bold">Silver</span>
                                      <span className="text-xs text-gray-400">400+ Spent</span>
                                  </div>
-                                 {/* Gold */}
                                  <div className={`flex justify-between items-center p-3 rounded-lg transition-all ${user.tier === UserTier.GOLD ? 'bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-600 border-2 border-yellow-200 shadow-[0_0_20px_rgba(250,204,21,0.6)] scale-105' : 'opacity-50'}`}>
-                                     {user.tier === UserTier.GOLD && <div className="absolute inset-0 bg-white/20 animate-pulse rounded-lg"></div>}
                                      <span className={`font-black italic text-xl ${user.tier === UserTier.GOLD ? 'text-yellow-900 drop-shadow-sm' : 'text-stone-500'}`}>GOLD</span>
-                                     <span className={`text-xs font-bold ${user.tier === UserTier.GOLD ? 'text-yellow-900' : 'text-stone-500'}`}>1000+ Spent</span>
+                                     <span className={`text-xs font-bold ${user.tier === UserTier.GOLD ? 'text-yellow-900' : 'text-stone-500'}`}>1500+ Spent</span>
                                  </div>
-                                 {/* Platinum */}
                                  <div className={`flex justify-between items-center p-4 rounded-xl transition-all ${user.tier === UserTier.PLATINUM ? 'bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-2 border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.8)] scale-110 relative overflow-hidden' : 'opacity-50'}`}>
-                                      {user.tier === UserTier.PLATINUM && (
-                                          <>
-                                              <div className="absolute inset-0 bg-[conic-gradient(from_0deg,transparent_0_deg,rgba(255,255,255,0.3)_90deg,transparent_180deg)] animate-[spin_3s_linear_infinite] opacity-50 mix-blend-overlay"></div>
-                                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12 animate-shine"></div>
-                                          </>
-                                      )}
-                                     <span className={`font-black italic text-2xl tracking-widest ${user.tier === UserTier.PLATINUM ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-purple-300 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'text-stone-500'}`}>PLATINUM</span>
-                                     <span className={`text-sm font-bold relative z-10 ${user.tier === UserTier.PLATINUM ? 'text-cyan-200' : 'text-stone-500'}`}>3000+ Spent</span>
+                                     <span className={`font-black italic text-2xl tracking-widest ${user.tier === UserTier.PLATINUM ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-purple-300' : 'text-stone-500'}`}>PLATINUM</span>
+                                     <span className={`text-sm font-bold relative z-10 ${user.tier === UserTier.PLATINUM ? 'text-cyan-200' : 'text-stone-500'}`}>4000+ Spent</span>
                                  </div>
                              </div>
                          </div>
 
-                     {/* HISTORY (Logged in only) */}
-                     
+                         {/* Gold+ Features */}
+                         {(user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) && (
+                             <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-600/50 rounded">
+                                 <h4 className="text-yellow-500 font-bold mb-3 text-sm">Gold+ Exclusive</h4>
+                                 <div className="flex flex-col gap-2">
+                                     <button className="w-full py-2 bg-black/50 border border-yellow-700/50 rounded text-xs text-yellow-200 hover:bg-yellow-900/30">{TRANSLATIONS[lang].rug_shop}</button>
+                                     <button className="w-full py-2 bg-black/50 border border-yellow-700/50 rounded text-xs text-yellow-200 hover:bg-yellow-900/30">{TRANSLATIONS[lang].bgm_upload}</button>
+                                 </div>
+                             </div>
+                         )}
+
                          <div className="mb-6">
                              <h4 className="text-white font-bold mb-3">{TRANSLATIONS[lang].history}</h4>
                              <div className="bg-black/30 border border-gray-700 rounded h-40 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-purple-700">
@@ -1689,9 +1520,6 @@ const App: React.FC = () => {
                                  )}
                              </div>
                          </div>
-                     
-
-                     {/* CARD SKINS (Logged in only) */}
                      
                          <div className="mb-6">
                              <h4 className="text-white font-bold mb-3">{TRANSLATIONS[lang].skin_shop}</h4>
@@ -1714,12 +1542,9 @@ const App: React.FC = () => {
                                  })}
                              </div>
 
-                             {/* CUSTOM SKIN STUDIO (Silver+) */}
-                             {(user.tier === UserTier.SILVER || user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) && (
+                             {(user.tier !== UserTier.BRONZE) && (
                                 <div className="bg-purple-900/20 border border-purple-500/50 rounded p-4">
                                     <h4 className="text-sm font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].custom_skin_title}</h4>
-                                    
-                                    {/* Upload Section */}
                                     <div className="mb-4">
                                         <div className="w-full h-24 border-2 border-dashed border-gray-600 rounded flex items-center justify-center text-xs text-gray-400 mb-2 relative cursor-pointer hover:border-purple-400 overflow-hidden">
                                             <input type="file" accept="image/*" onChange={handleCustomSkinUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -1733,8 +1558,6 @@ const App: React.FC = () => {
                                             <button onClick={handleSaveCustomSkin} disabled={!customSkinImage} className="text-xs bg-yellow-600 text-black font-bold px-3 py-1 rounded hover:bg-yellow-500 disabled:opacity-50">Save</button>
                                         </div>
                                     </div>
-
-                                    {/* Code Input Section */}
                                     <div className="pt-2 border-t border-purple-500/30">
                                         <label className="text-xs text-gray-400 block mb-1">{TRANSLATIONS[lang].skin_code_label}</label>
                                         <div className="flex gap-2">
@@ -1747,8 +1570,6 @@ const App: React.FC = () => {
                                             <button onClick={handleApplySkinCode} className="text-xs bg-purple-700 text-white font-bold px-3 py-1 rounded hover:bg-purple-600">{TRANSLATIONS[lang].skin_code_btn}</button>
                                         </div>
                                     </div>
-
-                                    {/* My Custom Skins List (Simple display) */}
                                     {user.customSkins && user.customSkins.length > 0 && (
                                         <div className="mt-4 grid grid-cols-3 gap-2">
                                             {user.customSkins.map((skin) => (
@@ -1762,9 +1583,6 @@ const App: React.FC = () => {
                                 </div>
                              )}
                          </div>
-                     
-
-                     {/* ATTENDANCE (Logged in only) */}
                      
                          <div className="mb-6">
                              <h4 className="text-white font-bold mb-3">{TRANSLATIONS[lang].attendance} (Day {user.attendanceDay}/10)</h4>
@@ -1796,7 +1614,6 @@ const App: React.FC = () => {
              </div>
           )}
 
-          {/* GLOBAL LOGIN MODAL */}
           {authMode === 'LOGIN' && (
              <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[300] animate-fade-in backdrop-blur-sm">
                  <div className="bg-gray-900 p-8 rounded-lg border border-purple-500 w-full max-w-md shadow-[0_0_30px_rgba(147,51,234,0.3)] relative">

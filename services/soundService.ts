@@ -1,3 +1,4 @@
+
 // Sound Effects Service using Web Audio API
 // Optimized for satisfying, soft, realistic card swishing effects.
 
@@ -13,22 +14,19 @@ const getCtx = () => {
           audioCtx = new Ctor();
       }
     }
+    // Always attempt resume if suspended
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+    }
     return audioCtx;
   } catch(e) {
-    console.warn("AudioContext not supported or failed to initialize", e);
+    console.warn("AudioContext not supported", e);
     return null;
   }
 };
 
 export const initSounds = () => {
-  try {
-    const ctx = getCtx();
-    if (ctx && ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
-  } catch (e) {
-    console.error("Audio init failed", e);
-  }
+  getCtx();
 };
 
 const createOscillator = (type: OscillatorType, freq: number, duration: number, vol: number = 0.1) => {
@@ -50,40 +48,35 @@ const createOscillator = (type: OscillatorType, freq: number, duration: number, 
     
     osc.start();
     osc.stop(ctx.currentTime + duration);
-  } catch(e) {
-    // Ignore audio errors
-  }
+  } catch(e) {}
 };
 
-// Simulate a soft "swish" card sliding sound using filtered noise
-// This creates a "breath" or "slide" texture
+// Simulate a soft "swish" card sliding sound (ASMR-like)
 const playCardSwish = () => {
     try {
         const ctx = getCtx();
         if (!ctx) return;
 
-        // Create a buffer of white noise
-        const bufferSize = ctx.sampleRate * 0.15; // 150ms
+        const bufferSize = ctx.sampleRate * 0.1; // 100ms
         const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
         const data = buffer.getChannelData(0);
         for (let i = 0; i < bufferSize; i++) {
-            data[i] = (Math.random() * 2 - 1) * 0.5;
+            data[i] = (Math.random() * 2 - 1) * 0.8; // White noise
         }
 
         const noise = ctx.createBufferSource();
         noise.buffer = buffer;
 
-        // Use a Lowpass filter to cut harsh high frequencies
+        // Bandpass filter for "paper" sound
         const filter = ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(800, ctx.currentTime); // Start slightly bright
-        filter.frequency.linearRampToValueAtTime(200, ctx.currentTime + 0.15); // Sweep down
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1000, ctx.currentTime);
+        filter.Q.value = 1;
 
         const gain = ctx.createGain();
-        // Envelope: Soft attack, sustain, fade out
-        gain.gain.setValueAtTime(0.001, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05); // Peak
-        gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.15); // Release
+        gain.gain.setValueAtTime(0.01, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.02);
+        gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.1);
 
         noise.connect(filter);
         filter.connect(gain);
@@ -95,20 +88,16 @@ const playCardSwish = () => {
 
 export const playSound = (type: 'SELECT' | 'REVEAL' | 'SWOOSH') => {
   const ctx = getCtx();
-  if (ctx && ctx.state === 'suspended') ctx.resume();
+  if (!ctx) return;
 
   switch (type) {
     case 'SELECT':
-        // Very soft click/touch
-        createOscillator('sine', 350, 0.08, 0.05);
+        createOscillator('sine', 400, 0.1, 0.05);
         break;
     case 'REVEAL':
-        // Mystical shimmer
-        createOscillator('sine', 600, 0.4, 0.1);
-        setTimeout(() => createOscillator('triangle', 1200, 0.3, 0.1), 50);
+        createOscillator('triangle', 800, 0.3, 0.1);
         break;
     case 'SWOOSH':
-        // Start shuffle loop
         playShuffleLoop();
         break;
   }
@@ -116,15 +105,15 @@ export const playSound = (type: 'SELECT' | 'REVEAL' | 'SWOOSH') => {
 
 export const playShuffleLoop = () => {
     if (shuffleInterval) return;
-    
     const ctx = getCtx();
-    if(ctx && ctx.state === 'suspended') ctx.resume();
+    if (!ctx) return;
 
-    // Play swish sound rhythmically
+    // Initial play
     playCardSwish();
+    // Fast, satisfying rhythm
     shuffleInterval = setInterval(() => {
         playCardSwish();
-    }, 160); // Slower, relaxed shuffle rhythm
+    }, 120); 
 };
 
 export const stopShuffleLoop = () => {

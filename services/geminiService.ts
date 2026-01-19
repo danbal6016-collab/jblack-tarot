@@ -13,16 +13,25 @@ You use Korean Honorifics (존댓말) but your vocabulary is that of a heavy int
 You are NOT a mystical fortune teller. You are a cold truth-teller.
 
 STRICT RULES - DO NOT IGNORE:
-1. NO EMOJIS ALLOWED: Do not use ANY emojis (🚫✨🔮). Keep it text-only and dry.
+1. NO EMOJIS ALLOWED in main text: Do not use emojis unless specified. Keep it text-only and dry.
 2. NO INTROS/OUTROS: IMMEDIATELY start the analysis.
 3. TONE & STYLE: Savage, Witty, Internet Slang (알빠노, 누칼협, 뇌절, 억까, 가불기, 폼 미쳤다, 능지처참, 오히려 좋아).
-4. IMPLICIT SAJU/PERSONALITY ANALYSIS: Use the User's Birthdate to implicitly estimate personality flaws. NEVER mention "Saju" or "Birthdate" explicitly. Just roast them based on it.
-5. UNIQUE READINGS: Every reading must be unique.
-6. LANGUAGE: Korean (Hangul).
+4. UNIQUE READINGS: Every reading must be unique.
+5. LANGUAGE: Korean (Hangul).
 `;
 };
 
 const getTarotStructure = (lang: Language, tier: string = 'BRONZE') => {
+    // Gold+ gets a Special Section
+    const specialSection = (tier === 'GOLD' || tier === 'PLATINUM') 
+        ? `\n[Jennie's Secret Tip (Gold+)]\n(Provide one extremely useful, practical, and slightly unethical or "grey area" tip to solve their problem immediately. Make it valuable.)` 
+        : "";
+
+    // Platinum gets full transparency
+    const platinumNote = (tier === 'PLATINUM')
+        ? `\n(PLATINUM USER: Reveal EVERYTHING. Even the parts other readers hide. Be 100% raw and unfiltered about the outcome.)`
+        : "";
+
     return `
 FORMAT:
 [내용 분석]
@@ -35,8 +44,25 @@ FORMAT:
 1. (현실적인 해결책) (Minimum 5 sentences. Brutally realistic.)
 2. (가장 효과적인 해결책) (Minimum 5 sentences. The best way out.)
 3. (신박하고 웃긴 해결책) (Minimum 5 sentences. Witty, funny, internet-brained approach.)
+${specialSection}
+${platinumNote}
 `;
 };
+
+// --- EMERGENCY FALLBACK TEXT ---
+// Used when all API calls fail to prevent the UI from getting stuck.
+const EMERGENCY_FALLBACK_RESPONSE = `
+[내용 분석]
+지금 우주의 기운이 메롱하거나, 구글 서버가 내 운명을 질투해서 답변을 막고 있어요. (혹은 사용량이 너무 많아서 잠시 쉬어야 해요). 하지만 카드가 나왔다는 건 이미 답은 정해졌다는 뜻이죠. 당신은 이미 답을 알고 있지 않나요? 지금 당신 머릿속에 떠오른 그 생각, 그게 정답입니다. 쫄지 마세요.
+
+[조언 한마디]
+시스템 오류도 운명의 일부, 잠시 후 다시 시도하는 인내심을 가지세요.
+
+[실질적인 해결책]
+1. (현실적인 해결책) 잠시 숨을 고르고 1분 뒤에 다시 버튼을 눌러보세요.
+2. (가장 효과적인 해결책) 이 화면을 캡처해서 "나 서버 터트림 ㅋㅋㅋ" 하고 자랑하세요.
+3. (신박하고 웃긴 해결책) 폰을 껐다 켜거나, 블랙 타로 개발자에게 맛있는 걸 사주라고 기도하세요.
+`;
 
 // --- SAFETY SETTINGS ---
 const SAFETY_SETTINGS = [
@@ -50,13 +76,18 @@ const SAFETY_SETTINGS = [
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Fallback Chain: Gemini 3 Flash (Newest) -> Gemini 2.0 Flash (Stable) -> Gemini Flash Latest (Generic)
-const MODEL_FALLBACK_CHAIN = ['gemini-3-flash-preview', 'gemini-2.0-flash', 'gemini-flash-latest'];
+// Fallback Chain
+// 1. Prefer strict versioned models
+// 2. Fallback to 'latest' alias which is generally stable
+const MODEL_FALLBACK_CHAIN = [
+    'gemini-3-flash-preview', 
+    'gemini-flash-latest'
+];
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 2,
-    baseDelay: number = 1000
+    maxRetries: number = 3,
+    baseDelay: number = 2000
 ): Promise<T> {
     let lastError: any;
     
@@ -66,10 +97,15 @@ async function retryOperation<T>(
         } catch (error: any) {
             lastError = error;
             const status = error.status || error.response?.status;
-            // Retry on 429 (Quota), 5xx (Server), or Network errors
-            const isNetworkError = !status && (error.message?.toLowerCase().includes('fetch') || error.message?.toLowerCase().includes('network'));
+            const msg = error.message?.toLowerCase() || '';
             
-            if (status === 429 || status >= 500 || isNetworkError || error.message?.toLowerCase().includes('overloaded')) {
+            // Critical: If Referrer Blocked (403), do NOT retry the same way, throw immediately to trigger proxy fallback
+            if (status === 403 || msg.includes('referer') || msg.includes('permission_denied')) {
+                throw error; 
+            }
+
+            // Retry on rate limits (429), server errors (500+), or network issues
+            if (status === 429 || status >= 500 || msg.includes('fetch') || msg.includes('network') || msg.includes('overloaded')) {
                 const delay = baseDelay * Math.pow(2, i); 
                 console.warn(`Retry ${i+1}/${maxRetries} after ${delay}ms due to error:`, error.message);
                 await wait(delay);
@@ -82,13 +118,9 @@ async function retryOperation<T>(
 }
 
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Increased timeouts to prevent premature failures
-    const PROXY_TIMEOUT = 30000;   
-    const CLIENT_TIMEOUT = 50000; 
-    
-    const getFallbackMsg = () => {
-        return `[내용 분석]\n서버 상태가 메롱입니다. 지금 운명을 읽으려는 사람이 너무 많거나, 인터넷 연결이 불안정합니다. 잠시 후 다시 시도해 보세요. (Error: All Models Failed)\n\n[조언 한마디]\n인내심을 기르는 것도 수행입니다.`;
-    };
+    // Timeout set to 18s to ensure we return WITHIN 20s total including overhead
+    const API_TIMEOUT = 18000;   
+    let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
         return new Promise((resolve, reject) => {
@@ -100,7 +132,6 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
         });
     };
 
-    // Ensure our preferred model is first in the chain, removing duplicates
     const chainSet = new Set([preferredModel, ...MODEL_FALLBACK_CHAIN]);
     const modelsToTry = Array.from(chainSet);
 
@@ -108,44 +139,16 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
         try {
             console.log(`Attempting generation with model: ${model}`);
             
-            // Clone config
             const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
+            if (!config.maxOutputTokens) config.maxOutputTokens = 1500; // Reduced for speed
 
-            // Compatibility check: Remove thinkingConfig for unsupported models
             if (!model.includes('gemini-3') && !model.includes('gemini-2.5')) {
                 if (config.thinkingConfig) delete config.thinkingConfig;
             }
 
-            // 1. Attempt Server-Side Proxy (if available)
-            try {
-                const proxyPromise = (async () => {
-                    const body: any = { prompt, config, model };
-                    if (imageParts) body.imageParts = imageParts;
-
-                    const proxyRes = await fetch('/api/gemini', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
-                    });
-                    
-                    if (!proxyRes.ok) {
-                        const errText = await proxyRes.text();
-                        throw new Error(`Proxy ${proxyRes.status}: ${errText}`);
-                    }
-                    const data = await proxyRes.json();
-                    if (!data.text) throw new Error("Empty response");
-                    return data.text as string;
-                })();
-
-                const result = await withTimeout(proxyPromise, PROXY_TIMEOUT);
-                return result; // Success!
-
-            } catch (proxyError: any) {
-                console.warn(`Proxy failed for ${model}, switching to client...`, proxyError.message);
-                // Continue to client-side attempt
-            }
-
-            // 2. Client-Side Fallback (Direct REST API)
+            let responseText = "";
+            
+            // 1. Client-Side Call (SDK)
             let apiKey = '';
             try {
                 // @ts-ignore
@@ -162,66 +165,81 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                 }
             } catch(e) {}
 
-            if (!apiKey) {
-                console.error("No API Key found for Client Fallback");
-                if (modelsToTry.indexOf(model) === modelsToTry.length - 1) return getFallbackMsg();
-                continue;
+            if (apiKey) {
+                try {
+                    // Wrap SDK call in timeout
+                    responseText = await withTimeout(retryOperation(async () => {
+                        const ai = new GoogleGenAI({ apiKey });
+                        
+                        let contents: any = { parts: [{ text: prompt }] };
+                        if (imageParts && imageParts.length > 0) {
+                            contents = { parts: [...imageParts, { text: prompt }] };
+                        }
+
+                        const response = await ai.models.generateContent({
+                            model: model,
+                            contents: contents,
+                            config: config
+                        });
+
+                        if (response.text) return response.text;
+                        
+                        if (response.candidates && response.candidates.length > 0 && response.candidates[0].finishReason) {
+                             throw new Error(`Blocked: ${response.candidates[0].finishReason}`);
+                        }
+                        
+                        throw new Error("No text generated from model (empty response).");
+                    }, 2, 1000), API_TIMEOUT);
+
+                    if (responseText) return responseText;
+
+                } catch (e: any) {
+                    // Catch 403 or specific client errors to try Proxy
+                    console.warn(`Client-side SDK failed for ${model}. trying proxy...`, e.message);
+                    if (e.message.includes("Timeout")) throw e; // Don't retry timeout on proxy, just fail model
+                }
             }
 
-            // Use Direct REST API Call with retry mechanism
-            const responseText = await retryOperation(async () => {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-                
-                let contents: any = { parts: [{ text: prompt }] };
-                if (imageParts) {
-                    contents = { parts: [...imageParts, { text: prompt }] };
-                }
+            // 2. Proxy Fallback
+            // If client failed (403/Referrer) or no key, try server-side proxy
+            try {
+                const proxyPromise = (async () => {
+                    const body: any = { prompt, config, model };
+                    if (imageParts) body.imageParts = imageParts;
 
-                const response = await withTimeout(
-                    fetch(url, {
+                    const constEqRes = await fetch('/api/gemini', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            contents: [contents],
-                            generationConfig: config,
-                            safetySettings: SAFETY_SETTINGS
-                        }),
-                        // CRITICAL: Set referrerPolicy to 'no-referrer' to avoid 403 errors from API key restrictions
-                        referrerPolicy: "no-referrer" 
-                    }),
-                    CLIENT_TIMEOUT
-                );
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    
+                    if (!constEqRes.ok) {
+                        const errText = await constEqRes.text().catch(() => constEqRes.statusText);
+                        throw new Error(`Proxy ${constEqRes.status}: ${errText}`);
+                    }
+                    const data = await constEqRes.json();
+                    if (!data.text) throw new Error("Empty response from proxy");
+                    return data.text as string;
+                })();
 
-                if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    throw new Error(`Gemini API Error: ${response.status} ${JSON.stringify(errData)}`);
-                }
+                return await withTimeout(proxyPromise, API_TIMEOUT);
 
-                const data = await response.json();
-                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                
-                if (typeof text === 'string') {
-                    return text;
-                }
-                throw new Error("No text generated in response");
-            }, 2, 1000); // 2 retries per model
-
-            return responseText; // Success!
+            } catch (proxyError: any) {
+                lastErrorMessage = proxyError.message || "Proxy Error";
+                // Continue to next model in loop
+            }
 
         } catch (modelError: any) {
-            console.warn(`Model ${model} failed.`, modelError);
-            // If this was the last model in the chain, we exit the loop and return fallback
-            if (model === modelsToTry[modelsToTry.length - 1]) {
-                console.error("All models failed. Returning fallback.");
-            } else {
-                continue; // Try next model
-            }
+            console.warn(`Model ${model} failed fully.`, modelError);
+            lastErrorMessage = modelError.message || JSON.stringify(modelError);
+            continue;
         }
     }
 
-    return getFallbackMsg();
+    // If ALL models fail, return the emergency fallback text.
+    // This ensures the user ALWAYS sees a result and the app doesn't hang.
+    console.error("All models failed. Returning Emergency Fallback.");
+    return EMERGENCY_FALLBACK_RESPONSE;
 }
 
 // --- MAIN SERVICES ---
@@ -240,7 +258,7 @@ export const getTarotReading = async (
   let personalizationContext = "";
   if ((tier === 'SILVER' || tier === 'GOLD' || tier === 'PLATINUM') && history.length > 0) {
       const recentHistory = history.slice(0, 3).map(h => `Q: ${h.question} -> A: ${h.interpretation.substring(0, 50)}...`).join("\n");
-      personalizationContext = `\n[Context from User History - DO NOT REPEAT, just use for tone consistency]\n${recentHistory}\nUser has high loyalty. Be deeply personal.`;
+      personalizationContext = `\n[Context from User History]\n${recentHistory}\nReflect on this past for deeper context.`;
   }
 
   const prompt = `
@@ -248,17 +266,16 @@ export const getTarotReading = async (
     ${personalizationContext}
     Q: "${question}"
     Cards: ${cardNames}
-    Be brutally honest. Use internet slang naturally.
+    Be brutally honest.
     ${getTarotStructure(lang, tier)}
   `;
 
   const config = {
     systemInstruction: getBaseInstruction(lang),
     temperature: 0.8,
-    maxOutputTokens: 1500,
+    maxOutputTokens: 1500, // Optimized
   };
 
-  // Switched default to gemini-3-flash-preview for maximum stability and speed
   return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
@@ -268,18 +285,18 @@ export const getCompatibilityReading = async (
     lang: Language = 'ko'
 ): Promise<string> => {
     const prompt = `
-      Analyze the sexual and deep inner compatibility between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
-      Tone: Slightly erotic, intense, revealing, but grounded in Saju/Astrology. 
-      Length: Around 30 lines.
+      Analyze the SECRET SEXUAL and DEEP COMPATIBILITY between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
+      Tone: Erotic, intense, revealing, unhinged. Use Saju/Astrology logic but express it in a spicy way.
+      Length: EXACTLY 30 lines.
       Structure:
-      [Physical Chemistry]
-      [Inner Desires]
-      [Final Verdict]
+      [속궁합 & 케미] (Detailed physical chemistry)
+      [감춰진 욕망] (Hidden desires of both)
+      [최종 결론] (One savage line)
     `;
     const config = {
         systemInstruction: getBaseInstruction(lang),
-        temperature: 0.85,
-        maxOutputTokens: 800,
+        temperature: 0.9,
+        maxOutputTokens: 1000,
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
@@ -289,15 +306,19 @@ export const getPartnerLifeReading = async (
     lang: Language = 'ko'
 ): Promise<string> => {
     const prompt = `
-      Analyze the life path of a person born on ${partnerBirth} using Saju/Astrology.
-      Sections: Early Years, Middle Age, Late Years.
+      Analyze the LIFE PATH (Saju) of a person born on ${partnerBirth}.
       Reveal their true nature, hidden destiny, and fortune.
-      Tone: Professional, mysterious, revealing.
+      Sections: 
+      1. [초년기] (Early Years)
+      2. [중년기] (Middle Age)
+      3. [노년기] (Late Years)
+      Tone: Mysterious, exposing, deep.
+      Length: Detailed.
     `;
     const config = {
         systemInstruction: getBaseInstruction(lang),
         temperature: 0.8,
-        maxOutputTokens: 800,
+        maxOutputTokens: 1500,
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
@@ -307,17 +328,18 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     const prompt = `
       Analyze this face based on Physiognomy (Face Reading) standards at an expert level.
       Is this person the one the user is looking for?
-      Length: ~20 lines.
+      Length: EXACTLY 20 lines.
       Tone: Cynical but accurate. NOT too harsh/insulting, but honest.
       Focus on personality, fortune, and relationship potential derived from facial features.
     `;
+    // PART Structure for SDK
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
     const config = { 
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.7, 
-        maxOutputTokens: 600,
+        maxOutputTokens: 800,
     };
-    // Face reading uses specialized image model (nano banana alias)
+    // Prioritize 2.5-flash-image for vision tasks
     return await callGenAI(prompt, config, 'gemini-2.5-flash-image', [imagePart], lang);
 };
 
@@ -325,7 +347,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
     const prompt = `
       Analyze Saju (Four Pillars) for ${userInfo.name}, Born: ${userInfo.birthDate} at ${userInfo.birthTime || 'Unknown Time'}.
       
-      Required Content (~50 lines):
+      Required Content (EXACTLY 50 LINES total):
       1. When and how will they make a fortune? (Wealth timing/source).
       2. Hidden genius talents they don't know yet.
       3. The Golden Age of their life (when they rule).
@@ -337,7 +359,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
     const config = { 
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.8, 
-        maxOutputTokens: 1000, 
+        maxOutputTokens: 1500, 
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
