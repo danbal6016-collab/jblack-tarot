@@ -123,6 +123,7 @@ export interface ChatMessage {
   imageUrl?: string;
   timestamp: number;
   tier: UserTier;
+  bio?: string; // Added bio field
 }
 
 export interface Country {
