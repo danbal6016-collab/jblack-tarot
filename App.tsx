@@ -470,7 +470,7 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
   );
 };
 
-const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null }> = ({ onComplete, lang, skin, activeCustomSkin }) => {
+const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null; rugColor?: string }> = ({ onComplete, lang, skin, activeCustomSkin, rugColor }) => {
   useEffect(() => {
     playSound('SWOOSH');
     const t = setTimeout(() => {
@@ -485,7 +485,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md">
-       <div className="absolute w-[90vw] h-[90vw] max-w-[500px] max-h-[500px] bg-[#2e0b49] rounded-full border-4 border-yellow-600/50 shadow-[0_0_80px_rgba(76,29,149,0.5)] flex items-center justify-center overflow-hidden rug-texture">
+       <div className="absolute w-[90vw] h-[90vw] max-w-[500px] max-h-[500px] bg-[#2e0b49] rounded-full border-4 border-yellow-600/50 shadow-[0_0_80px_rgba(76,29,149,0.5)] flex items-center justify-center overflow-hidden rug-texture" style={rugColor ? { backgroundColor: rugColor, backgroundImage: 'none', boxShadow: `0 0 80px ${rugColor}80` } : {}}>
           <div className="absolute w-[80%] h-[80%] border-2 border-dashed border-yellow-600/30 rounded-full animate-spin-slow"></div>
        </div>
 
@@ -555,7 +555,8 @@ const ResultView: React.FC<{
   onReadingComplete: (text: string) => void;
   user: User;
   spendCoins: (amount: number) => boolean;
-}> = ({ question, selectedCards, onRetry, lang, readingPromise, onReadingComplete, user, spendCoins }) => {
+  onLogin: () => void;
+}> = ({ question, selectedCards, onRetry, lang, readingPromise, onReadingComplete, user, spendCoins, onLogin }) => {
   const [fullText, setFullText] = useState('');
   const [analysisText, setAnalysisText] = useState('');
   const [solutionText, setSolutionText] = useState('');
@@ -597,6 +598,12 @@ const ResultView: React.FC<{
   };
   
   const handleUnlockSolution = () => {
+      if (user.email === 'Guest') {
+          if (confirm("로그인을 진행하시겠습니까?")) {
+              onLogin();
+          }
+          return;
+      }
       if(spendCoins(10)) {
           setIsSolutionUnlocked(true);
       }
@@ -604,12 +611,11 @@ const ResultView: React.FC<{
 
   const handleCapture = async () => {
       if(captureRef.current) {
-          captureRef.current.style.display = 'flex';
           const canvas = await html2canvas(captureRef.current, {
               backgroundColor: '#000000',
-              scale: 2
+              scale: 2,
+              useCORS: true
           });
-          captureRef.current.style.display = 'none';
           const link = document.createElement('a');
           link.download = `black_tarot_${Date.now()}.png`;
           link.href = canvas.toDataURL();
@@ -620,46 +626,59 @@ const ResultView: React.FC<{
   return (
     <div className={`min-h-screen pt-28 pb-20 px-4 flex flex-col items-center z-10 relative overflow-y-auto overflow-x-hidden ${!user.activeCustomSkin ? SKINS.find(s=>s.id===user.currentSkin)?.cssClass : ''}`}>
        
-       {/* High-End Luxurious Capture View */}
-       <div ref={captureRef} style={{ display: 'none' }} className="w-[1080px] h-[1920px] bg-[radial-gradient(circle_at_center,#4c1d95_0%,#000_70%)] flex-col items-center p-16 border-[16px] border-double border-[#ffd700] relative font-serif">
-          {/* Subtle Noise Texture Overlay */}
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 mix-blend-overlay"></div>
+       {/* High-End Luxurious Capture View (Redesigned) */}
+       {/* Fix: Moved entirely off-screen instead of display: none to fix render issues */}
+       <div ref={captureRef} style={{ position: 'fixed', left: '-3000px', top: 0, width: '1080px', height: '1920px', zIndex: -10 }} className="bg-[#050505] flex-col relative font-serif overflow-hidden">
+          {/* Background Layer */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#1a0b2e_0%,#000000_100%)] opacity-100"></div>
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
           
-          <div className="z-10 flex flex-col items-center w-full h-full justify-between py-10">
+          {/* Ornate Gold Border */}
+          <div className="absolute inset-0 border-[20px] border-[#b8860b] border-double pointer-events-none z-20"></div>
+          <div className="absolute top-4 bottom-4 left-4 right-4 border border-[#ffd700] opacity-50 pointer-events-none z-20"></div>
+
+          <div className="z-30 flex flex-col items-center w-full h-full justify-between py-16 px-12">
               {/* Header */}
               <div className="text-center">
-                  <h1 className="text-9xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-[#fff] via-[#ffd700] to-[#b8860b] drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] tracking-widest mb-4">BLACK TAROT</h1>
-                  <div className="w-64 h-1 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent mx-auto opacity-80"></div>
+                  <h1 className="text-8xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-[#ffd700] to-[#b8860b] drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] tracking-widest mb-2">BLACK TAROT</h1>
+                  <p className="text-3xl text-[#ffd700] opacity-80 font-serif tracking-[0.3em] uppercase">Fate Revealed</p>
+                  <div className="w-32 h-1 bg-[#b8860b] mx-auto mt-6"></div>
               </div>
 
-              {/* Cards Display - Framed Art Style */}
-              <div className="flex gap-12 justify-center items-center my-12">
+              {/* Question */}
+              <div className="w-full text-center mt-8">
+                  <h2 className="text-4xl text-white font-serif italic opacity-90 px-8">"{question}"</h2>
+              </div>
+
+              {/* Cards Display - Elegant Row */}
+              <div className="flex gap-8 justify-center items-center my-8 w-full px-8">
                   {selectedCards.map((c, i) => (
-                      <div key={i} className="flex flex-col items-center gap-6">
-                          <div className="w-[280px] h-[460px] relative rounded-lg border-4 border-[#b8860b] shadow-[0_0_60px_rgba(255,215,0,0.3)] overflow-hidden bg-black">
-                              <img src={cardImages[i]} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} />
-                              {/* Inner Shine */}
-                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-30"></div>
+                      <div key={i} className="flex flex-col items-center gap-4 relative">
+                          <div className="w-[240px] h-[400px] relative rounded-lg border-[3px] border-[#ffd700] shadow-[0_0_40px_rgba(184,134,11,0.4)] overflow-hidden bg-black transform hover:scale-105 transition-transform">
+                              <img src={cardImages[i]} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} crossOrigin="anonymous" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
                           </div>
-                          <span className="text-2xl font-bold text-[#ffd700] uppercase tracking-widest font-occult bg-black/60 px-6 py-2 rounded-full border border-[#b8860b]/50">{c.name}</span>
+                          <div className="absolute -bottom-6 bg-black/80 border border-[#b8860b] px-6 py-2 rounded-full shadow-lg">
+                              <span className="text-xl font-bold text-[#ffd700] uppercase tracking-widest font-occult whitespace-nowrap">{c.name}</span>
+                          </div>
                       </div>
                   ))}
               </div>
 
-              {/* Question & Answer Box - Glassmorphism */}
-              <div className="w-full bg-black/60 backdrop-blur-xl border border-[#ffd700]/30 rounded-3xl p-12 shadow-2xl flex-1 flex flex-col mb-12">
-                  <h2 className="text-4xl text-white font-serif italic mb-8 text-center border-b border-white/10 pb-6 opacity-90">"{question}"</h2>
-                  <div className="flex-1 flex items-center justify-center">
-                      <p className="text-3xl text-gray-200 leading-loose text-center font-serif whitespace-pre-wrap px-8">
-                          {fullText.substring(0, 550) + (fullText.length > 550 ? "..." : "")}
+              {/* Analysis Text Box */}
+              <div className="w-full flex-1 bg-black/40 border border-[#ffd700]/20 rounded-2xl p-10 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/black-felt.png')] opacity-30"></div>
+                  <div className="relative z-10 h-full flex items-center justify-center">
+                      <p className="text-2xl text-[#e0e0e0] leading-[2.2] text-justify font-serif whitespace-pre-wrap break-keep drop-shadow-md">
+                          {fullText.substring(0, 500) + (fullText.length > 500 ? "..." : "")}
                       </p>
                   </div>
               </div>
 
               {/* Footer */}
-              <div className="text-center opacity-70">
-                  <p className="text-2xl text-[#ffd700] font-occult tracking-[0.5em] uppercase">The Cards Don't Lie</p>
-                  <p className="text-xl text-gray-500 mt-2 font-serif">blacktarot.com</p>
+              <div className="text-center mt-8 opacity-80">
+                  <p className="text-xl text-[#ffd700] font-occult tracking-[0.5em] uppercase">The Cards Don't Lie</p>
+                  <p className="text-lg text-gray-500 mt-2 font-serif">blacktarot.com</p>
               </div>
           </div>
        </div>
@@ -709,11 +728,11 @@ const ResultView: React.FC<{
                                         <TypewriterText text={solutionText} />
                                     </div>
                                 ) : (
-                                    <div className="relative rounded-lg overflow-hidden select-none">
+                                    <div className="relative rounded-lg overflow-hidden select-none min-h-[200px]">
                                         <div className="filter blur-[8px] opacity-60 text-gray-400 text-xs leading-relaxed select-none pointer-events-none" style={{ userSelect: 'none' }}>
                                             {solutionText}
                                         </div>
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-transparent via-black/60 to-black/80 z-10">
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-transparent via-black/60 to-black/80 z-10 p-4">
                                             <div className="text-3xl mb-2">🔒</div>
                                             <p className="text-gray-300 font-bold mb-4 text-center px-4">실질적인 해결책은<br/>블랙코인 10개로 확인할 수 있습니다.</p>
                                             <button 
@@ -823,6 +842,15 @@ const AuthForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 // MAIN APP
 // ---------------------------------------------------------------------------
 
+const RK_COLORS = [
+    { name: 'Default Purple', color: '#2e0b49' },
+    { name: 'Crimson Blood', color: '#450a0a' },
+    { name: 'Midnight Blue', color: '#0f172a' },
+    { name: 'Emerald Forest', color: '#064e3b' },
+    { name: 'Void Black', color: '#000000' },
+    { name: 'Royal Gold', color: '#422006' }
+];
+
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
   const [user, setUser] = useState<User>({ 
@@ -842,6 +870,7 @@ const App: React.FC = () => {
   
   const [authMode, setAuthMode] = useState<'LOGIN'|'SIGNUP'|null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsMode, setSettingsMode] = useState<'MAIN' | 'RUG' | 'BGM'>('MAIN');
   const [showShop, setShowShop] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showGuestBlock, setShowGuestBlock] = useState(false);
@@ -1046,6 +1075,25 @@ const App: React.FC = () => {
       }
   };
 
+  const handleBgmUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      const url = URL.createObjectURL(file);
+      const newBgm: BGM = {
+          id: 'custom-' + Date.now(),
+          name: file.name,
+          url: url,
+          category: 'DEFAULT'
+      };
+      setCurrentBgm(newBgm);
+      alert("BGM Applied!");
+  };
+
+  const handleRugChange = (color: string) => {
+      setUser(prev => ({ ...prev, rugColor: color }));
+  };
+
   const deleteAccount = () => {
       if (confirm(TRANSLATIONS[lang].delete_confirm)) {
           supabase.auth.signOut();
@@ -1187,7 +1235,7 @@ const App: React.FC = () => {
                  <Header 
                     user={user} 
                     lang={lang} 
-                    onOpenSettings={() => setShowSettings(true)}
+                    onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }}
                     onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }}
                     onLogin={() => setAuthMode("LOGIN")}
                     openProfile={() => setShowProfile(true)}
@@ -1256,7 +1304,7 @@ const App: React.FC = () => {
 
           {appState === AppState.WELCOME && (
               <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center animate-fade-in relative z-10">
-                <Header user={user} lang={lang} onOpenSettings={() => setShowSettings(true)} onOpenShop={() => setShowShop(true)} onLogin={() => setAuthMode("LOGIN")} openProfile={() => setShowProfile(true)} />
+                <Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => setShowShop(true)} onLogin={() => setAuthMode("LOGIN")} openProfile={() => setShowProfile(true)} />
                 <Logo size="large" />
                 <p className="font-serif-en text-sm md:text-base italic mb-12 text-gold-gradient font-bold tracking-widest uppercase drop-shadow-sm opacity-90">{TRANSLATIONS[lang].welcome_sub}</p>
                 <button onClick={handleStart} className="btn-gold-3d mb-8">{TRANSLATIONS[lang].enter}</button>
@@ -1379,7 +1427,7 @@ const App: React.FC = () => {
           )}
 
           {appState === AppState.SHUFFLING && (
-              <ShufflingAnimation onComplete={() => navigateTo(AppState.CARD_SELECT)} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} />
+              <ShufflingAnimation onComplete={() => navigateTo(AppState.CARD_SELECT)} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} rugColor={user.rugColor} />
           )}
 
           {appState === AppState.CARD_SELECT && (
@@ -1390,7 +1438,7 @@ const App: React.FC = () => {
             <ResultView question={selectedQuestion} selectedCards={selectedCards} onRetry={() => navigateTo(AppState.CATEGORY_SELECT)} lang={lang} readingPromise={readingPromise} onReadingComplete={(text) => {
                 const result: ReadingResult = { date: new Date().toISOString(), question: selectedQuestion, cards: selectedCards, interpretation: text };
                 setUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] }));
-              }} user={user} spendCoins={spendCoins} />
+              }} user={user} spendCoins={spendCoins} onLogin={() => setAuthMode("LOGIN")} />
           )}
 
           {/* LUXURY SHOP MODAL */}
@@ -1463,153 +1511,191 @@ const App: React.FC = () => {
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
                  <div className="bg-gray-900 border-wine-gradient p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl overflow-y-auto max-h-[80vh]">
                      <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-occult text-purple-200">{TRANSLATIONS[lang].settings_title}</h3>
-                        <button onClick={() => setShowSettings(false)} className="text-gray-400">✕</button>
+                        <h3 className="text-xl font-occult text-purple-200">{settingsMode === 'MAIN' ? TRANSLATIONS[lang].settings_title : settingsMode === 'RUG' ? 'Rug Color' : 'BGM Upload'}</h3>
+                        <button onClick={() => { 
+                            if (settingsMode === 'MAIN') setShowSettings(false);
+                            else setSettingsMode('MAIN');
+                        }} className="text-gray-400">{settingsMode === 'MAIN' ? '✕' : '←'}</button>
                      </div>
                      
-                     {user.email !== 'Guest' && (
+                     {settingsMode === 'MAIN' && (
                          <>
-                         <div className="mb-6 bg-black/40 p-4 rounded border border-purple-900">
-                             <h4 className="text-gold-gradient font-bold mb-4">{TRANSLATIONS[lang].tier_info}: <span className="text-white">{user.tier}</span></h4>
-                             <div className="space-y-3">
-                                 {/* Tier Displays */}
-                                 <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.BRONZE ? 'bg-stone-800 border border-stone-600' : 'opacity-50'}`}>
-                                     <span className="text-stone-400 font-bold">Bronze</span>
-                                     <span className="text-xs text-stone-500">0 Spent</span>
-                                 </div>
-                                 <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.SILVER ? 'bg-gray-800 border border-gray-400 shadow-[0_0_10px_rgba(255,255,255,0.2)]' : 'opacity-50'}`}>
-                                     <span className="text-gray-300 font-bold">Silver</span>
-                                     <span className="text-xs text-gray-400">400+ Spent</span>
-                                 </div>
-                                 <div className={`flex justify-between items-center p-3 rounded-lg transition-all ${user.tier === UserTier.GOLD ? 'bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-600 border-2 border-yellow-200 shadow-[0_0_20px_rgba(250,204,21,0.6)] scale-105' : 'opacity-50'}`}>
-                                     <span className={`font-black italic text-xl ${user.tier === UserTier.GOLD ? 'text-yellow-900 drop-shadow-sm' : 'text-stone-500'}`}>GOLD</span>
-                                     <span className={`text-xs font-bold ${user.tier === UserTier.GOLD ? 'text-yellow-900' : 'text-stone-500'}`}>1500+ Spent</span>
-                                 </div>
-                                 <div className={`flex justify-between items-center p-4 rounded-xl transition-all ${user.tier === UserTier.PLATINUM ? 'bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-2 border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.8)] scale-110 relative overflow-hidden' : 'opacity-50'}`}>
-                                     <span className={`font-black italic text-2xl tracking-widest ${user.tier === UserTier.PLATINUM ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-purple-300' : 'text-stone-500'}`}>PLATINUM</span>
-                                     <span className={`text-sm font-bold relative z-10 ${user.tier === UserTier.PLATINUM ? 'text-cyan-200' : 'text-stone-500'}`}>4000+ Spent</span>
+                         {user.email !== 'Guest' && (
+                             <>
+                             <div className="mb-6 bg-black/40 p-4 rounded border border-purple-900">
+                                 <h4 className="text-gold-gradient font-bold mb-4">{TRANSLATIONS[lang].tier_info}: <span className="text-white">{user.tier}</span></h4>
+                                 <div className="space-y-3">
+                                     {/* Tier Displays */}
+                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.BRONZE ? 'bg-stone-800 border border-stone-600' : 'opacity-50'}`}>
+                                         <span className="text-stone-400 font-bold">Bronze</span>
+                                         <span className="text-xs text-stone-500">0 Spent</span>
+                                     </div>
+                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.SILVER ? 'bg-gray-800 border border-gray-400 shadow-[0_0_10px_rgba(255,255,255,0.2)]' : 'opacity-50'}`}>
+                                         <span className="text-gray-300 font-bold">Silver</span>
+                                         <span className="text-xs text-gray-400">400+ Spent</span>
+                                     </div>
+                                     <div className={`flex justify-between items-center p-3 rounded-lg transition-all ${user.tier === UserTier.GOLD ? 'bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-600 border-2 border-yellow-200 shadow-[0_0_20px_rgba(250,204,21,0.6)] scale-105' : 'opacity-50'}`}>
+                                         <span className={`font-black italic text-xl ${user.tier === UserTier.GOLD ? 'text-yellow-900 drop-shadow-sm' : 'text-stone-500'}`}>GOLD</span>
+                                         <span className={`text-xs font-bold ${user.tier === UserTier.GOLD ? 'text-yellow-900' : 'text-stone-500'}`}>1500+ Spent</span>
+                                     </div>
+                                     <div className={`flex justify-between items-center p-4 rounded-xl transition-all ${user.tier === UserTier.PLATINUM ? 'bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 border-2 border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.8)] scale-110 relative overflow-hidden' : 'opacity-50'}`}>
+                                         <span className={`font-black italic text-2xl tracking-widest ${user.tier === UserTier.PLATINUM ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-purple-300' : 'text-stone-500'}`}>PLATINUM</span>
+                                         <span className={`text-sm font-bold relative z-10 ${user.tier === UserTier.PLATINUM ? 'text-cyan-200' : 'text-stone-500'}`}>4000+ Spent</span>
+                                     </div>
                                  </div>
                              </div>
-                         </div>
 
-                         {/* Gold+ Features */}
-                         {(user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) && (
-                             <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-600/50 rounded">
-                                 <h4 className="text-yellow-500 font-bold mb-3 text-sm">Gold+ Exclusive</h4>
-                                 <div className="flex flex-col gap-2">
-                                     <button className="w-full py-2 bg-black/50 border border-yellow-700/50 rounded text-xs text-yellow-200 hover:bg-yellow-900/30">{TRANSLATIONS[lang].rug_shop}</button>
-                                     <button className="w-full py-2 bg-black/50 border border-yellow-700/50 rounded text-xs text-yellow-200 hover:bg-yellow-900/30">{TRANSLATIONS[lang].bgm_upload}</button>
+                             {/* Gold+ Features */}
+                             {(user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) && (
+                                 <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-600/50 rounded">
+                                     <h4 className="text-yellow-500 font-bold mb-3 text-sm">Gold+ Exclusive</h4>
+                                     <div className="flex flex-col gap-2">
+                                         <button onClick={() => setSettingsMode('RUG')} className="w-full py-2 bg-black/50 border border-yellow-700/50 rounded text-xs text-yellow-200 hover:bg-yellow-900/30">{TRANSLATIONS[lang].rug_shop}</button>
+                                         <button onClick={() => setSettingsMode('BGM')} className="w-full py-2 bg-black/50 border border-yellow-700/50 rounded text-xs text-yellow-200 hover:bg-yellow-900/30">{TRANSLATIONS[lang].bgm_upload}</button>
+                                     </div>
+                                 </div>
+                             )}
+
+                             <div className="mb-6">
+                                 <h4 className="text-white font-bold mb-3">{TRANSLATIONS[lang].history}</h4>
+                                 <div className="bg-black/30 border border-gray-700 rounded h-40 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-purple-700">
+                                     {user.history && user.history.length > 0 ? (
+                                         <ul className="space-y-2">
+                                             {user.history.map((h, i) => (
+                                                 <li key={i} className="text-xs text-gray-300 border-b border-gray-800 pb-1">
+                                                     <span className="text-gray-500 block text-[10px]">{new Date(h.date).toLocaleDateString()}</span>
+                                                     <span className="font-bold text-yellow-500">{h.question}</span>
+                                                 </li>
+                                             ))}
+                                         </ul>
+                                     ) : (
+                                         <div className="flex items-center justify-center h-full text-gray-500 text-xs">{TRANSLATIONS[lang].no_history}</div>
+                                     )}
                                  </div>
                              </div>
+                         
+                             <div className="mb-6">
+                                 <h4 className="text-white font-bold mb-3">{TRANSLATIONS[lang].skin_shop}</h4>
+                                 <div className="grid grid-cols-2 gap-2 mb-4">
+                                     {SKINS.map(s => {
+                                         const owned = user.ownedSkins.includes(s.id);
+                                         const active = user.currentSkin === s.id && !user.activeCustomSkin;
+                                         return (
+                                             <button 
+                                                key={s.id} 
+                                                onClick={() => buySkin(s)}
+                                                className={`p-2 rounded border text-xs flex flex-col items-center gap-1 relative overflow-hidden ${active ? 'border-yellow-500 bg-yellow-900/20' : 'border-gray-700 bg-gray-800'}`}
+                                             >
+                                                 <div className={`w-full h-12 rounded ${s.cssClass} card-back mb-1`}></div>
+                                                 <span>{s.name}</span>
+                                                 {!owned && <span className="text-yellow-400 font-bold">-{s.cost}</span>}
+                                                 {active && <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full"></span>}
+                                             </button>
+                                         )
+                                     })}
+                                 </div>
+
+                                 {(user.tier !== UserTier.BRONZE) && (
+                                    <div className="bg-purple-900/20 border border-purple-500/50 rounded p-4">
+                                        <h4 className="text-sm font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].custom_skin_title}</h4>
+                                        <div className="mb-4">
+                                            <div className="w-full h-24 border-2 border-dashed border-gray-600 rounded flex items-center justify-center text-xs text-gray-400 mb-2 relative cursor-pointer hover:border-purple-400 overflow-hidden">
+                                                <input type="file" accept="image/*" onChange={handleCustomSkinUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                {customSkinImage ? <img src={customSkinImage} className="w-full h-full object-cover" /> : TRANSLATIONS[lang].upload_skin}
+                                            </div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => setIsSkinPublic(true)} className={`text-[10px] px-2 py-1 rounded border ${isSkinPublic ? 'bg-purple-600 border-purple-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>{TRANSLATIONS[lang].public_option}</button>
+                                                    <button onClick={() => setIsSkinPublic(false)} className={`text-[10px] px-2 py-1 rounded border ${!isSkinPublic ? 'bg-purple-600 border-purple-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>{TRANSLATIONS[lang].private_option}</button>
+                                                </div>
+                                                <button onClick={handleSaveCustomSkin} disabled={!customSkinImage} className="text-xs bg-yellow-600 text-black font-bold px-3 py-1 rounded hover:bg-yellow-500 disabled:opacity-50">Save</button>
+                                            </div>
+                                        </div>
+                                        <div className="pt-2 border-t border-purple-500/30">
+                                            <label className="text-xs text-gray-400 block mb-1">{TRANSLATIONS[lang].skin_code_label}</label>
+                                            <div className="flex gap-2">
+                                                <input 
+                                                    value={inputSkinCode}
+                                                    onChange={(e) => setInputSkinCode(e.target.value)}
+                                                    placeholder={TRANSLATIONS[lang].skin_code_placeholder}
+                                                    className="flex-1 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-white"
+                                                />
+                                                <button onClick={handleApplySkinCode} className="text-xs bg-purple-700 text-white font-bold px-3 py-1 rounded hover:bg-purple-600">{TRANSLATIONS[lang].skin_code_btn}</button>
+                                            </div>
+                                        </div>
+                                        {user.customSkins && user.customSkins.length > 0 && (
+                                            <div className="mt-4 grid grid-cols-3 gap-2">
+                                                {user.customSkins.map((skin) => (
+                                                    <div key={skin.id} onClick={() => setUser(prev => ({...prev, activeCustomSkin: skin}))} className={`relative h-16 rounded border cursor-pointer overflow-hidden ${user.activeCustomSkin?.id === skin.id ? 'border-green-500' : 'border-gray-700'}`}>
+                                                        <img src={skin.imageUrl} className="w-full h-full object-cover" />
+                                                        {skin.isPublic && <span className="absolute bottom-0 right-0 bg-black/70 text-[8px] text-white px-1">{skin.shareCode}</span>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                 )}
+                             </div>
+                         
+                             <div className="mb-6">
+                                 <h4 className="text-white font-bold mb-3">{TRANSLATIONS[lang].attendance} (Day {user.attendanceDay}/10)</h4>
+                                 <div className="flex gap-1 justify-between bg-black/40 p-2 rounded">
+                                      {Array.from({length: 10}).map((_, i) => (
+                                          <div key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${i < user.attendanceDay ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-500'}`}>
+                                              {i+1}
+                                          </div>
+                                      ))}
+                                 </div>
+                             </div>
+                         </>
                          )}
 
                          <div className="mb-6">
-                             <h4 className="text-white font-bold mb-3">{TRANSLATIONS[lang].history}</h4>
-                             <div className="bg-black/30 border border-gray-700 rounded h-40 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-purple-700">
-                                 {user.history && user.history.length > 0 ? (
-                                     <ul className="space-y-2">
-                                         {user.history.map((h, i) => (
-                                             <li key={i} className="text-xs text-gray-300 border-b border-gray-800 pb-1">
-                                                 <span className="text-gray-500 block text-[10px]">{new Date(h.date).toLocaleDateString()}</span>
-                                                 <span className="font-bold text-yellow-500">{h.question}</span>
-                                             </li>
-                                         ))}
-                                     </ul>
-                                 ) : (
-                                     <div className="flex items-center justify-center h-full text-gray-500 text-xs">{TRANSLATIONS[lang].no_history}</div>
-                                 )}
-                             </div>
-                         </div>
-                     
-                         <div className="mb-6">
-                             <h4 className="text-white font-bold mb-3">{TRANSLATIONS[lang].skin_shop}</h4>
-                             <div className="grid grid-cols-2 gap-2 mb-4">
-                                 {SKINS.map(s => {
-                                     const owned = user.ownedSkins.includes(s.id);
-                                     const active = user.currentSkin === s.id && !user.activeCustomSkin;
-                                     return (
-                                         <button 
-                                            key={s.id} 
-                                            onClick={() => buySkin(s)}
-                                            className={`p-2 rounded border text-xs flex flex-col items-center gap-1 relative overflow-hidden ${active ? 'border-yellow-500 bg-yellow-900/20' : 'border-gray-700 bg-gray-800'}`}
-                                         >
-                                             <div className={`w-full h-12 rounded ${s.cssClass} card-back mb-1`}></div>
-                                             <span>{s.name}</span>
-                                             {!owned && <span className="text-yellow-400 font-bold">-{s.cost}</span>}
-                                             {active && <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full"></span>}
-                                         </button>
-                                     )
-                                 })}
+                             <label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].language_control}</label>
+                             <div className="flex gap-2 mb-4">
+                                 <button onClick={() => setLang('ko')} className={`flex-1 py-2 rounded border text-sm font-bold ${lang === 'ko' ? 'bg-purple-700 border-purple-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>한국어</button>
+                                 <button onClick={() => setLang('en')} className={`flex-1 py-2 rounded border text-sm font-bold ${lang === 'en' ? 'bg-purple-700 border-purple-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>English</button>
                              </div>
 
-                             {(user.tier !== UserTier.BRONZE) && (
-                                <div className="bg-purple-900/20 border border-purple-500/50 rounded p-4">
-                                    <h4 className="text-sm font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].custom_skin_title}</h4>
-                                    <div className="mb-4">
-                                        <div className="w-full h-24 border-2 border-dashed border-gray-600 rounded flex items-center justify-center text-xs text-gray-400 mb-2 relative cursor-pointer hover:border-purple-400 overflow-hidden">
-                                            <input type="file" accept="image/*" onChange={handleCustomSkinUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                            {customSkinImage ? <img src={customSkinImage} className="w-full h-full object-cover" /> : TRANSLATIONS[lang].upload_skin}
-                                        </div>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className="flex gap-2">
-                                                <button onClick={() => setIsSkinPublic(true)} className={`text-[10px] px-2 py-1 rounded border ${isSkinPublic ? 'bg-purple-600 border-purple-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>{TRANSLATIONS[lang].public_option}</button>
-                                                <button onClick={() => setIsSkinPublic(false)} className={`text-[10px] px-2 py-1 rounded border ${!isSkinPublic ? 'bg-purple-600 border-purple-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>{TRANSLATIONS[lang].private_option}</button>
-                                            </div>
-                                            <button onClick={handleSaveCustomSkin} disabled={!customSkinImage} className="text-xs bg-yellow-600 text-black font-bold px-3 py-1 rounded hover:bg-yellow-500 disabled:opacity-50">Save</button>
-                                        </div>
-                                    </div>
-                                    <div className="pt-2 border-t border-purple-500/30">
-                                        <label className="text-xs text-gray-400 block mb-1">{TRANSLATIONS[lang].skin_code_label}</label>
-                                        <div className="flex gap-2">
-                                            <input 
-                                                value={inputSkinCode}
-                                                onChange={(e) => setInputSkinCode(e.target.value)}
-                                                placeholder={TRANSLATIONS[lang].skin_code_placeholder}
-                                                className="flex-1 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-white"
-                                            />
-                                            <button onClick={handleApplySkinCode} className="text-xs bg-purple-700 text-white font-bold px-3 py-1 rounded hover:bg-purple-600">{TRANSLATIONS[lang].skin_code_btn}</button>
-                                        </div>
-                                    </div>
-                                    {user.customSkins && user.customSkins.length > 0 && (
-                                        <div className="mt-4 grid grid-cols-3 gap-2">
-                                            {user.customSkins.map((skin) => (
-                                                <div key={skin.id} onClick={() => setUser(prev => ({...prev, activeCustomSkin: skin}))} className={`relative h-16 rounded border cursor-pointer overflow-hidden ${user.activeCustomSkin?.id === skin.id ? 'border-green-500' : 'border-gray-700'}`}>
-                                                    <img src={skin.imageUrl} className="w-full h-full object-cover" />
-                                                    {skin.isPublic && <span className="absolute bottom-0 right-0 bg-black/70 text-[8px] text-white px-1">{skin.shareCode}</span>}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                             )}
-                         </div>
-                     
-                         <div className="mb-6">
-                             <h4 className="text-white font-bold mb-3">{TRANSLATIONS[lang].attendance} (Day {user.attendanceDay}/10)</h4>
-                             <div className="flex gap-1 justify-between bg-black/40 p-2 rounded">
-                                  {Array.from({length: 10}).map((_, i) => (
-                                      <div key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${i < user.attendanceDay ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-500'}`}>
-                                          {i+1}
-                                      </div>
-                                  ))}
+                             <label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].bgm_control}</label>
+                             <div className="flex items-center gap-4 mb-3">
+                                 <button onClick={() => setBgmStopped(!bgmStopped)} className="text-2xl p-2 bg-gray-800 rounded-full">{bgmStopped ? '🔇' : '🔊'}</button>
+                                 <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={(e) => setBgmVolume(parseFloat(e.target.value))} className="w-full accent-purple-500" />
                              </div>
                          </div>
-                     </>
+                         </>
                      )}
 
-                     <div className="mb-6">
-                         <label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].language_control}</label>
-                         <div className="flex gap-2 mb-4">
-                             <button onClick={() => setLang('ko')} className={`flex-1 py-2 rounded border text-sm font-bold ${lang === 'ko' ? 'bg-purple-700 border-purple-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>한국어</button>
-                             <button onClick={() => setLang('en')} className={`flex-1 py-2 rounded border text-sm font-bold ${lang === 'en' ? 'bg-purple-700 border-purple-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>English</button>
+                     {settingsMode === 'RUG' && (
+                         <div className="grid grid-cols-2 gap-3">
+                             {RK_COLORS.map(c => (
+                                 <button 
+                                    key={c.color} 
+                                    onClick={() => handleRugChange(c.color)}
+                                    className={`p-4 rounded border text-sm font-bold flex flex-col items-center gap-2 transition-all hover:scale-105 ${user.rugColor === c.color ? 'border-yellow-500 ring-1 ring-yellow-500' : 'border-gray-700'}`}
+                                    style={{ backgroundColor: c.color }}
+                                 >
+                                     <span className="bg-black/50 px-2 rounded text-white shadow-md">{c.name}</span>
+                                 </button>
+                             ))}
                          </div>
+                     )}
 
-                         <label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].bgm_control}</label>
-                         <div className="flex items-center gap-4 mb-3">
-                             <button onClick={() => setBgmStopped(!bgmStopped)} className="text-2xl p-2 bg-gray-800 rounded-full">{bgmStopped ? '🔇' : '🔊'}</button>
-                             <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={(e) => setBgmVolume(parseFloat(e.target.value))} className="w-full accent-purple-500" />
+                     {settingsMode === 'BGM' && (
+                         <div className="p-4 bg-gray-800 rounded border border-gray-700">
+                             <p className="text-sm text-gray-400 mb-4">Upload your own MP3 file to use as background music.</p>
+                             <div className="w-full h-32 border-2 border-dashed border-gray-600 rounded flex items-center justify-center text-gray-500 relative hover:border-yellow-500 transition-colors">
+                                 <input type="file" accept="audio/*" onChange={handleBgmUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                 <div className="text-center">
+                                     <span className="text-2xl block mb-2">🎵</span>
+                                     <span className="text-xs">Click to Upload MP3</span>
+                                 </div>
+                             </div>
+                             {currentBgm.id.startsWith('custom') && (
+                                 <p className="text-xs text-green-400 mt-2 text-center">Currently Playing: {currentBgm.name}</p>
+                             )}
                          </div>
-                     </div>
+                     )}
                  </div>
              </div>
           )}

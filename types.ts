@@ -101,6 +101,7 @@ export interface User {
   // Skins
   ownedSkins: string[]; 
   currentSkin: string; 
+  rugColor?: string; // New: Rug Color for Gold+
   
   // Custom Skins (Silver+)
   customSkins?: CustomSkin[];

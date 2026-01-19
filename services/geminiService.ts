@@ -41,9 +41,10 @@ FORMAT:
 (EXACTLY ONE SENTENCE. Short, punchy, savage.)
 
 [실질적인 해결책]
-1. (현실적인 해결책) (Minimum 5 sentences. Brutally realistic.)
-2. (가장 효과적인 해결책) (Minimum 5 sentences. The best way out.)
-3. (신박하고 웃긴 해결책) (Minimum 5 sentences. Witty, funny, internet-brained approach.)
+(Provide 3 numbered solutions. IMPORTANT: Do NOT write labels like "(현실적인 해결책)". Just write the number and the content.)
+1. (Content: Brutally realistic solution. Min 3 sentences.)
+2. (Content: The most effective way out. Min 3 sentences.)
+3. (Content: Witty, funny, internet-brained approach. Min 3 sentences.)
 ${specialSection}
 ${platinumNote}
 `;
@@ -59,9 +60,9 @@ const EMERGENCY_FALLBACK_RESPONSE = `
 시스템 오류도 운명의 일부, 잠시 후 다시 시도하는 인내심을 가지세요.
 
 [실질적인 해결책]
-1. (현실적인 해결책) 잠시 숨을 고르고 1분 뒤에 다시 버튼을 눌러보세요.
-2. (가장 효과적인 해결책) 이 화면을 캡처해서 "나 서버 터트림 ㅋㅋㅋ" 하고 자랑하세요.
-3. (신박하고 웃긴 해결책) 폰을 껐다 켜거나, 블랙 타로 개발자에게 맛있는 걸 사주라고 기도하세요.
+1. 잠시 숨을 고르고 1분 뒤에 다시 버튼을 눌러보세요.
+2. 이 화면을 캡처해서 "나 서버 터트림 ㅋㅋㅋ" 하고 자랑하세요.
+3. 폰을 껐다 켜거나, 블랙 타로 개발자에게 맛있는 걸 사주라고 기도하세요.
 `;
 
 // --- SAFETY SETTINGS ---
@@ -80,7 +81,8 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // 1. Prefer strict versioned models
 // 2. Fallback to 'latest' alias which is generally stable
 const MODEL_FALLBACK_CHAIN = [
-    'gemini-3-flash-preview', 
+    'gemini-3-flash-preview',
+    'gemini-2.0-flash', 
     'gemini-flash-latest'
 ];
 
@@ -118,8 +120,9 @@ async function retryOperation<T>(
 }
 
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Timeout set to 18s to ensure we return WITHIN 20s total including overhead
-    const API_TIMEOUT = 18000;   
+    // Timeout set to 30s. 
+    // Increased from 12s/18s to allow models enough time to generate, minimizing false failure reports.
+    const API_TIMEOUT = 30000;   
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -140,7 +143,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             console.log(`Attempting generation with model: ${model}`);
             
             const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-            if (!config.maxOutputTokens) config.maxOutputTokens = 1500; // Reduced for speed
+            if (!config.maxOutputTokens) config.maxOutputTokens = 1500; 
 
             if (!model.includes('gemini-3') && !model.includes('gemini-2.5')) {
                 if (config.thinkingConfig) delete config.thinkingConfig;
@@ -151,17 +154,19 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             // 1. Client-Side Call (SDK)
             let apiKey = '';
             try {
+                // Check import.meta.env first for Vite
                 // @ts-ignore
-                if (typeof process !== 'undefined' && process.env) {
-                    apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
+                if (typeof import.meta !== 'undefined' && import.meta.env) {
+                    // @ts-ignore
+                    apiKey = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
                 }
             } catch(e) {}
 
             try {
+                // Fallback to process.env
                 // @ts-ignore
-                if (!apiKey && typeof import.meta !== 'undefined' && import.meta.env) {
-                    // @ts-ignore
-                    apiKey = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
+                if (!apiKey && typeof process !== 'undefined' && process.env) {
+                    apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
                 }
             } catch(e) {}
 
@@ -225,6 +230,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                 return await withTimeout(proxyPromise, API_TIMEOUT);
 
             } catch (proxyError: any) {
+                console.error(`Proxy failed for ${model}:`, proxyError);
                 lastErrorMessage = proxyError.message || "Proxy Error";
                 // Continue to next model in loop
             }
@@ -238,7 +244,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
 
     // If ALL models fail, return the emergency fallback text.
     // This ensures the user ALWAYS sees a result and the app doesn't hang.
-    console.error("All models failed. Returning Emergency Fallback.");
+    console.error("All models failed. Returning Emergency Fallback. Last Error:", lastErrorMessage);
     return EMERGENCY_FALLBACK_RESPONSE;
 }
 
