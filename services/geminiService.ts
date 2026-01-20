@@ -44,9 +44,9 @@ FORMAT:
 
 [실질적인 해결책]
 (Provide 3 numbered solutions. IMPORTANT: Do NOT write labels like "(현실적인 해결책)". Just write the number and the content.)
-1. (Content: Brutally realistic solution. Min 3 sentences.)
-2. (Content: The most effective way out. Min 3 sentences.)
-3. (Content: Witty, funny, internet-brained approach. Min 3 sentences.)
+1. (Content: Brutally realistic solution. MINIMUM 5 SENTENCES. Be extremely detailed.)
+2. (Content: The most effective way out. MINIMUM 5 SENTENCES. Be extremely detailed.)
+3. (Content: Witty, funny, internet-brained approach. MINIMUM 5 SENTENCES. Be extremely detailed.)
 ${specialSection}
 ${platinumNote}
 `;
@@ -88,12 +88,12 @@ const MODEL_FALLBACK_CHAIN = [
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 1, // Reduced default retries for speed
+    maxAttempts: number = 3, // Increased default attempts
     baseDelay: number = 500
 ): Promise<T> {
     let lastError: any;
     
-    for (let i = 0; i < maxRetries; i++) {
+    for (let i = 0; i < maxAttempts; i++) {
         try {
             return await operation();
         } catch (error: any) {
@@ -101,18 +101,30 @@ async function retryOperation<T>(
             const status = error.status || error.response?.status;
             const errorMessage = error.message?.toLowerCase() || '';
             
-            // Critical: If Referrer Blocked (403), do NOT retry the same way, throw immediately to trigger proxy fallback
+            // Critical: If Referrer Blocked (403), do NOT retry the same way, throw immediately
             if (status === 403 || errorMessage.includes('referer') || errorMessage.includes('permission_denied')) {
                 throw error; 
             }
 
-            // Retry on rate limits (429), server errors (500+), or network issues
-            if (status === 429 || status >= 500 || errorMessage.includes('fetch') || errorMessage.includes('network') || errorMessage.includes('overloaded')) {
+            // Retry on rate limits (429), server errors (500+), or network issues (Failed to fetch)
+            // 'fetch failed' or 'network error' or 'failed to fetch'
+            if (
+                status === 429 || 
+                status >= 500 || 
+                errorMessage.includes('fetch') || 
+                errorMessage.includes('network') || 
+                errorMessage.includes('overloaded') ||
+                errorMessage.includes('aborted')
+            ) {
+                // If it's the last attempt, don't wait, just throw in next iteration logic (or break)
+                if (i === maxAttempts - 1) break;
+
                 const delay = baseDelay * Math.pow(2, i); 
-                console.warn(`Retry ${i+1}/${maxRetries} after ${delay}ms due to error:`, error.message);
+                console.warn(`Retry ${i+1}/${maxAttempts} after ${delay}ms due to error:`, error.message);
                 await wait(delay);
                 continue;
             }
+            // If error is not retryable, throw
             throw error;
         }
     }
@@ -170,8 +182,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
 
             if (apiKey) {
                 try {
-                    // Wrap SDK call in timeout
-                    // Only 1 retry for SDK to save time
+                    // Wrap SDK call in timeout and retry
                     responseText = await withTimeout(retryOperation(async () => {
                         const ai = new GoogleGenAI({ apiKey });
                         
@@ -193,7 +204,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         }
                         
                         throw new Error("No text generated from model (empty response).");
-                    }, 1, 300), API_TIMEOUT);
+                    }, 3, 500), API_TIMEOUT);
 
                     if (responseText) return responseText;
 
@@ -204,8 +215,9 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             }
 
             // 2. Proxy Fallback
+            // Now wrapped in retryOperation to handle "Failed to fetch" (network blips)
             try {
-                const proxyPromise = (async () => {
+                const proxyPromise = retryOperation(async () => {
                     const body: any = { prompt, config, model };
                     if (imageParts) body.imageParts = imageParts;
 
@@ -217,6 +229,10 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         });
                         
                         if (!constEqRes.ok) {
+                            // If 404, it means proxy doesn't exist (local dev without vercel), do not retry
+                            if (constEqRes.status === 404) {
+                                throw new Error("Proxy endpoint not found (404)");
+                            }
                             const errText = await constEqRes.text().catch(() => constEqRes.statusText);
                             throw new Error(`Proxy ${constEqRes.status}: ${errText}`);
                         }
@@ -224,10 +240,13 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         if (!data.text) throw new Error("Empty response from proxy");
                         return data.text as string;
                     } catch (fetchErr: any) {
-                        // Catch network errors specifically here to prevent "Failed to fetch" from crashing things unexpectedly
+                        // Catch network errors specifically here. 
+                        // If it is 404 (thrown above), retryOperation might retry unless we change logic,
+                        // but 404 usually isn't a fetch error, it's a response error.
+                        // "Failed to fetch" usually means network connection issue.
                         throw new Error(`Fetch failed: ${fetchErr.message}`);
                     }
-                })();
+                }, 3, 500);
 
                 return await withTimeout(proxyPromise, API_TIMEOUT);
 
