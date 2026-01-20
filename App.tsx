@@ -216,6 +216,7 @@ const TypewriterText: React.FC<{ text: string }> = ({ text }) => {
     const [visibleCount, setVisibleCount] = useState(0);
     useEffect(() => {
         setVisibleCount(0);
+        // Faster text speed for responsiveness - Increased from 5 to 25 to prevent stopping sensation
         const timer = setInterval(() => {
             setVisibleCount(p => {
                 if (p >= text.length) {
@@ -242,15 +243,21 @@ const ChatView: React.FC<{
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputText, setInputText] = useState('');
     const [presenceCount, setPresenceCount] = useState(0);
-    const [viewingUser, setViewingUser] = useState<ChatMessage | null>(null); 
+    const [viewingUser, setViewingUser] = useState<ChatMessage | null>(null); // State for profile popup
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const channelRef = useRef<RealtimeChannel | null>(null);
 
     useEffect(() => {
         const channel = supabase.channel('black-tarot-global', {
-            config: { presence: { key: user.email } }
+            config: {
+                presence: {
+                    key: user.email 
+                }
+            }
         });
+
         channelRef.current = channel;
+
         channel
             .on('broadcast', { event: 'chat' }, ({ payload }) => {
                 setMessages(prev => [...prev, payload]);
@@ -267,25 +274,39 @@ const ChatView: React.FC<{
                     });
                 }
             });
-        return () => { channel.unsubscribe(); };
+
+        return () => {
+            channel.unsubscribe();
+        };
     }, []);
 
-    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
     const handleSendMessage = async () => {
         if (!inputText.trim()) return;
+
         const msg: ChatMessage = {
             id: Math.random().toString(36).substring(2),
             userId: user.email,
             nickname: user.userInfo?.name || 'Anonymous',
             avatarUrl: user.userInfo?.profileImage,
-            bio: user.userInfo?.bio || '',
+            bio: user.userInfo?.bio || '', // Send Bio with message for visibility
             text: inputText,
             timestamp: Date.now(),
             tier: user.tier
         };
+
+        // Optimistic UI update
         setMessages(prev => [...prev, msg]); 
-        await channelRef.current?.send({ type: 'broadcast', event: 'chat', payload: msg });
+
+        await channelRef.current?.send({
+            type: 'broadcast',
+            event: 'chat',
+            payload: msg
+        });
+
         setInputText('');
     };
 
@@ -299,8 +320,11 @@ const ChatView: React.FC<{
                         <span className="text-xs text-green-400">● {presenceCount} / 50</span>
                     </div>
                 </div>
-                <button onClick={onLeave} className="text-gray-400 text-xs hover:text-white border border-gray-600 px-3 py-1 rounded">{TRANSLATIONS[lang].chat_leave}</button>
+                <button onClick={onLeave} className="text-gray-400 text-xs hover:text-white border border-gray-600 px-3 py-1 rounded">
+                    {TRANSLATIONS[lang].chat_leave}
+                </button>
             </div>
+
             <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 scrollbar-thin scrollbar-thumb-purple-700">
                 {messages.map((msg, i) => {
                     const isMe = msg.userId === user.email;
@@ -309,26 +333,52 @@ const ChatView: React.FC<{
                             {!isMe && (
                                 <div className="flex flex-col items-center gap-1 cursor-pointer hover:scale-110 transition-transform" onClick={() => setViewingUser(msg)}>
                                     <div className={`w-8 h-8 rounded-full overflow-hidden border ${msg.tier === UserTier.PLATINUM ? 'border-purple-400' : msg.tier === UserTier.GOLD ? 'border-yellow-400' : 'border-gray-500'}`}>
-                                        {msg.avatarUrl ? <img src={msg.avatarUrl} alt="avatar" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs bg-gray-700">?</div>}
+                                        {msg.avatarUrl ? (
+                                            <img src={msg.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-xs bg-gray-700">?</div>
+                                        )}
                                     </div>
                                 </div>
                             )}
+                            
                             <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[70%]`}>
                                 {!isMe && <span className="text-[10px] text-gray-400 mb-1 ml-1">{msg.nickname}</span>}
-                                <div className={`px-4 py-2 rounded-2xl text-sm break-words shadow-lg ${isMe ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none border border-gray-700'}`}>
+                                <div className={`px-4 py-2 rounded-2xl text-sm break-words shadow-lg ${
+                                    isMe 
+                                        ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white rounded-tr-none' 
+                                        : 'bg-gray-800 text-gray-200 rounded-tl-none border border-gray-700'
+                                }`}>
                                     {msg.text && <p>{msg.text}</p>}
                                 </div>
-                                <span className="text-[9px] text-gray-600 mt-1 mx-1">{new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                <span className="text-[9px] text-gray-600 mt-1 mx-1">
+                                    {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </span>
                             </div>
                         </div>
                     );
                 })}
                 <div ref={messagesEndRef} />
             </div>
+
             <div className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-purple-900/50 p-4 flex gap-2 items-center z-20">
-                <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={TRANSLATIONS[lang].chat_input_ph} className="flex-1 bg-black/50 border border-gray-700 rounded-full px-4 py-2 text-white focus:border-purple-500 outline-none text-sm"/>
-                <button onClick={handleSendMessage} className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shadow-[0_0_10px_rgba(147,51,234,0.5)]">➤</button>
+                <input 
+                    type="text" 
+                    value={inputText} 
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    placeholder={TRANSLATIONS[lang].chat_input_ph}
+                    className="flex-1 bg-black/50 border border-gray-700 rounded-full px-4 py-2 text-white focus:border-purple-500 outline-none text-sm"
+                />
+                <button 
+                    onClick={handleSendMessage}
+                    className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shadow-[0_0_10px_rgba(147,51,234,0.5)]"
+                >
+                    ➤
+                </button>
             </div>
+
+            {/* Profile Popup Overlay */}
             {viewingUser && (
                 <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm animate-fade-in" onClick={() => setViewingUser(null)}>
                     <div className="bg-[#1a103c] border-2 border-purple-500 p-6 rounded-xl max-w-xs w-full text-center relative shadow-[0_0_50px_rgba(147,51,234,0.5)]" onClick={e => e.stopPropagation()}>
@@ -337,7 +387,9 @@ const ChatView: React.FC<{
                              {viewingUser.avatarUrl ? <img src={viewingUser.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-700 flex items-center justify-center text-2xl">?</div>}
                         </div>
                         <h3 className="text-xl font-bold text-white mb-1">{viewingUser.nickname}</h3>
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-4 ${viewingUser.tier === UserTier.PLATINUM ? 'bg-cyan-900 text-cyan-200' : viewingUser.tier === UserTier.GOLD ? 'bg-yellow-900 text-yellow-200' : 'bg-gray-700 text-gray-300'}`}>{viewingUser.tier}</span>
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-4 ${viewingUser.tier === UserTier.PLATINUM ? 'bg-cyan-900 text-cyan-200' : viewingUser.tier === UserTier.GOLD ? 'bg-yellow-900 text-yellow-200' : 'bg-gray-700 text-gray-300'}`}>
+                            {viewingUser.tier}
+                        </span>
                         <div className="bg-black/40 p-3 rounded border border-purple-900/50 min-h-[80px]">
                             <p className="text-sm text-gray-300 italic">"{viewingUser.bio || 'No bio available.'}"</p>
                         </div>
@@ -389,7 +441,7 @@ const Header: React.FC<{
       )}
       <button onClick={onOpenSettings} className="text-gray-400 hover:text-purple-400 transition-colors p-2">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       </button>
@@ -654,7 +706,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0 });
   const [authMode, setAuthMode] = useState<'LOGIN'|'SIGNUP'|null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsMode, setSettingsMode] = useState<'MAIN' | 'RUG' | 'BGM' | 'SKIN'>('MAIN');
+  const [settingsMode, setSettingsMode] = useState<'MAIN' | 'RUG' | 'BGM' | 'SKIN' | 'HISTORY'>('MAIN');
   const [showShop, setShowShop] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showGuestBlock, setShowGuestBlock] = useState(false);
@@ -844,7 +896,7 @@ const App: React.FC = () => {
           {showSettings && (
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
                  <div className="bg-gray-900 border-wine-gradient p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl overflow-y-auto max-h-[80vh]">
-                     <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-occult text-purple-200">{settingsMode === 'MAIN' ? TRANSLATIONS[lang].settings_title : settingsMode === 'RUG' ? 'Rug Color' : settingsMode === 'BGM' ? 'BGM Upload' : 'Card Skins'}</h3><button onClick={() => { if (settingsMode === 'MAIN') setShowSettings(false); else setSettingsMode('MAIN'); }} className="text-gray-400">{settingsMode === 'MAIN' ? '✕' : '←'}</button></div>
+                     <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-occult text-purple-200">{settingsMode === 'MAIN' ? TRANSLATIONS[lang].settings_title : settingsMode === 'RUG' ? 'Rug Color' : settingsMode === 'BGM' ? 'BGM Upload' : settingsMode === 'SKIN' ? 'Card Skins' : TRANSLATIONS[lang].history}</h3><button onClick={() => { if (settingsMode === 'MAIN') setShowSettings(false); else setSettingsMode('MAIN'); }} className="text-gray-400">{settingsMode === 'MAIN' ? '✕' : '←'}</button></div>
                      
                      {settingsMode === 'MAIN' && (
                          <>
@@ -863,7 +915,10 @@ const App: React.FC = () => {
                                      <div className="flex justify-between text-xs"><span className="text-gray-400">누적 사용</span><span className="text-gray-400 font-mono">{user.totalSpent || 0} Coins</span></div>
                                  </div>
                              </div>
-                             <div className="mb-4"><button onClick={() => setShowAttendancePopup(true)} className="w-full py-2 bg-yellow-900/30 text-yellow-500 border border-yellow-700 rounded font-bold hover:bg-yellow-900/50">{TRANSLATIONS[lang].attendance}</button></div>
+                             <div className="mb-4 flex gap-2">
+                                <button onClick={() => setShowAttendancePopup(true)} className="flex-1 py-2 bg-yellow-900/30 text-yellow-500 border border-yellow-700 rounded font-bold hover:bg-yellow-900/50 text-xs">{TRANSLATIONS[lang].attendance}</button>
+                                <button onClick={() => setSettingsMode('HISTORY')} className="flex-1 py-2 bg-purple-900/30 text-purple-300 border border-purple-700 rounded font-bold hover:bg-purple-900/50 text-xs">{TRANSLATIONS[lang].history}</button>
+                             </div>
                              </>
                          )}
                          <div className="mb-6"><label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].bgm_control}</label><input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={(e) => { setBgmVolume(parseFloat(e.target.value)); if(parseFloat(e.target.value)>0 && bgmStopped) setBgmStopped(false); }} className="w-full accent-purple-500" /><div className="flex justify-between text-xs text-gray-500 mt-1"><span>Mute</span><span>Max</span></div><div className="mt-2 flex gap-2"><button onClick={() => setBgmStopped(!bgmStopped)} className="text-xs bg-gray-800 px-3 py-1 rounded border border-gray-600 hover:bg-gray-700">{bgmStopped ? '▶ Play' : '⏸ Pause'}</button></div></div>
@@ -911,6 +966,31 @@ const App: React.FC = () => {
                                  <div className="flex gap-2"><input value={inputSkinCode} onChange={e=>setInputSkinCode(e.target.value)} placeholder={TRANSLATIONS[lang].skin_code_placeholder} className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 text-sm" /><button onClick={handleApplySkinCode} className="px-3 py-1 bg-gray-700 rounded text-xs">{TRANSLATIONS[lang].skin_code_btn}</button></div>
                              </div>
                          </div>
+                     )}
+                     
+                     {/* History Mode */}
+                     {settingsMode === 'HISTORY' && (
+                        <div className="space-y-4">
+                            {user.history.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500">{TRANSLATIONS[lang].no_history}</div>
+                            ) : (
+                                user.history.map((h, i) => (
+                                    <div key={i} className="bg-black/60 border border-gray-700 p-4 rounded-lg hover:border-purple-500 transition-all">
+                                        <div className="flex justify-between items-center mb-2 border-b border-gray-800 pb-2">
+                                            <span className="text-xs text-gray-500">{new Date(h.date).toLocaleDateString()}</span>
+                                            <span className="text-[10px] bg-purple-900 px-2 py-0.5 rounded text-purple-200">{h.cards.length} Cards</span>
+                                        </div>
+                                        <h4 className="text-sm font-bold text-white mb-3">Q. {h.question}</h4>
+                                        <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-none">
+                                            {h.cards.map((c, idx) => (
+                                                <img key={idx} src={c.imagePlaceholder} alt={c.name} className={`w-10 h-16 object-cover rounded border border-gray-600 ${c.isReversed ? 'rotate-180' : ''}`} />
+                                            ))}
+                                        </div>
+                                        <div className="bg-gray-800/50 p-3 rounded text-xs text-gray-300 max-h-24 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 leading-relaxed whitespace-pre-wrap">{h.interpretation}</div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                      )}
                  </div>
              </div>
