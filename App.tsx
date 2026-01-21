@@ -937,24 +937,124 @@ const App: React.FC = () => {
           
           {showShop && (
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4">
-                 <div className="bg-[#0f0826] border-2 border-yellow-600/70 p-8 rounded-xl max-w-lg w-full relative overflow-hidden shadow-[0_0_80px_rgba(234,179,8,0.2)]">
-                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent"></div>
-                     <div className="absolute -top-10 -left-10 w-32 h-32 bg-yellow-500/10 rounded-full blur-2xl"></div>
-                     <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-purple-500/10 rounded-full blur-2xl"></div>
-                     <button onClick={() => { setShowShop(false); setShopStep('AMOUNT'); }} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">✕</button>
+                 {/* Main Modal Container - Deep Purple Gradient with Golden Border Feeling */}
+                 <div className="bg-[radial-gradient(circle_at_center,#2e1065_0%,#0f0720_100%)] border border-[#7c3aed]/50 p-6 rounded-2xl max-w-md w-full relative shadow-[0_0_60px_rgba(124,58,237,0.3)]">
+                     
+                     {/* Close Button */}
+                     <button onClick={() => { setShowShop(false); setShopStep('AMOUNT'); }} className="absolute top-4 right-4 text-[#fbbf24] hover:text-[#fff] transition-colors">
+                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                         </svg>
+                     </button>
+
                      {shopStep === 'AMOUNT' ? (
                         <>
-                            <div className="text-center mb-8 relative z-10"><h2 className="text-3xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600 font-bold mb-2 font-occult drop-shadow-sm">{TRANSLATIONS[lang].shop_title}</h2><p className="text-sm text-yellow-100/60 italic font-serif-en">"{TRANSLATIONS[lang].shop_subtitle}"</p></div>
-                            <div className="grid grid-cols-1 gap-4 relative z-10">
-                                <button onClick={() => initiatePayment(4900, 60)} className="group flex justify-between items-center p-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded-lg hover:from-gray-800 hover:to-gray-700 border border-gray-700 hover:border-yellow-500/50 transition-all transform hover:-translate-y-1 shadow-lg"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-yellow-900/30 flex items-center justify-center text-xl">💰</div><span className="font-bold text-white text-lg">{TRANSLATIONS[lang].shop_pkg_1}</span></div><span className="text-yellow-500 text-sm font-bold uppercase tracking-wider group-hover:text-yellow-300">Purchase</span></button>
-                                <button onClick={() => initiatePayment(7900, 110)} className="group flex justify-between items-center p-6 bg-gradient-to-r from-yellow-900/20 to-black rounded-lg border-2 border-yellow-600/50 hover:border-yellow-400 hover:bg-yellow-900/30 transition-all transform hover:-translate-y-1 shadow-[0_0_20px_rgba(234,179,8,0.15)] relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-600 text-black text-[10px] font-bold px-2 py-1 rounded-bl">POPULAR</div><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-full bg-yellow-600 flex items-center justify-center text-2xl shadow-inner">💎</div><span className="font-bold text-yellow-100 text-xl">{TRANSLATIONS[lang].shop_pkg_2}</span></div><span className="text-white bg-yellow-600 px-4 py-1 rounded-full text-xs font-bold shadow hover:bg-yellow-500">BUY NOW</span></button>
-                                <button onClick={() => initiatePayment(15500, 220)} className="group flex justify-between items-center p-5 bg-gradient-to-r from-gray-900 to-gray-800 rounded-lg hover:from-gray-800 hover:to-gray-700 border border-gray-700 hover:border-yellow-500/50 transition-all transform hover:-translate-y-1 shadow-lg"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-purple-900/30 flex items-center justify-center text-xl">👑</div><span className="font-bold text-white text-lg">{TRANSLATIONS[lang].shop_pkg_3}</span></div><span className="text-yellow-500 text-sm font-bold uppercase tracking-wider group-hover:text-yellow-300">Purchase</span></button>
+                            {/* Header */}
+                            <div className="text-center mb-8 mt-2">
+                                <h2 className="text-3xl font-serif text-[#fbbf24] mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">VIP 블랙코인 라운지</h2>
+                                <p className="text-[#d8b4fe] text-xs font-light tracking-wide opacity-80">"{TRANSLATIONS[lang].shop_subtitle}"</p>
+                            </div>
+
+                            {/* Packages Container */}
+                            <div className="space-y-4">
+                                {/* Package 1 */}
+                                <div className="relative group bg-gradient-to-r from-[#1e1b4b] to-[#312e81] border border-[#6366f1]/30 rounded-xl p-4 flex items-center justify-between shadow-lg overflow-hidden">
+                                    {/* Inner Glow Effect */}
+                                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent)] pointer-events-none"></div>
+                                    
+                                    <div className="flex items-center gap-4 z-10">
+                                        <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
+                                            {/* Coin Stack SVG */}
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 text-[#fbbf24]">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+                                            </svg>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[#fbbf24] font-bold text-lg leading-tight">{TRANSLATIONS[lang].shop_pkg_1.split(' / ')[0]}</span>
+                                            <span className="text-[#e9d5ff] text-sm">{TRANSLATIONS[lang].shop_pkg_1.split(' / ')[1]}</span>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => initiatePayment(4900, 60)}
+                                        className="z-10 bg-gradient-to-b from-[#451a03] to-[#251000] border border-[#d97706] text-[#fbbf24] text-sm font-bold px-6 py-2 rounded-lg hover:brightness-125 transition-all shadow-[0_0_10px_rgba(217,119,6,0.2)]"
+                                    >
+                                        구매하기
+                                    </button>
+                                </div>
+
+                                {/* Package 2 - Popular */}
+                                <div className="relative group bg-gradient-to-r from-[#312e81] to-[#4338ca] border border-[#a855f7]/50 rounded-xl p-4 flex items-center justify-between shadow-xl overflow-hidden transform scale-[1.02]">
+                                    {/* Popular Ribbon */}
+                                    <div className="absolute top-0 right-0">
+                                        <div className="bg-gradient-to-r from-[#fbbf24] to-[#d97706] text-black text-[10px] font-bold px-3 py-1 rounded-bl-lg shadow-md">
+                                            POPULAR
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Inner Glow */}
+                                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_50%,rgba(168,85,247,0.2),transparent)] pointer-events-none"></div>
+
+                                    <div className="flex items-center gap-4 z-10">
+                                        <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-[0_0_10px_rgba(236,72,153,0.5)]">
+                                            {/* Diamond SVG */}
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 text-[#fbbf24]">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-9.92L8.25 2.25h7.5l.841 3.58 5.159 9.92-9.75 6-9.75-6z" />
+                                            </svg>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[#fbbf24] font-bold text-xl leading-tight">{TRANSLATIONS[lang].shop_pkg_2.split(' / ')[0]}</span>
+                                            <span className="text-[#e9d5ff] text-sm">{TRANSLATIONS[lang].shop_pkg_2.split(' / ')[1]}</span>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => initiatePayment(7900, 110)}
+                                        className="z-10 bg-gradient-to-b from-[#451a03] to-[#251000] border border-[#d97706] text-[#fbbf24] text-sm font-bold px-6 py-2 rounded-lg hover:brightness-125 transition-all shadow-[0_0_15px_rgba(217,119,6,0.4)]"
+                                    >
+                                        구매하기
+                                    </button>
+                                </div>
+
+                                {/* Package 3 */}
+                                <div className="relative group bg-gradient-to-r from-[#1e1b4b] to-[#312e81] border border-[#6366f1]/30 rounded-xl p-4 flex items-center justify-between shadow-lg overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent)] pointer-events-none"></div>
+
+                                    <div className="flex items-center gap-4 z-10">
+                                        <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
+                                            {/* Crown SVG */}
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 text-[#fbbf24]">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                                            </svg>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[#fbbf24] font-bold text-lg leading-tight">{TRANSLATIONS[lang].shop_pkg_3.split(' / ')[0]}</span>
+                                            <span className="text-[#e9d5ff] text-sm">{TRANSLATIONS[lang].shop_pkg_3.split(' / ')[1]}</span>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => initiatePayment(15500, 220)}
+                                        className="z-10 bg-gradient-to-b from-[#451a03] to-[#251000] border border-[#d97706] text-[#fbbf24] text-sm font-bold px-6 py-2 rounded-lg hover:brightness-125 transition-all shadow-[0_0_10px_rgba(217,119,6,0.2)]"
+                                    >
+                                        구매하기
+                                    </button>
+                                </div>
                             </div>
                         </>
                      ) : (
+                         /* Payment Method Selection (Keep largely as is but match theme) */
                          <>
-                            <div className="text-center mb-6 relative z-10"><h2 className="text-2xl text-gold-gradient font-bold mb-2">{TRANSLATIONS[lang].pay_title}</h2><p className="text-lg text-white font-bold">{pendingPackage?.coins} Coins / ₩{pendingPackage?.amount.toLocaleString()}</p></div>
-                            <div className="flex flex-col gap-3 relative z-10">{['KAKAO', 'TOSS', 'PAYPAL'].map((m) => (<button key={m} onClick={() => setSelectedPaymentMethod(m as any)} className={`p-4 rounded border flex items-center justify-center font-bold transition-all ${selectedPaymentMethod === m ? 'bg-yellow-600 text-black border-yellow-400 shadow-lg scale-105' : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'}`}>{m === 'KAKAO' ? 'Kakao Bank' : m === 'TOSS' ? 'Toss Payments' : 'PayPal'}</button>))}<div className="flex gap-2 mt-6"><button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-gray-700 text-gray-300 rounded font-bold hover:bg-gray-600">{TRANSLATIONS[lang].pay_cancel}</button><button onClick={processPayment} className="flex-1 py-3 bg-gradient-to-r from-yellow-600 to-yellow-500 text-black font-bold rounded hover:from-yellow-500 hover:to-yellow-400 shadow-lg transform hover:scale-105 transition-transform">{TRANSLATIONS[lang].pay_confirm}</button></div></div>
+                            <div className="text-center mb-6 relative z-10">
+                                <h2 className="text-2xl text-[#fbbf24] font-bold mb-2">{TRANSLATIONS[lang].pay_title}</h2>
+                                <p className="text-lg text-white font-bold">{pendingPackage?.coins} Coins / ₩{pendingPackage?.amount.toLocaleString()}</p>
+                            </div>
+                            <div className="flex flex-col gap-3 relative z-10">
+                                {['KAKAO', 'TOSS', 'PAYPAL'].map((m) => (
+                                    <button key={m} onClick={() => setSelectedPaymentMethod(m as any)} className={`p-4 rounded border flex items-center justify-center font-bold transition-all ${selectedPaymentMethod === m ? 'bg-[#d97706] text-black border-[#fbbf24] shadow-lg scale-105' : 'bg-[#1e1b4b] border-[#4c1d95] text-gray-400 hover:bg-[#312e81]'}`}>{m === 'KAKAO' ? 'Kakao Bank' : m === 'TOSS' ? 'Toss Payments' : 'PayPal'}</button>
+                                ))}
+                                <div className="flex gap-2 mt-6">
+                                    <button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-[#312e81] text-gray-300 rounded font-bold hover:bg-[#4338ca] border border-[#4c1d95]">{TRANSLATIONS[lang].pay_cancel}</button>
+                                    <button onClick={processPayment} className="flex-1 py-3 bg-gradient-to-r from-[#d97706] to-[#fbbf24] text-black font-bold rounded hover:brightness-110 shadow-lg transform hover:scale-105 transition-transform">{TRANSLATIONS[lang].pay_confirm}</button>
+                                </div>
+                            </div>
                          </>
                      )}
                  </div>
