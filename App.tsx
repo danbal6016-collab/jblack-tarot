@@ -568,16 +568,62 @@ const ResultView: React.FC<{
 
   return (
     <div className={`min-h-screen pt-28 pb-20 px-4 flex flex-col items-center z-10 relative overflow-y-auto overflow-x-hidden ${!user.activeCustomSkin ? SKINS.find(s=>s.id===user.currentSkin)?.cssClass : ''}`}>
-       <div ref={captureRef} style={{ position: 'fixed', left: '-9999px', top: 0, width: '1080px', height: '1920px', zIndex: -10 }} className="bg-[#050505] flex flex-col items-center font-serif overflow-hidden">
-          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E")` }}></div>
-          <div className="absolute inset-8 border-4 border-double border-[#b8860b] pointer-events-none z-20"></div>
-          <div className="z-30 flex flex-col items-center w-full h-full pt-24 px-16 pb-16 relative">
-              <div className="text-center mb-12"><h1 className="text-8xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-[#ffd700] via-[#fcf6ba] to-[#b8860b] drop-shadow-[0_4px_15px_rgba(0,0,0,0.9)] tracking-[0.2em] mb-4">BLACK TAROT</h1></div>
-              <div className="w-full text-center mb-12 relative"><h2 className="relative text-4xl text-white font-serif italic opacity-90 px-8 leading-normal">"{question}"</h2></div>
-              <div className="flex gap-8 justify-center items-center mb-12 w-full">{selectedCards.map((c, i) => (<div key={i} className="flex flex-col items-center gap-4 relative group"><div className="w-[260px] h-[420px] relative rounded-lg border-2 border-[#b8860b] shadow-[0_0_50px_rgba(184,134,11,0.2)] overflow-hidden bg-black"><img src={cardImages[i]} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} crossOrigin="anonymous" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80"></div><div className="absolute bottom-6 left-0 right-0 text-center"><span className="text-xl font-bold text-[#ffd700] uppercase tracking-widest font-occult">{c.name}</span></div></div></div>))}</div>
-              <div className="w-full flex-1 bg-black/60 border border-[#b8860b]/30 rounded-lg p-10 relative overflow-hidden backdrop-blur-md"><div className="relative z-10 h-full flex items-center justify-center"><p className="text-3xl text-[#e0e0e0] leading-[1.8] text-center font-serif whitespace-pre-wrap break-keep drop-shadow-md line-clamp-[12]">{fullText.split('[실질적인 해결책]')[0].substring(0, 450)}...</p></div></div>
-              <div className="text-center mt-12 opacity-70"><p className="text-2xl text-[#ffd700] font-occult tracking-[0.5em] uppercase">Fate Revealed</p></div>
-          </div>
+       <div ref={captureRef} style={{ position: 'fixed', left: '-9999px', top: 0, width: '1080px', minHeight: '1920px', zIndex: -10 }} className="bg-[#050505] text-white flex flex-col items-center font-serif relative overflow-hidden">
+           {/* Background layers */}
+           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#2e0b49_0%,#000000_100%)] opacity-100"></div>
+           <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E")` }}></div>
+           
+           {/* Decorative Frame */}
+           <div className="absolute inset-6 border-2 border-[#b8860b] opacity-60 pointer-events-none"></div>
+           <div className="absolute inset-8 border border-[#b8860b] opacity-30 pointer-events-none"></div>
+           
+           {/* Decorative Corners (SVG) */}
+           <div className="absolute top-6 left-6 text-[#b8860b] w-16 h-16 border-t-4 border-l-4 border-[#b8860b]"></div>
+           <div className="absolute top-6 right-6 text-[#b8860b] w-16 h-16 border-t-4 border-r-4 border-[#b8860b]"></div>
+           <div className="absolute bottom-6 left-6 text-[#b8860b] w-16 h-16 border-b-4 border-l-4 border-[#b8860b]"></div>
+           <div className="absolute bottom-6 right-6 text-[#b8860b] w-16 h-16 border-b-4 border-r-4 border-[#b8860b]"></div>
+
+           {/* Content Container */}
+           <div className="relative z-10 w-full h-full flex flex-col items-center p-20">
+               {/* Header */}
+               <h1 className="text-8xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-[#ffd700] via-[#fcf6ba] to-[#b8860b] tracking-[0.2em] mb-8 drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]">BLACK TAROT</h1>
+               <div className="w-32 h-1 bg-gradient-to-r from-transparent via-[#b8860b] to-transparent mb-12"></div>
+
+               {/* Question */}
+               <div className="bg-black/60 border-y border-[#b8860b]/50 py-10 w-full text-center mb-16 backdrop-blur-md shadow-2xl">
+                   <h2 className="text-4xl text-[#f0f0f0] font-serif italic px-12 leading-relaxed drop-shadow-md">"{question}"</h2>
+               </div>
+
+               {/* Cards */}
+               <div className="flex justify-center gap-12 mb-16 w-full flex-wrap">
+                   {selectedCards.map((c, i) => (
+                       <div key={i} className="flex flex-col items-center gap-4 relative">
+                           <div className="w-[240px] h-[400px] rounded-lg border-2 border-[#b8860b] overflow-hidden shadow-[0_0_40px_rgba(184,134,11,0.4)] relative bg-black">
+                               <img src={cardImages[i]} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} crossOrigin="anonymous"/>
+                               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80"></div>
+                           </div>
+                           <span className="text-2xl font-bold text-[#ffd700] font-occult tracking-[0.15em] uppercase bg-black/50 px-4 py-1 rounded border border-[#b8860b]/30">{c.name}</span>
+                       </div>
+                   ))}
+               </div>
+
+               {/* Interpretation - FULL TEXT */}
+               <div className="w-full bg-[#0a0a0a]/80 border-2 border-[#b8860b]/40 rounded-xl p-16 relative overflow-hidden backdrop-blur-xl flex-1 shadow-2xl">
+                   {/* Inner decorative lines */}
+                   <div className="absolute top-4 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#b8860b] to-transparent opacity-50"></div>
+                   <div className="absolute bottom-4 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#b8860b] to-transparent opacity-50"></div>
+                   
+                   <div className="text-3xl text-[#e0e0e0] leading-[2.4] font-serif whitespace-pre-wrap text-justify drop-shadow-md" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+                       {fullText}
+                   </div>
+               </div>
+
+               {/* Footer */}
+               <div className="mt-16 opacity-70 flex flex-col items-center">
+                   <div className="text-2xl font-occult text-[#b8860b] tracking-[0.5em] mb-2">DESTINY REVEALED</div>
+                   <div className="text-lg text-gray-500 font-serif-en italic">{new Date().toLocaleDateString()}</div>
+               </div>
+           </div>
        </div>
        <div className="w-full max-w-4xl flex flex-col gap-8 animate-fade-in p-2">
          <div className="bg-gradient-to-r from-transparent via-purple-900/30 to-transparent border-y border-purple-500/30 py-6 text-center backdrop-blur-sm relative">
@@ -672,6 +718,24 @@ const AuthForm: React.FC<{ onClose: () => void; onLoginSuccess: () => void }> = 
         } finally { setLoading(false); }
     };
 
+    const handlePasswordReset = async () => {
+        if (!email) {
+            alert("이메일을 입력해주세요.");
+            return;
+        }
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin, 
+            });
+            if (error) throw error;
+            alert(`${email}로 비밀번호 재설정 링크를 보냈습니다! 메일함을 확인해주세요.`);
+            setShowResetLink(false); 
+        } catch (error: any) {
+            console.error(error);
+            alert("메일 전송 실패: 잠시 후 다시 시도해주세요. " + error.message);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-4">
              <div className="flex w-full mb-4 bg-gray-800 rounded p-1">
@@ -682,7 +746,7 @@ const AuthForm: React.FC<{ onClose: () => void; onLoginSuccess: () => void }> = 
             <input className="p-3 bg-black border border-gray-700 rounded text-white focus:border-purple-500 outline-none transition-colors" placeholder="Password" type="password" value={password} onChange={e=>setPassword(e.target.value)} />
             {msg && <p className="text-red-400 text-xs text-center">{msg}</p>}
             <button onClick={handleAuth} disabled={loading} className="w-full py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors mt-2">{loading ? 'Processing...' : (isSignup ? 'Sign Up' : 'Login')}</button>
-            {!isSignup && showResetLink && <button onClick={() => alert("Check email for reset link")} className="text-xs text-gray-400 underline hover:text-white mt-2 self-center">비밀번호를 잊으셨나요?</button>}
+            {!isSignup && showResetLink && <button onClick={handlePasswordReset} className="text-xs text-gray-400 underline hover:text-white mt-2 self-center">비밀번호를 잊으셨나요?</button>}
             <GoogleContinueButton />
         </div>
     );
