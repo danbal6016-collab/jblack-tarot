@@ -130,8 +130,8 @@ async function retryOperation<T>(
 }
 
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Timeout set to 20s to ensure we don't wait too long per model, allowing failover to next model.
-    const API_TIMEOUT = 20000;   
+    // Timeout set to 60s (increased from 20s) to fix timeout errors for slower models
+    const API_TIMEOUT = 60000;   
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -219,8 +219,8 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                     if (imageParts) body.imageParts = imageParts;
 
                     const controller = new AbortController();
-                    // 18s fetch timeout to ensure we stay within the overall 20s budget
-                    const timeoutId = setTimeout(() => controller.abort(), 18000); 
+                    // 55s fetch timeout to ensure we stay within the overall 60s budget
+                    const timeoutId = setTimeout(() => controller.abort(), 55000); 
 
                     try {
                         const constEqRes = await fetch('/api/gemini', {
