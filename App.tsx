@@ -408,7 +408,8 @@ const Header: React.FC<{
     onLogin: () => void;
     openProfile: () => void;
 }> = ({ user, lang, onOpenSettings, onOpenShop, onLogin, openProfile }) => (
-  <div className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-4 py-3 bg-gradient-to-b from-black/95 to-transparent pointer-events-none transition-all">
+  // Increased Z-Index to 60 to ensure it's above normal overlays (usually z-50)
+  <div className="fixed top-0 left-0 right-0 z-[60] flex justify-between items-center px-4 py-3 bg-gradient-to-b from-black/95 to-transparent pointer-events-none transition-all">
     <div className="flex items-center gap-2 pointer-events-auto">
       {user.email !== 'Guest' && (
           <div className="flex items-center gap-3 bg-black/60 px-4 py-2 rounded-full border border-yellow-600/30 backdrop-blur-md shadow-lg animate-fade-in cursor-pointer hover:bg-black/80" onClick={openProfile}>
@@ -439,7 +440,7 @@ const Header: React.FC<{
               )}
           </button>
       )}
-      <button onClick={onOpenSettings} className="text-gray-400 hover:text-purple-400 transition-colors p-2">
+      <button onClick={onOpenSettings} className="text-gray-400 hover:text-purple-400 transition-colors p-2 cursor-pointer z-50">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
           <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -938,10 +939,10 @@ const App: React.FC = () => {
           {showShop && (
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4">
                  {/* Main Modal Container - Deep Purple Gradient with Golden Border Feeling */}
-                 <div className="bg-[radial-gradient(circle_at_center,#2e1065_0%,#0f0720_100%)] border border-[#7c3aed]/50 p-6 rounded-2xl max-w-md w-full relative shadow-[0_0_60px_rgba(124,58,237,0.3)]">
+                 <div className="w-full max-w-lg bg-[#0d001a] border border-[#d4af37] rounded-2xl shadow-[0_0_60px_rgba(139,92,246,0.2)] relative overflow-hidden flex flex-col animate-fade-in">
                      
                      {/* Close Button */}
-                     <button onClick={() => { setShowShop(false); setShopStep('AMOUNT'); }} className="absolute top-4 right-4 text-[#fbbf24] hover:text-[#fff] transition-colors">
+                     <button onClick={() => { setShowShop(false); setShopStep('AMOUNT'); }} className="absolute top-4 right-4 text-[#d4af37] hover:text-white z-20">
                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                          </svg>
@@ -950,112 +951,196 @@ const App: React.FC = () => {
                      {shopStep === 'AMOUNT' ? (
                         <>
                             {/* Header */}
-                            <div className="text-center mb-8 mt-2">
-                                <h2 className="text-3xl font-serif text-[#fbbf24] mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">VIP 블랙코인 라운지</h2>
-                                <p className="text-[#d8b4fe] text-xs font-light tracking-wide opacity-80">"{TRANSLATIONS[lang].shop_subtitle}"</p>
+                            <div className="p-8 pb-4 relative z-10 text-center">
+                                <h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-[#ffd700] via-[#fcf6ba] to-[#bf953f] mb-2 drop-shadow-md">
+                                   VIP BLACK LOUNGE
+                                </h2>
+                                <p className="text-[#a78bfa] text-xs font-serif-en tracking-widest uppercase opacity-80">
+                                   Premium Currency Exchange
+                                </p>
                             </div>
 
                             {/* Packages Container */}
-                            <div className="space-y-4">
+                            <div className="p-8 pt-2 space-y-4 relative z-10">
                                 {/* Package 1 */}
-                                <div className="relative group bg-gradient-to-r from-[#1e1b4b] to-[#312e81] border border-[#6366f1]/30 rounded-xl p-4 flex items-center justify-between shadow-lg overflow-hidden">
-                                    {/* Inner Glow Effect */}
-                                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent)] pointer-events-none"></div>
-                                    
-                                    <div className="flex items-center gap-4 z-10">
-                                        <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
-                                            {/* Coin Stack SVG */}
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 text-[#fbbf24]">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
-                                            </svg>
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[#fbbf24] font-bold text-lg leading-tight">{TRANSLATIONS[lang].shop_pkg_1.split(' / ')[0]}</span>
-                                            <span className="text-[#e9d5ff] text-sm">{TRANSLATIONS[lang].shop_pkg_1.split(' / ')[1]}</span>
+                                <div className="group relative bg-gradient-to-r from-[#1e0b36] to-[#000] border border-[#d4af37]/30 rounded-xl p-4 flex items-center justify-between transition-all hover:border-[#d4af37] hover:shadow-[0_0_20px_rgba(212,175,55,0.2)]">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-[#2a1b00] border border-[#d4af37] flex items-center justify-center text-2xl shadow-[0_0_10px_#d4af37]">💰</div>
+                                        <div>
+                                            <div className="text-[#ffd700] font-bold text-lg font-occult leading-tight">{TRANSLATIONS[lang].shop_pkg_1.split(' / ')[1]}</div>
+                                            <div className="text-gray-400 text-xs">{TRANSLATIONS[lang].shop_pkg_1.split(' / ')[0]}</div>
                                         </div>
                                     </div>
                                     <button 
                                         onClick={() => initiatePayment(4900, 60)}
-                                        className="z-10 bg-gradient-to-b from-[#451a03] to-[#251000] border border-[#d97706] text-[#fbbf24] text-sm font-bold px-6 py-2 rounded-lg hover:brightness-125 transition-all shadow-[0_0_10px_rgba(217,119,6,0.2)]"
+                                        className="px-4 py-2 bg-gradient-to-b from-[#d4af37] to-[#8a6e2f] text-black font-bold text-xs rounded shadow-lg hover:brightness-110 active:scale-95 transition-all uppercase tracking-wider"
                                     >
-                                        구매하기
+                                        Purchase
                                     </button>
                                 </div>
 
                                 {/* Package 2 - Popular */}
-                                <div className="relative group bg-gradient-to-r from-[#312e81] to-[#4338ca] border border-[#a855f7]/50 rounded-xl p-4 flex items-center justify-between shadow-xl overflow-hidden transform scale-[1.02]">
-                                    {/* Popular Ribbon */}
-                                    <div className="absolute top-0 right-0">
-                                        <div className="bg-gradient-to-r from-[#fbbf24] to-[#d97706] text-black text-[10px] font-bold px-3 py-1 rounded-bl-lg shadow-md">
-                                            POPULAR
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Inner Glow */}
-                                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_50%,rgba(168,85,247,0.2),transparent)] pointer-events-none"></div>
-
-                                    <div className="flex items-center gap-4 z-10">
-                                        <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-[0_0_10px_rgba(236,72,153,0.5)]">
-                                            {/* Diamond SVG */}
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 text-[#fbbf24]">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-9.92L8.25 2.25h7.5l.841 3.58 5.159 9.92-9.75 6-9.75-6z" />
-                                            </svg>
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[#fbbf24] font-bold text-xl leading-tight">{TRANSLATIONS[lang].shop_pkg_2.split(' / ')[0]}</span>
-                                            <span className="text-[#e9d5ff] text-sm">{TRANSLATIONS[lang].shop_pkg_2.split(' / ')[1]}</span>
+                                <div className="group relative bg-gradient-to-r from-[#2d0f4b] to-[#000] border border-[#d4af37] rounded-xl p-4 flex items-center justify-between transition-all shadow-[0_0_30px_rgba(139,92,246,0.15)] transform hover:scale-[1.02]">
+                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#d4af37] text-black text-[10px] font-bold px-3 py-0.5 rounded-full shadow-lg z-10 tracking-widest border border-white/20">BEST SELLER</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#4c1d95] to-[#2e1065] border-2 border-[#d4af37] flex items-center justify-center text-3xl shadow-[0_0_15px_#d4af37] z-10">💎</div>
+                                        <div>
+                                            <div className="text-white font-bold text-xl font-occult drop-shadow-[0_0_5px_rgba(255,215,0,0.5)]">{TRANSLATIONS[lang].shop_pkg_2.split(' / ')[1]}</div>
+                                            <div className="text-[#d4af37] text-sm font-bold">{TRANSLATIONS[lang].shop_pkg_2.split(' / ')[0]}</div>
                                         </div>
                                     </div>
                                     <button 
                                         onClick={() => initiatePayment(7900, 110)}
-                                        className="z-10 bg-gradient-to-b from-[#451a03] to-[#251000] border border-[#d97706] text-[#fbbf24] text-sm font-bold px-6 py-2 rounded-lg hover:brightness-125 transition-all shadow-[0_0_15px_rgba(217,119,6,0.4)]"
+                                        className="px-6 py-3 bg-gradient-to-b from-[#ffd700] to-[#b8860b] text-black font-extrabold text-xs rounded shadow-[0_0_15px_rgba(255,215,0,0.4)] hover:brightness-110 active:scale-95 transition-all uppercase tracking-wider"
                                     >
-                                        구매하기
+                                        Purchase
                                     </button>
                                 </div>
 
                                 {/* Package 3 */}
-                                <div className="relative group bg-gradient-to-r from-[#1e1b4b] to-[#312e81] border border-[#6366f1]/30 rounded-xl p-4 flex items-center justify-between shadow-lg overflow-hidden">
-                                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent)] pointer-events-none"></div>
-
-                                    <div className="flex items-center gap-4 z-10">
-                                        <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
-                                            {/* Crown SVG */}
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 text-[#fbbf24]">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-                                            </svg>
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[#fbbf24] font-bold text-lg leading-tight">{TRANSLATIONS[lang].shop_pkg_3.split(' / ')[0]}</span>
-                                            <span className="text-[#e9d5ff] text-sm">{TRANSLATIONS[lang].shop_pkg_3.split(' / ')[1]}</span>
+                                <div className="group relative bg-gradient-to-r from-[#1e0b36] to-[#000] border border-[#d4af37]/30 rounded-xl p-4 flex items-center justify-between transition-all hover:border-[#d4af37] hover:shadow-[0_0_20px_rgba(212,175,55,0.2)]">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-[#2a004a] border border-[#a855f7] flex items-center justify-center text-2xl shadow-[0_0_10px_#a855f7]">👑</div>
+                                        <div>
+                                            <div className="text-[#e9d5ff] font-bold text-lg font-occult leading-tight">{TRANSLATIONS[lang].shop_pkg_3.split(' / ')[1]}</div>
+                                            <div className="text-gray-400 text-xs">{TRANSLATIONS[lang].shop_pkg_3.split(' / ')[0]}</div>
                                         </div>
                                     </div>
                                     <button 
                                         onClick={() => initiatePayment(15500, 220)}
-                                        className="z-10 bg-gradient-to-b from-[#451a03] to-[#251000] border border-[#d97706] text-[#fbbf24] text-sm font-bold px-6 py-2 rounded-lg hover:brightness-125 transition-all shadow-[0_0_10px_rgba(217,119,6,0.2)]"
+                                        className="px-4 py-2 bg-gradient-to-b from-[#7e22ce] to-[#581c87] border border-[#a855f7] text-white font-bold text-xs rounded shadow-lg hover:brightness-110 active:scale-95 transition-all uppercase tracking-wider"
                                     >
-                                        구매하기
+                                        Purchase
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Decorative Background Elements */}
+                            <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+                                <div className="absolute -top-20 -right-20 w-60 h-60 bg-[#d4af37] opacity-10 blur-[80px] rounded-full"></div>
+                                <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-[#120024] to-transparent"></div>
+                            </div>
                         </>
                      ) : (
-                         /* Payment Method Selection (Keep largely as is but match theme) */
-                         <>
-                            <div className="text-center mb-6 relative z-10">
-                                <h2 className="text-2xl text-[#fbbf24] font-bold mb-2">{TRANSLATIONS[lang].pay_title}</h2>
-                                <p className="text-lg text-white font-bold">{pendingPackage?.coins} Coins / ₩{pendingPackage?.amount.toLocaleString()}</p>
+                         /* Payment Method Selection (Consistent Luxury Theme) */
+                         <div className="p-8 relative z-10">
+                            <div className="text-center mb-8">
+                                <h2 className="text-2xl font-occult text-[#d4af37] mb-2">{TRANSLATIONS[lang].pay_title}</h2>
+                                <p className="text-lg text-white font-bold tracking-wide">{pendingPackage?.coins} Coins / ₩{pendingPackage?.amount.toLocaleString()}</p>
                             </div>
-                            <div className="flex flex-col gap-3 relative z-10">
+                            <div className="flex flex-col gap-3">
                                 {['KAKAO', 'TOSS', 'PAYPAL'].map((m) => (
-                                    <button key={m} onClick={() => setSelectedPaymentMethod(m as any)} className={`p-4 rounded border flex items-center justify-center font-bold transition-all ${selectedPaymentMethod === m ? 'bg-[#d97706] text-black border-[#fbbf24] shadow-lg scale-105' : 'bg-[#1e1b4b] border-[#4c1d95] text-gray-400 hover:bg-[#312e81]'}`}>{m === 'KAKAO' ? 'Kakao Bank' : m === 'TOSS' ? 'Toss Payments' : 'PayPal'}</button>
+                                    <button key={m} onClick={() => setSelectedPaymentMethod(m as any)} className={`p-4 rounded border flex items-center justify-center font-bold transition-all ${selectedPaymentMethod === m ? 'bg-[#d97706] text-black border-[#fbbf24] shadow-[0_0_15px_rgba(217,119,6,0.4)] scale-105' : 'bg-[#1e0b36] border-[#4c1d95] text-gray-400 hover:bg-[#2d0f4b] hover:text-white'}`}>{m === 'KAKAO' ? 'Kakao Bank' : m === 'TOSS' ? 'Toss Payments' : 'PayPal'}</button>
                                 ))}
                                 <div className="flex gap-2 mt-6">
-                                    <button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-[#312e81] text-gray-300 rounded font-bold hover:bg-[#4338ca] border border-[#4c1d95]">{TRANSLATIONS[lang].pay_cancel}</button>
+                                    <button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-[#2d0f4b] text-gray-300 rounded font-bold hover:bg-[#43146e] border border-[#4c1d95] transition-colors">{TRANSLATIONS[lang].pay_cancel}</button>
                                     <button onClick={processPayment} className="flex-1 py-3 bg-gradient-to-r from-[#d97706] to-[#fbbf24] text-black font-bold rounded hover:brightness-110 shadow-lg transform hover:scale-105 transition-transform">{TRANSLATIONS[lang].pay_confirm}</button>
                                 </div>
                             </div>
+                         </div>
+                     )}
+                 </div>
+             </div>
+          )}
+
+          {showSettings && (
+             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
+                 <div className="bg-gray-900 border-wine-gradient p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl overflow-y-auto max-h-[80vh]">
+                     <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-occult text-purple-200">{settingsMode === 'MAIN' ? TRANSLATIONS[lang].settings_title : settingsMode === 'RUG' ? 'Rug Color' : settingsMode === 'BGM' ? 'BGM Upload' : settingsMode === 'SKIN' ? 'Card Skins' : TRANSLATIONS[lang].history}</h3><button onClick={() => { if (settingsMode === 'MAIN') setShowSettings(false); else setSettingsMode('MAIN'); }} className="text-gray-400">{settingsMode === 'MAIN' ? '✕' : '←'}</button></div>
+                     
+                     {settingsMode === 'MAIN' && (
+                         <>
+                         {user.email !== 'Guest' && (
+                             <>
+                             <div className="mb-6 bg-black/40 p-4 rounded border border-purple-900">
+                                 <h4 className="text-gold-gradient font-bold mb-4">{TRANSLATIONS[lang].tier_info}: <span className="text-white">{user.tier}</span></h4>
+                                 <div className="space-y-3">
+                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.BRONZE ? 'bg-stone-800 border border-stone-600' : 'opacity-50'}`}><span className="text-stone-400 font-bold">Bronze</span><span className="text-xs text-stone-500">0 Used</span></div>
+                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.SILVER ? 'bg-gray-300 text-black border border-white shadow-[0_0_10px_white]' : 'opacity-50'}`}><span className="font-bold">Silver</span><span className="text-xs">400 Used</span></div>
+                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.GOLD ? 'bg-yellow-500 text-black border border-yellow-300 shadow-[0_0_10px_gold]' : 'opacity-50'}`}><span className="font-bold">Gold</span><span className="text-xs">1500 Used</span></div>
+                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.PLATINUM ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white border border-purple-300 shadow-[0_0_15px_purple]' : 'opacity-50'}`}><span className="font-bold">Platinum</span><span className="text-xs">4000 Used</span></div>
+                                 </div>
+                                 <div className="mt-4 pt-3 border-t border-white/10 flex flex-col gap-1">
+                                     <div className="flex justify-between text-xs"><span className="text-gray-400">이번 달 사용</span><span className="text-yellow-500 font-mono">{user.monthlyCoinsSpent || 0} Coins</span></div>
+                                     <div className="flex justify-between text-xs"><span className="text-gray-400">누적 사용</span><span className="text-gray-400 font-mono">{user.totalSpent || 0} Coins</span></div>
+                                 </div>
+                             </div>
+                             <div className="mb-4 flex gap-2">
+                                <button onClick={() => setShowAttendancePopup(true)} className="flex-1 py-2 bg-yellow-900/30 text-yellow-500 border border-yellow-700 rounded font-bold hover:bg-yellow-900/50 text-xs">{TRANSLATIONS[lang].attendance}</button>
+                                <button onClick={() => setSettingsMode('HISTORY')} className="flex-1 py-2 bg-purple-900/30 text-purple-300 border border-purple-700 rounded font-bold hover:bg-purple-900/50 text-xs">{TRANSLATIONS[lang].history}</button>
+                             </div>
+                             </>
+                         )}
+                         <div className="mb-6"><label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].bgm_control}</label><input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={(e) => { setBgmVolume(parseFloat(e.target.value)); if(parseFloat(e.target.value)>0 && bgmStopped) setBgmStopped(false); }} className="w-full accent-purple-500" /><div className="flex justify-between text-xs text-gray-500 mt-1"><span>Mute</span><span>Max</span></div><div className="mt-2 flex gap-2"><button onClick={() => setBgmStopped(!bgmStopped)} className="text-xs bg-gray-800 px-3 py-1 rounded border border-gray-600 hover:bg-gray-700">{bgmStopped ? '▶ Play' : '⏸ Pause'}</button></div></div>
+                         <div className="mb-6"><label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].language_control}</label><div className="flex bg-gray-800 rounded p-1"><button onClick={() => setLang('ko')} className={`flex-1 py-1 rounded text-sm ${lang === 'ko' ? 'bg-purple-600 text-white' : 'text-gray-400'}`}>한국어</button><button onClick={() => setLang('en')} className={`flex-1 py-1 rounded text-sm ${lang === 'en' ? 'bg-purple-600 text-white' : 'text-gray-400'}`}>English</button></div></div>
+                         {user.email !== 'Guest' && (
+                             <div className="mb-6 grid grid-cols-2 gap-2">
+                                 <button onClick={() => setSettingsMode('SKIN')} className="p-3 bg-gray-800 border border-gray-700 rounded text-sm hover:border-purple-500 transition-colors flex flex-col items-center gap-1"><span className="text-xl">🃏</span><span>{TRANSLATIONS[lang].skin_shop}</span></button>
+                                 {user.tier !== UserTier.BRONZE && user.tier !== UserTier.SILVER && (
+                                     <>
+                                        <button onClick={() => setSettingsMode('RUG')} className="p-3 bg-gray-800 border border-gray-700 rounded text-sm hover:border-yellow-500 transition-colors flex flex-col items-center gap-1"><span className="text-xl">🕸</span><span>{TRANSLATIONS[lang].rug_shop}</span></button>
+                                        <button onClick={() => setSettingsMode('BGM')} className="p-3 bg-gray-800 border border-gray-700 rounded text-sm hover:border-yellow-500 transition-colors flex flex-col items-center gap-1"><span className="text-xl">🎵</span><span>{TRANSLATIONS[lang].bgm_upload}</span></button>
+                                     </>
+                                 )}
+                             </div>
+                         )}
+                         {user.email !== 'Guest' && (<button onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }} className="w-full py-3 border border-red-900/50 text-red-400 rounded hover:bg-red-900/20">{TRANSLATIONS[lang].logout}</button>)}
                          </>
+                     )}
+                     
+                     {settingsMode === 'RUG' && (<div className="grid grid-cols-3 gap-3">{RK_COLORS.map(c => (<button key={c.name} onClick={() => handleRugChange(c.color)} className="aspect-square rounded-full border-2 border-gray-600 hover:scale-110 transition-transform shadow-lg relative" style={{ backgroundColor: c.color }}>{user.rugColor === c.color && <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">✓</div>}</button>))}</div>)}
+                     {settingsMode === 'BGM' && (<div className="text-center"><div className="border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative"><input type="file" accept="audio/*" onChange={handleBgmUpload} className="absolute inset-0 opacity-0 cursor-pointer" /><p className="text-gray-400">Click to upload MP3</p></div>{currentBgm.id.startsWith('custom') && <p className="mt-4 text-green-400 text-sm">Custom BGM Playing: {currentBgm.name}</p>}</div>)}
+                     {settingsMode === 'SKIN' && (
+                         <div className="space-y-6">
+                             <div className="grid grid-cols-2 gap-3">
+                                 {SKINS.map(skin => (
+                                     <button key={skin.id} onClick={() => buySkin(skin)} className={`p-2 rounded border relative overflow-hidden group ${user.currentSkin === skin.id ? 'border-yellow-500 bg-yellow-900/20' : 'border-gray-700 bg-gray-800'}`}>
+                                         <div className={`h-24 w-full rounded mb-2 ${skin.cssClass.replace('design-', 'bg-design-')} bg-gray-900`}></div>
+                                         <p className="text-xs font-bold text-white">{skin.name}</p>
+                                         {!user.ownedSkins.includes(skin.id) && <span className="text-[10px] text-yellow-500 block mt-1">{skin.cost} Coins</span>}
+                                         {user.currentSkin === skin.id && <span className="absolute top-1 right-1 text-green-400 text-lg">✓</span>}
+                                     </button>
+                                 ))}
+                             </div>
+                             {/* Silver+ Custom Upload */}
+                             {user.tier !== UserTier.BRONZE && (
+                                 <div className="pt-4 border-t border-gray-700">
+                                     <h4 className="text-purple-300 font-bold mb-2">{TRANSLATIONS[lang].custom_skin_title}</h4>
+                                     <div className="mb-3 border border-dashed border-gray-600 rounded p-4 text-center cursor-pointer relative"><input type="file" onChange={handleCustomSkinUpload} className="absolute inset-0 opacity-0 cursor-pointer" />{customSkinImage ? "Image Loaded" : TRANSLATIONS[lang].upload_skin}</div>
+                                     <div className="flex gap-2 mb-3"><button onClick={()=>setIsSkinPublic(true)} className={`flex-1 py-1 rounded text-xs ${isSkinPublic?'bg-purple-600':'bg-gray-700'}`}>{TRANSLATIONS[lang].public_option}</button><button onClick={()=>setIsSkinPublic(false)} className={`flex-1 py-1 rounded text-xs ${!isSkinPublic?'bg-purple-600':'bg-gray-700'}`}>{TRANSLATIONS[lang].private_option}</button></div>
+                                     <button onClick={handleSaveCustomSkin} className="w-full py-2 bg-purple-700 rounded text-sm font-bold">Save Custom Skin</button>
+                                 </div>
+                             )}
+                             <div className="pt-4 border-t border-gray-700">
+                                 <h4 className="text-gray-400 text-xs mb-2">Apply Shared Skin Code</h4>
+                                 <div className="flex gap-2"><input value={inputSkinCode} onChange={e=>setInputSkinCode(e.target.value)} placeholder={TRANSLATIONS[lang].skin_code_placeholder} className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 text-sm" /><button onClick={handleApplySkinCode} className="px-3 py-1 bg-gray-700 rounded text-xs">{TRANSLATIONS[lang].skin_code_btn}</button></div>
+                             </div>
+                         </div>
+                     )}
+                     
+                     {/* History Mode */}
+                     {settingsMode === 'HISTORY' && (
+                        <div className="space-y-4">
+                            {user.history.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500">{TRANSLATIONS[lang].no_history}</div>
+                            ) : (
+                                user.history.map((h, i) => (
+                                    <div key={i} className="bg-black/60 border border-gray-700 p-4 rounded-lg hover:border-purple-500 transition-all">
+                                        <div className="flex justify-between items-center mb-2 border-b border-gray-800 pb-2">
+                                            <span className="text-xs text-gray-500">{new Date(h.date).toLocaleDateString()}</span>
+                                            <span className="text-[10px] bg-purple-900 px-2 py-0.5 rounded text-purple-200">{h.cards.length} Cards</span>
+                                        </div>
+                                        <h4 className="text-sm font-bold text-white mb-3">Q. {h.question}</h4>
+                                        <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-none">
+                                            {h.cards.map((c, idx) => (
+                                                <img key={idx} src={c.imagePlaceholder} alt={c.name} className={`w-10 h-16 object-cover rounded border border-gray-600 ${c.isReversed ? 'rotate-180' : ''}`} />
+                                            ))}
+                                        </div>
+                                        <div className="bg-gray-800/50 p-3 rounded text-xs text-gray-300 max-h-24 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 leading-relaxed whitespace-pre-wrap">{h.interpretation}</div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                      )}
                  </div>
              </div>
