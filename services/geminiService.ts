@@ -52,7 +52,7 @@ ${platinumNote}
 };
 
 // --- EMERGENCY FALLBACK TEXT ---
-// Used when all API calls fail to prevent the UI from getting stuck.
+// Used when all API calls fail to prevent the UI from showing an error.
 const EMERGENCY_FALLBACK_RESPONSE = `
 [내용 분석]
 지금 우주의 기운이 메롱하거나, 구글 서버가 내 운명을 질투해서 답변을 막고 있어요. 하지만 카드가 나왔다는 건 이미 답은 정해졌다는 뜻이죠. 당신은 이미 답을 알고 있지 않나요? 지금 당신 머릿속에 떠오른 그 생각, 그게 정답입니다. 쫄지 마세요.
@@ -79,9 +79,10 @@ const SAFETY_SETTINGS = [
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Fallback Chain
-// UPDATED: Use fast models.
+// UPDATED: Use fast models and older reliable models for robustness.
 const MODEL_FALLBACK_CHAIN = [
     'gemini-3-flash-preview', 
+    'gemini-2.5-flash',
     'gemini-flash-latest'
 ];
 
@@ -129,8 +130,8 @@ async function retryOperation<T>(
 }
 
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Timeout increased to 60s to prevent premature timeouts on slower connections or cold starts.
-    const API_TIMEOUT = 60000;   
+    // Timeout set to 20s to ensure we don't wait too long per model, allowing failover to next model.
+    const API_TIMEOUT = 20000;   
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -205,7 +206,9 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
 
                 } catch (e: any) {
                     console.warn(`Client-side SDK failed for ${model}. trying proxy...`, e.message);
-                    if (e.message.includes("Blocked")) throw e;
+                    if (e.message.includes("Blocked") || e.message.includes("invalid_argument") || e.message.includes("api_key")) {
+                        throw e; // Don't fallback to proxy if it's a critical client error
+                    }
                 }
             }
 
@@ -216,8 +219,8 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                     if (imageParts) body.imageParts = imageParts;
 
                     const controller = new AbortController();
-                    // 55s fetch timeout to ensure we stay within the overall 60s budget per attempt roughly
-                    const timeoutId = setTimeout(() => controller.abort(), 55000); 
+                    // 18s fetch timeout to ensure we stay within the overall 20s budget
+                    const timeoutId = setTimeout(() => controller.abort(), 18000); 
 
                     try {
                         const constEqRes = await fetch('/api/gemini', {
@@ -263,6 +266,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
     }
 
     console.error("All models failed. Returning Emergency Fallback. Last Error:", lastErrorMessage);
+    // GUARANTEE: Never return an error to the UI, always return the fallback reading.
     return EMERGENCY_FALLBACK_RESPONSE;
 }
 

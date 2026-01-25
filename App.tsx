@@ -566,7 +566,8 @@ const ResultView: React.FC<{
   const [solutionText, setSolutionText] = useState('');
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState<boolean[]>([false,false,false]);
-  const [isSolutionUnlocked, setIsSolutionUnlocked] = useState(false);
+  // Updated: Unlock logic for Guest users OR First-time users (empty history)
+  const [isSolutionUnlocked, setIsSolutionUnlocked] = useState(user.email === 'Guest' || user.history.length === 0);
   const captureRef = useRef<HTMLDivElement>(null);
   const cardImages = selectedCards.map(c => c.generatedImage || c.imagePlaceholder);
 
