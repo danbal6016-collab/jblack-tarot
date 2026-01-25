@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 
@@ -114,7 +113,8 @@ async function retryOperation<T>(
                 errorMessage.includes('fetch') || 
                 errorMessage.includes('network') || 
                 errorMessage.includes('overloaded') ||
-                errorMessage.includes('aborted')
+                errorMessage.includes('aborted') ||
+                errorMessage.includes('timeout')
             ) {
                 // If it's the last attempt, don't wait, just throw in next iteration logic (or break)
                 if (i === maxAttempts - 1) break;
@@ -221,13 +221,20 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                     const body: any = { prompt, config, model };
                     if (imageParts) body.imageParts = imageParts;
 
+                    // Add timeout to fetch call to prevent hanging
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout per attempt
+
                     try {
                         const constEqRes = await fetch('/api/gemini', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(body)
+                            body: JSON.stringify(body),
+                            signal: controller.signal
                         });
                         
+                        clearTimeout(timeoutId);
+
                         if (!constEqRes.ok) {
                             // If 404, it means proxy doesn't exist (local dev without vercel), do not retry
                             if (constEqRes.status === 404) {
@@ -240,10 +247,14 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         if (!data.text) throw new Error("Empty response from proxy");
                         return data.text as string;
                     } catch (fetchErr: any) {
+                        clearTimeout(timeoutId);
                         // Catch network errors specifically here. 
                         // If it is 404 (thrown above), retryOperation might retry unless we change logic,
                         // but 404 usually isn't a fetch error, it's a response error.
                         // "Failed to fetch" usually means network connection issue.
+                        if (fetchErr.name === 'AbortError') {
+                            throw new Error("Proxy request timed out");
+                        }
                         throw new Error(`Fetch failed: ${fetchErr.message}`);
                     }
                 }, 3, 500);

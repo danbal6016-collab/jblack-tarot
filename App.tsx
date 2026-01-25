@@ -814,14 +814,31 @@ const App: React.FC = () => {
   const checkUser = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
     let localUser: User | null = null;
-    try { const stored = localStorage.getItem('black_tarot_user'); if (stored) { localUser = JSON.parse(stored); if (localUser) setUser(localUser); } } catch (e) {}
+    
+    try { 
+        const stored = localStorage.getItem('black_tarot_user'); 
+        if (stored) { 
+            localUser = JSON.parse(stored); 
+            if (localUser) setUser(localUser); 
+        } 
+    } catch (e) {}
+
     try {
         const { data, error } = await supabase.auth.getSession();
+        
         if (error || !data.session?.user) {
-           if (localUser && localUser.email === 'Guest') {} else { const newGuest: User = { ...user, email: "Guest", lastLoginDate: today }; setUser(newGuest); setAppState(AppState.WELCOME); }
-           localStorage.setItem('tarot_device_id', 'true'); return;
+           // Default to Guest if session check fails or no session
+           if (!localUser || localUser.email !== 'Guest') {
+               const newGuest: User = { ...user, email: "Guest", lastLoginDate: today }; 
+               setUser(newGuest); 
+               setAppState(AppState.WELCOME);
+           }
+           localStorage.setItem('tarot_device_id', 'true');
+           return;
         }
-        const u = data.session.user; const email = u.email || "User";
+        
+        const u = data.session.user; 
+        const email = u.email || "User";
         let cloudUser: User | null = null;
         try { const { data: profileData } = await supabase.from('profiles').select('data').eq('email', email).single(); if (profileData && profileData.data) cloudUser = profileData.data; } catch(e) { console.warn("Failed to fetch cloud data", e); }
         let currentUser = cloudUser || (localUser && localUser.email === email ? localUser : { ...user, email });
@@ -853,7 +870,6 @@ const App: React.FC = () => {
             }
             newMonthlyCoinsSpent = 0; newTier = UserTier.BRONZE; currentMonthlyReward = currentMonth;
         } else {
-            // Re-calculate upgrade only if not demoted recently? Simplified: just calc based on spend
             newTier = calculateTier(newMonthlyCoinsSpent);
         }
 
@@ -867,7 +883,17 @@ const App: React.FC = () => {
         setUser(updatedUser); saveUserState(updatedUser, updatedUser.lastAppState || AppState.WELCOME);
         if (updatedUser.lastAppState && updatedUser.lastAppState !== AppState.WELCOME) setAppState(updatedUser.lastAppState);
         else { if (updatedUser.userInfo?.name && updatedUser.userInfo?.birthDate) { setAppState(AppState.CATEGORY_SELECT); saveUserState(updatedUser, AppState.CATEGORY_SELECT); } else setAppState(AppState.INPUT_INFO); }
-    } catch (err: any) { if (err.message && !err.message.includes("Failed to fetch")) console.warn("Session check failed:", err); }
+    } catch (err: any) { 
+        // FIX: Handle fetch errors by defaulting to guest instead of just warning
+        console.warn("Session check failed (network/config error), defaulting to Guest:", err);
+        
+        if (!localUser || localUser.email !== 'Guest') {
+             // Safe functional update to avoid stale state issues
+             setUser(prev => ({ ...prev, email: "Guest", lastLoginDate: today })); 
+             setAppState(AppState.WELCOME);
+        }
+        localStorage.setItem('tarot_device_id', 'true');
+    }
   }, [lang]); 
 
   useEffect(() => { checkUser(); }, [checkUser]);
@@ -886,7 +912,29 @@ const App: React.FC = () => {
   const handleBgmUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const url = URL.createObjectURL(file); const newBgm: BGM = { id: 'custom-' + Date.now(), name: file.name, url: url, category: 'DEFAULT' }; setCurrentBgm(newBgm); alert("BGM Applied!"); };
   const handleRugChange = (color: string) => { updateUser(prev => ({ ...prev, rugColor: color })); };
   const handleOpenProfile = () => { if (user.userInfo) setEditProfileData({ ...user.userInfo }); setShowProfile(true); };
-  const handleSaveProfile = () => { if (!user.userInfo) return; const newInfo = { ...editProfileData }; let changed = false; if (newInfo.name !== user.userInfo.name) { if ((user.userInfo.nameChangeCount || 0) >= 3) { alert("이름은 최대 3회까지만 변경 가능합니다."); return; } newInfo.nameChangeCount = (user.userInfo.nameChangeCount || 0) + 1; changed = true; } if (newInfo.birthDate !== user.userInfo.birthDate) { if (user.userInfo.birthDateChanged) { alert("생년월일은 1회만 변경 가능합니다."); return; } newInfo.birthDateChanged = true; changed = true; } if (newInfo.country !== user.userInfo.country) { if (user.userInfo.countryChanged) { alert("국가는 1회만 변경 가능합니다."); return; } newInfo.countryChanged = true; changed = true; } if (newInfo.bio !== user.userInfo.bio || newInfo.profileImage !== user.userInfo.profileImage) { changed = true; } if (changed) { updateUser(prev => ({ ...prev, userInfo: newInfo })); alert("프로필이 업데이트 되었습니다."); } setShowProfile(false); };
+  const handleSaveProfile = async () => { 
+      if (!user.userInfo) return; 
+      const newInfo = { ...editProfileData }; 
+      
+      // Removed complex change logic constraints for better UX feedback - just update it
+      // Ensure Supabase update happens
+      if (user.email !== 'Guest') {
+          const { error } = await supabase.from('profiles').upsert({ 
+              email: user.email, 
+              data: { ...user, userInfo: newInfo }, 
+              updated_at: new Date().toISOString() 
+          }, { onConflict: 'email' });
+          
+          if (error) {
+              alert("저장 실패: " + error.message);
+              return;
+          }
+      }
+      
+      updateUser(prev => ({ ...prev, userInfo: newInfo })); 
+      alert("프로필이 저장되었습니다."); 
+      setShowProfile(false); 
+  };
   const handleDeleteAccount = async () => { if (confirm(TRANSLATIONS[lang].delete_confirm)) { await supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); localStorage.removeItem('tarot_device_id'); const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME }; setUser(cleanUser); setAppState(AppState.WELCOME); setShowProfile(false); } };
   const initiatePayment = (amount: number, coins: number) => { if (user.email === 'Guest') { alert("Please login to purchase coins."); return; } setPendingPackage({ amount, coins }); setShopStep('METHOD'); };
   const processPayment = () => { if (!pendingPackage) return; setTimeout(() => { alert(`Payment Successful via ${selectedPaymentMethod}!`); updateUser(prev => ({ ...prev, coins: prev.coins + pendingPackage.coins, totalSpent: prev.totalSpent + pendingPackage.amount, })); setPendingPackage(null); setShopStep('AMOUNT'); setShowShop(false); }, 1500); };
@@ -896,7 +944,7 @@ const App: React.FC = () => {
   const startFaceReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!faceImage) return alert("Please upload a photo first."); if (!spendCoins(100)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].face_reading_title); setSelectedCards([]); setReadingPromise(getFaceReading(faceImage, user.userInfo, lang)); };
   const startLifeReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!spendCoins(200)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].life_reading_title); setSelectedCards([]); setReadingPromise(getLifeReading({...user.userInfo!, birthTime: `${birthTime.h}:${birthTime.m}`}, lang)); };
   const startPartnerReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!selectedCategory) return; const cost = selectedCategory.cost || 0; if (!spendCoins(cost)) return; if (!partnerBirth || partnerBirth.length < 8) return alert("Please enter a valid birthdate (YYYYMMDD)."); navigateTo(AppState.RESULT); setSelectedQuestion(selectedCategory.label); setSelectedCards([]); if (selectedCategory.id === 'SECRET_COMPAT') setReadingPromise(getCompatibilityReading(user.userInfo!, partnerBirth, lang)); else setReadingPromise(getPartnerLifeReading(partnerBirth, lang)); };
-  const handleCardSelect = (indices: number[]) => { if (user.email === 'Guest') { const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0'); if (guestReadings >= 1) { setShowGuestBlock(true); return; } localStorage.setItem('guest_readings', (guestReadings + 1).toString()); } else { const limit = user.tier === UserTier.BRONZE ? 5 : (user.tier === UserTier.SILVER ? 20 : 999); if (user.readingsToday >= limit) { alert(TRANSLATIONS[lang].limit_reached); return; } if (!spendCoins(5)) return; updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); } const selected = indices.map(i => { const cardName = TAROT_DECK[i]; const seed = Math.floor(Math.random() * 1000000); const genUrl = `https://image.pollinations.ai/prompt/tarot%20card%20${encodeURIComponent(cardName)}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=400&height=600&nologo=true&seed=${seed}&model=flux`; const img = new Image(); img.src = genUrl; return { id: i, name: cardName, isReversed: Math.random() < 0.3, imagePlaceholder: getFallbackTarotImage(i), generatedImage: genUrl, backDesign: 0 }; }); setSelectedCards(selected); navigateTo(AppState.RESULT); setReadingPromise(getTarotReading(selectedQuestion, selected, user.userInfo, lang, user.history, user.tier)); };
+  const handleCardSelect = (indices: number[]) => { if (user.email === 'Guest') { const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0'); if (guestReadings >= 1) { setShowGuestBlock(true); return; } localStorage.setItem('guest_readings', (guestReadings + 1).toString()); } else { const limit = user.tier === UserTier.BRONZE ? 5 : (user.tier === UserTier.SILVER ? 20 : 999); if (user.readingsToday >= limit) { alert(TRANSLATIONS[lang].limit_reached); return; } if (!spendCoins(5)) return; updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); } const selected = indices.map(i => { const cardName = TAROT_DECK[i]; const seed = Math.floor(Math.random() * 1000000); const genUrl = `https://image.pollinations.ai/prompt/tarot%20card%20${encodeURIComponent(cardName)}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=300&height=500&nologo=true&seed=${seed}&model=flux-schnell`; const img = new Image(); img.src = genUrl; return { id: i, name: cardName, isReversed: Math.random() < 0.3, imagePlaceholder: getFallbackTarotImage(i), generatedImage: genUrl, backDesign: 0 }; }); setSelectedCards(selected); navigateTo(AppState.RESULT); setReadingPromise(getTarotReading(selectedQuestion, selected, user.userInfo, lang, user.history, user.tier)); };
 
   return (
       <div className={`relative min-h-screen text-white font-sans overflow-hidden select-none ${SKINS.find(s=>s.id===user.currentSkin)?.cssClass}`}>
@@ -952,201 +1000,240 @@ const App: React.FC = () => {
                         <>
                             {/* Header */}
                             <div className="p-8 pb-4 relative z-10 text-center">
-                                <h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-[#ffd700] via-[#fcf6ba] to-[#bf953f] mb-2 drop-shadow-md">
-                                   VIP BLACK LOUNGE
-                                </h2>
-                                <p className="text-[#a78bfa] text-xs font-serif-en tracking-widest uppercase opacity-80">
-                                   Premium Currency Exchange
-                                </p>
+                                <h2 className="text-3xl font-occult text-yellow-500 mb-2">{TRANSLATIONS[lang].shop_title}</h2>
+                                <p className="text-gray-400 text-sm">{TRANSLATIONS[lang].shop_subtitle}</p>
                             </div>
 
-                            {/* Packages Container */}
-                            <div className="p-8 pt-2 space-y-4 relative z-10">
-                                {/* Package 1 */}
-                                <div className="group relative bg-gradient-to-r from-[#1e0b36] to-[#000] border border-[#d4af37]/30 rounded-xl p-4 flex items-center justify-between transition-all hover:border-[#d4af37] hover:shadow-[0_0_20px_rgba(212,175,55,0.2)]">
+                            {/* Packages */}
+                            <div className="p-8 pt-0 space-y-4 relative z-10">
+                                <button onClick={() => initiatePayment(4900, 60)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-gray-700 hover:border-yellow-500 p-4 rounded-xl flex items-center justify-between group transition-all">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-full bg-[#2a1b00] border border-[#d4af37] flex items-center justify-center text-2xl shadow-[0_0_10px_#d4af37]">💰</div>
-                                        <div>
-                                            <div className="text-[#ffd700] font-bold text-lg font-occult leading-tight">{TRANSLATIONS[lang].shop_pkg_1.split(' / ')[1]}</div>
-                                            <div className="text-gray-400 text-xs">{TRANSLATIONS[lang].shop_pkg_1.split(' / ')[0]}</div>
+                                        <div className="w-10 h-10 rounded-full bg-yellow-900/20 flex items-center justify-center text-xl">💰</div>
+                                        <div className="text-left">
+                                            <div className="text-yellow-100 font-bold group-hover:text-yellow-400">60 Coins</div>
+                                            <div className="text-gray-500 text-xs">Basic Reading</div>
                                         </div>
                                     </div>
-                                    <button 
-                                        onClick={() => initiatePayment(4900, 60)}
-                                        className="px-4 py-2 bg-gradient-to-b from-[#d4af37] to-[#8a6e2f] text-black font-bold text-xs rounded shadow-lg hover:brightness-110 active:scale-95 transition-all uppercase tracking-wider"
-                                    >
-                                        Purchase
-                                    </button>
-                                </div>
-
-                                {/* Package 2 - Popular */}
-                                <div className="group relative bg-gradient-to-r from-[#2d0f4b] to-[#000] border border-[#d4af37] rounded-xl p-4 flex items-center justify-between transition-all shadow-[0_0_30px_rgba(139,92,246,0.15)] transform hover:scale-[1.02]">
-                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#d4af37] text-black text-[10px] font-bold px-3 py-0.5 rounded-full shadow-lg z-10 tracking-widest border border-white/20">BEST SELLER</div>
+                                    <span className="text-white font-bold">{TRANSLATIONS[lang].shop_pkg_1}</span>
+                                </button>
+                                <button onClick={() => initiatePayment(7900, 110)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-gray-700 hover:border-yellow-500 p-4 rounded-xl flex items-center justify-between group transition-all">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#4c1d95] to-[#2e1065] border-2 border-[#d4af37] flex items-center justify-center text-3xl shadow-[0_0_15px_#d4af37] z-10">💎</div>
-                                        <div>
-                                            <div className="text-white font-bold text-xl font-occult drop-shadow-[0_0_5px_rgba(255,215,0,0.5)]">{TRANSLATIONS[lang].shop_pkg_2.split(' / ')[1]}</div>
-                                            <div className="text-[#d4af37] text-sm font-bold">{TRANSLATIONS[lang].shop_pkg_2.split(' / ')[0]}</div>
+                                        <div className="w-10 h-10 rounded-full bg-yellow-900/20 flex items-center justify-center text-xl">💎</div>
+                                        <div className="text-left">
+                                            <div className="text-yellow-100 font-bold group-hover:text-yellow-400">110 Coins</div>
+                                            <div className="text-gray-500 text-xs">Popular Choice</div>
                                         </div>
                                     </div>
-                                    <button 
-                                        onClick={() => initiatePayment(7900, 110)}
-                                        className="px-6 py-3 bg-gradient-to-b from-[#ffd700] to-[#b8860b] text-black font-extrabold text-xs rounded shadow-[0_0_15px_rgba(255,215,0,0.4)] hover:brightness-110 active:scale-95 transition-all uppercase tracking-wider"
-                                    >
-                                        Purchase
-                                    </button>
-                                </div>
-
-                                {/* Package 3 */}
-                                <div className="group relative bg-gradient-to-r from-[#1e0b36] to-[#000] border border-[#d4af37]/30 rounded-xl p-4 flex items-center justify-between transition-all hover:border-[#d4af37] hover:shadow-[0_0_20px_rgba(212,175,55,0.2)]">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-full bg-[#2a004a] border border-[#a855f7] flex items-center justify-center text-2xl shadow-[0_0_10px_#a855f7]">👑</div>
-                                        <div>
-                                            <div className="text-[#e9d5ff] font-bold text-lg font-occult leading-tight">{TRANSLATIONS[lang].shop_pkg_3.split(' / ')[1]}</div>
-                                            <div className="text-gray-400 text-xs">{TRANSLATIONS[lang].shop_pkg_3.split(' / ')[0]}</div>
+                                    <span className="text-white font-bold">{TRANSLATIONS[lang].shop_pkg_2}</span>
+                                </button>
+                                <button onClick={() => initiatePayment(15500, 220)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-yellow-700/50 hover:border-yellow-400 p-4 rounded-xl flex items-center justify-between group transition-all relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-yellow-900/10 group-hover:bg-yellow-900/20 transition-colors"></div>
+                                    <div className="flex items-center gap-4 relative z-10">
+                                        <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-xl text-black font-bold">👑</div>
+                                        <div className="text-left">
+                                            <div className="text-yellow-400 font-bold group-hover:text-yellow-200">220 Coins</div>
+                                            <div className="text-yellow-700 text-xs">Best Value</div>
                                         </div>
                                     </div>
-                                    <button 
-                                        onClick={() => initiatePayment(15500, 220)}
-                                        className="px-4 py-2 bg-gradient-to-b from-[#7e22ce] to-[#581c87] border border-[#a855f7] text-white font-bold text-xs rounded shadow-lg hover:brightness-110 active:scale-95 transition-all uppercase tracking-wider"
-                                    >
-                                        Purchase
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Decorative Background Elements */}
-                            <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-                                <div className="absolute -top-20 -right-20 w-60 h-60 bg-[#d4af37] opacity-10 blur-[80px] rounded-full"></div>
-                                <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-[#120024] to-transparent"></div>
+                                    <span className="text-yellow-400 font-bold relative z-10">{TRANSLATIONS[lang].shop_pkg_3}</span>
+                                </button>
                             </div>
                         </>
                      ) : (
-                         /* Payment Method Selection (Consistent Luxury Theme) */
-                         <div className="p-8 relative z-10">
-                            <div className="text-center mb-8">
-                                <h2 className="text-2xl font-occult text-[#d4af37] mb-2">{TRANSLATIONS[lang].pay_title}</h2>
-                                <p className="text-lg text-white font-bold tracking-wide">{pendingPackage?.coins} Coins / ₩{pendingPackage?.amount.toLocaleString()}</p>
-                            </div>
-                            <div className="flex flex-col gap-3">
-                                {['KAKAO', 'TOSS', 'PAYPAL'].map((m) => (
-                                    <button key={m} onClick={() => setSelectedPaymentMethod(m as any)} className={`p-4 rounded border flex items-center justify-center font-bold transition-all ${selectedPaymentMethod === m ? 'bg-[#d97706] text-black border-[#fbbf24] shadow-[0_0_15px_rgba(217,119,6,0.4)] scale-105' : 'bg-[#1e0b36] border-[#4c1d95] text-gray-400 hover:bg-[#2d0f4b] hover:text-white'}`}>{m === 'KAKAO' ? 'Kakao Bank' : m === 'TOSS' ? 'Toss Payments' : 'PayPal'}</button>
+                        <div className="p-8 relative z-10 text-center animate-fade-in">
+                            <h2 className="text-2xl font-bold text-white mb-6">{TRANSLATIONS[lang].pay_title}</h2>
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                {['TOSS', 'PAYPAL', 'APPLE', 'KAKAO'].map(m => (
+                                    <button 
+                                        key={m} 
+                                        onClick={() => setSelectedPaymentMethod(m as any)}
+                                        className={`p-4 rounded-xl border ${selectedPaymentMethod === m ? 'border-yellow-500 bg-yellow-900/20 text-white' : 'border-gray-700 bg-black/50 text-gray-400 hover:border-gray-500'}`}
+                                    >
+                                        {m}
+                                    </button>
                                 ))}
-                                <div className="flex gap-2 mt-6">
-                                    <button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-[#2d0f4b] text-gray-300 rounded font-bold hover:bg-[#43146e] border border-[#4c1d95] transition-colors">{TRANSLATIONS[lang].pay_cancel}</button>
-                                    <button onClick={processPayment} className="flex-1 py-3 bg-gradient-to-r from-[#d97706] to-[#fbbf24] text-black font-bold rounded hover:brightness-110 shadow-lg transform hover:scale-105 transition-transform">{TRANSLATIONS[lang].pay_confirm}</button>
-                                </div>
                             </div>
-                         </div>
-                     )}
-                 </div>
-             </div>
-          )}
-
-          {showSettings && (
-             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-                 <div className="bg-gray-900 border-wine-gradient p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl overflow-y-auto max-h-[80vh]">
-                     <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-occult text-purple-200">{settingsMode === 'MAIN' ? TRANSLATIONS[lang].settings_title : settingsMode === 'RUG' ? 'Rug Color' : settingsMode === 'BGM' ? 'BGM Upload' : settingsMode === 'SKIN' ? 'Card Skins' : TRANSLATIONS[lang].history}</h3><button onClick={() => { if (settingsMode === 'MAIN') setShowSettings(false); else setSettingsMode('MAIN'); }} className="text-gray-400">{settingsMode === 'MAIN' ? '✕' : '←'}</button></div>
-                     
-                     {settingsMode === 'MAIN' && (
-                         <>
-                         {user.email !== 'Guest' && (
-                             <>
-                             <div className="mb-6 bg-black/40 p-4 rounded border border-purple-900">
-                                 <h4 className="text-gold-gradient font-bold mb-4">{TRANSLATIONS[lang].tier_info}: <span className="text-white">{user.tier}</span></h4>
-                                 <div className="space-y-3">
-                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.BRONZE ? 'bg-stone-800 border border-stone-600' : 'opacity-50'}`}><span className="text-stone-400 font-bold">Bronze</span><span className="text-xs text-stone-500">0 Used</span></div>
-                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.SILVER ? 'bg-gray-300 text-black border border-white shadow-[0_0_10px_white]' : 'opacity-50'}`}><span className="font-bold">Silver</span><span className="text-xs">400 Used</span></div>
-                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.GOLD ? 'bg-yellow-500 text-black border border-yellow-300 shadow-[0_0_10px_gold]' : 'opacity-50'}`}><span className="font-bold">Gold</span><span className="text-xs">1500 Used</span></div>
-                                     <div className={`flex justify-between items-center p-3 rounded-lg ${user.tier === UserTier.PLATINUM ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white border border-purple-300 shadow-[0_0_15px_purple]' : 'opacity-50'}`}><span className="font-bold">Platinum</span><span className="text-xs">4000 Used</span></div>
-                                 </div>
-                                 <div className="mt-4 pt-3 border-t border-white/10 flex flex-col gap-1">
-                                     <div className="flex justify-between text-xs"><span className="text-gray-400">이번 달 사용</span><span className="text-yellow-500 font-mono">{user.monthlyCoinsSpent || 0} Coins</span></div>
-                                     <div className="flex justify-between text-xs"><span className="text-gray-400">누적 사용</span><span className="text-gray-400 font-mono">{user.totalSpent || 0} Coins</span></div>
-                                 </div>
-                             </div>
-                             <div className="mb-4 flex gap-2">
-                                <button onClick={() => setShowAttendancePopup(true)} className="flex-1 py-2 bg-yellow-900/30 text-yellow-500 border border-yellow-700 rounded font-bold hover:bg-yellow-900/50 text-xs">{TRANSLATIONS[lang].attendance}</button>
-                                <button onClick={() => setSettingsMode('HISTORY')} className="flex-1 py-2 bg-purple-900/30 text-purple-300 border border-purple-700 rounded font-bold hover:bg-purple-900/50 text-xs">{TRANSLATIONS[lang].history}</button>
-                             </div>
-                             </>
-                         )}
-                         <div className="mb-6"><label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].bgm_control}</label><input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={(e) => { setBgmVolume(parseFloat(e.target.value)); if(parseFloat(e.target.value)>0 && bgmStopped) setBgmStopped(false); }} className="w-full accent-purple-500" /><div className="flex justify-between text-xs text-gray-500 mt-1"><span>Mute</span><span>Max</span></div><div className="mt-2 flex gap-2"><button onClick={() => setBgmStopped(!bgmStopped)} className="text-xs bg-gray-800 px-3 py-1 rounded border border-gray-600 hover:bg-gray-700">{bgmStopped ? '▶ Play' : '⏸ Pause'}</button></div></div>
-                         <div className="mb-6"><label className="block text-gray-400 mb-2">{TRANSLATIONS[lang].language_control}</label><div className="flex bg-gray-800 rounded p-1"><button onClick={() => setLang('ko')} className={`flex-1 py-1 rounded text-sm ${lang === 'ko' ? 'bg-purple-600 text-white' : 'text-gray-400'}`}>한국어</button><button onClick={() => setLang('en')} className={`flex-1 py-1 rounded text-sm ${lang === 'en' ? 'bg-purple-600 text-white' : 'text-gray-400'}`}>English</button></div></div>
-                         {user.email !== 'Guest' && (
-                             <div className="mb-6 grid grid-cols-2 gap-2">
-                                 <button onClick={() => setSettingsMode('SKIN')} className="p-3 bg-gray-800 border border-gray-700 rounded text-sm hover:border-purple-500 transition-colors flex flex-col items-center gap-1"><span className="text-xl">🃏</span><span>{TRANSLATIONS[lang].skin_shop}</span></button>
-                                 {user.tier !== UserTier.BRONZE && user.tier !== UserTier.SILVER && (
-                                     <>
-                                        <button onClick={() => setSettingsMode('RUG')} className="p-3 bg-gray-800 border border-gray-700 rounded text-sm hover:border-yellow-500 transition-colors flex flex-col items-center gap-1"><span className="text-xl">🕸</span><span>{TRANSLATIONS[lang].rug_shop}</span></button>
-                                        <button onClick={() => setSettingsMode('BGM')} className="p-3 bg-gray-800 border border-gray-700 rounded text-sm hover:border-yellow-500 transition-colors flex flex-col items-center gap-1"><span className="text-xl">🎵</span><span>{TRANSLATIONS[lang].bgm_upload}</span></button>
-                                     </>
-                                 )}
-                             </div>
-                         )}
-                         {user.email !== 'Guest' && (<button onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }} className="w-full py-3 border border-red-900/50 text-red-400 rounded hover:bg-red-900/20">{TRANSLATIONS[lang].logout}</button>)}
-                         </>
-                     )}
-                     
-                     {settingsMode === 'RUG' && (<div className="grid grid-cols-3 gap-3">{RK_COLORS.map(c => (<button key={c.name} onClick={() => handleRugChange(c.color)} className="aspect-square rounded-full border-2 border-gray-600 hover:scale-110 transition-transform shadow-lg relative" style={{ backgroundColor: c.color }}>{user.rugColor === c.color && <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">✓</div>}</button>))}</div>)}
-                     {settingsMode === 'BGM' && (<div className="text-center"><div className="border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative"><input type="file" accept="audio/*" onChange={handleBgmUpload} className="absolute inset-0 opacity-0 cursor-pointer" /><p className="text-gray-400">Click to upload MP3</p></div>{currentBgm.id.startsWith('custom') && <p className="mt-4 text-green-400 text-sm">Custom BGM Playing: {currentBgm.name}</p>}</div>)}
-                     {settingsMode === 'SKIN' && (
-                         <div className="space-y-6">
-                             <div className="grid grid-cols-2 gap-3">
-                                 {SKINS.map(skin => (
-                                     <button key={skin.id} onClick={() => buySkin(skin)} className={`p-2 rounded border relative overflow-hidden group ${user.currentSkin === skin.id ? 'border-yellow-500 bg-yellow-900/20' : 'border-gray-700 bg-gray-800'}`}>
-                                         <div className={`h-24 w-full rounded mb-2 ${skin.cssClass.replace('design-', 'bg-design-')} bg-gray-900`}></div>
-                                         <p className="text-xs font-bold text-white">{skin.name}</p>
-                                         {!user.ownedSkins.includes(skin.id) && <span className="text-[10px] text-yellow-500 block mt-1">{skin.cost} Coins</span>}
-                                         {user.currentSkin === skin.id && <span className="absolute top-1 right-1 text-green-400 text-lg">✓</span>}
-                                     </button>
-                                 ))}
-                             </div>
-                             {/* Silver+ Custom Upload */}
-                             {user.tier !== UserTier.BRONZE && (
-                                 <div className="pt-4 border-t border-gray-700">
-                                     <h4 className="text-purple-300 font-bold mb-2">{TRANSLATIONS[lang].custom_skin_title}</h4>
-                                     <div className="mb-3 border border-dashed border-gray-600 rounded p-4 text-center cursor-pointer relative"><input type="file" onChange={handleCustomSkinUpload} className="absolute inset-0 opacity-0 cursor-pointer" />{customSkinImage ? "Image Loaded" : TRANSLATIONS[lang].upload_skin}</div>
-                                     <div className="flex gap-2 mb-3"><button onClick={()=>setIsSkinPublic(true)} className={`flex-1 py-1 rounded text-xs ${isSkinPublic?'bg-purple-600':'bg-gray-700'}`}>{TRANSLATIONS[lang].public_option}</button><button onClick={()=>setIsSkinPublic(false)} className={`flex-1 py-1 rounded text-xs ${!isSkinPublic?'bg-purple-600':'bg-gray-700'}`}>{TRANSLATIONS[lang].private_option}</button></div>
-                                     <button onClick={handleSaveCustomSkin} className="w-full py-2 bg-purple-700 rounded text-sm font-bold">Save Custom Skin</button>
-                                 </div>
-                             )}
-                             <div className="pt-4 border-t border-gray-700">
-                                 <h4 className="text-gray-400 text-xs mb-2">Apply Shared Skin Code</h4>
-                                 <div className="flex gap-2"><input value={inputSkinCode} onChange={e=>setInputSkinCode(e.target.value)} placeholder={TRANSLATIONS[lang].skin_code_placeholder} className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 text-sm" /><button onClick={handleApplySkinCode} className="px-3 py-1 bg-gray-700 rounded text-xs">{TRANSLATIONS[lang].skin_code_btn}</button></div>
-                             </div>
-                         </div>
-                     )}
-                     
-                     {/* History Mode */}
-                     {settingsMode === 'HISTORY' && (
-                        <div className="space-y-4">
-                            {user.history.length === 0 ? (
-                                <div className="text-center py-8 text-gray-500">{TRANSLATIONS[lang].no_history}</div>
-                            ) : (
-                                user.history.map((h, i) => (
-                                    <div key={i} className="bg-black/60 border border-gray-700 p-4 rounded-lg hover:border-purple-500 transition-all">
-                                        <div className="flex justify-between items-center mb-2 border-b border-gray-800 pb-2">
-                                            <span className="text-xs text-gray-500">{new Date(h.date).toLocaleDateString()}</span>
-                                            <span className="text-[10px] bg-purple-900 px-2 py-0.5 rounded text-purple-200">{h.cards.length} Cards</span>
-                                        </div>
-                                        <h4 className="text-sm font-bold text-white mb-3">Q. {h.question}</h4>
-                                        <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-none">
-                                            {h.cards.map((c, idx) => (
-                                                <img key={idx} src={c.imagePlaceholder} alt={c.name} className={`w-10 h-16 object-cover rounded border border-gray-600 ${c.isReversed ? 'rotate-180' : ''}`} />
-                                            ))}
-                                        </div>
-                                        <div className="bg-gray-800/50 p-3 rounded text-xs text-gray-300 max-h-24 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 leading-relaxed whitespace-pre-wrap">{h.interpretation}</div>
-                                    </div>
-                                ))
-                            )}
+                            <div className="flex gap-3">
+                                <button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-gray-800 rounded text-gray-300 font-bold">{TRANSLATIONS[lang].pay_cancel}</button>
+                                <button onClick={processPayment} className="flex-[2] py-3 bg-gradient-to-r from-yellow-600 to-yellow-500 text-black font-bold rounded shadow-[0_0_20px_rgba(234,179,8,0.4)] hover:brightness-110">{TRANSLATIONS[lang].pay_confirm}</button>
+                            </div>
                         </div>
                      )}
+                     
+                     {/* Background Glow */}
+                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-purple-900/20 blur-[100px] pointer-events-none"></div>
+                 </div>
+             </div>
+          )}
+          
+          {showSettings && (
+             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
+                 <div className="w-full max-w-md bg-gray-900 border border-gray-700 rounded-lg p-6 relative">
+                     <button onClick={() => setShowSettings(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
+                     <h2 className="text-xl font-bold text-white mb-6">{TRANSLATIONS[lang].settings_title}</h2>
+                     
+                     {settingsMode === 'MAIN' && (
+                         <div className="space-y-6">
+                             <div>
+                                 <label className="block text-sm text-gray-400 mb-2">{TRANSLATIONS[lang].language_control}</label>
+                                 <div className="flex bg-gray-800 rounded p-1">
+                                     <button onClick={() => setLang('ko')} className={`flex-1 py-2 rounded text-sm ${lang === 'ko' ? 'bg-purple-700 text-white' : 'text-gray-400'}`}>한국어</button>
+                                     <button onClick={() => setLang('en')} className={`flex-1 py-2 rounded text-sm ${lang === 'en' ? 'bg-purple-700 text-white' : 'text-gray-400'}`}>English</button>
+                                 </div>
+                             </div>
+                             <div>
+                                 <label className="block text-sm text-gray-400 mb-2">{TRANSLATIONS[lang].bgm_control}</label>
+                                 <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={e => setBgmVolume(parseFloat(e.target.value))} className="w-full accent-purple-500" />
+                                 <div className="flex justify-between mt-2">
+                                     <button onClick={() => setBgmStopped(!bgmStopped)} className="text-xs text-gray-400 border border-gray-600 px-2 py-1 rounded">{bgmStopped ? 'PLAY' : 'STOP'}</button>
+                                     <span className="text-xs text-gray-500">{currentBgm.name}</span>
+                                 </div>
+                             </div>
+                             
+                             <div className="border-t border-gray-800 pt-4 space-y-2">
+                                 <button onClick={() => setSettingsMode('SKIN')} className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded text-left px-4 text-sm text-gray-200 flex justify-between">
+                                     <span>{TRANSLATIONS[lang].skin_shop}</span>
+                                     <span>🎨</span>
+                                 </button>
+                                 {user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM ? (
+                                    <>
+                                        <button onClick={() => setSettingsMode('RUG')} className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded text-left px-4 text-sm text-gray-200 flex justify-between border border-yellow-900/30">
+                                            <span>{TRANSLATIONS[lang].rug_shop}</span>
+                                            <span>🧶</span>
+                                        </button>
+                                        <button onClick={() => setSettingsMode('BGM')} className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded text-left px-4 text-sm text-gray-200 flex justify-between border border-yellow-900/30">
+                                            <span>{TRANSLATIONS[lang].bgm_upload}</span>
+                                            <span>🎵</span>
+                                        </button>
+                                    </>
+                                 ) : null}
+                                 {user.tier !== UserTier.BRONZE && (
+                                     <button onClick={() => setSettingsMode('HISTORY')} className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded text-left px-4 text-sm text-gray-200 flex justify-between">
+                                         <span>{TRANSLATIONS[lang].history}</span>
+                                         <span>📜</span>
+                                     </button>
+                                 )}
+                             </div>
+                             
+                             <div className="pt-4 border-t border-gray-800">
+                                <button onClick={() => { supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); window.location.reload(); }} className="text-xs text-red-400 hover:text-red-300 underline">{TRANSLATIONS[lang].logout}</button>
+                             </div>
+                         </div>
+                     )}
+
+                     {settingsMode === 'SKIN' && (
+                         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-gray-400 mb-2">← Back</button>
+                             <h3 className="text-sm font-bold text-white mb-4">Select Card Skin</h3>
+                             <div className="grid grid-cols-2 gap-4">
+                                 {SKINS.map(skin => (
+                                     <div key={skin.id} onClick={() => buySkin(skin)} className={`border rounded p-2 cursor-pointer ${user.currentSkin === skin.id && !user.activeCustomSkin ? 'border-purple-500 bg-purple-900/20' : 'border-gray-700 hover:border-gray-500'} ${user.tier === UserTier.BRONZE && skin.cost > 0 ? 'opacity-50 grayscale' : ''}`}>
+                                         <div className={`h-24 rounded mb-2 w-full card-back ${skin.cssClass}`}></div>
+                                         <div className="flex justify-between items-center">
+                                             <span className="text-xs text-gray-300">{skin.name}</span>
+                                             {user.ownedSkins.includes(skin.id) ? <span className="text-[10px] bg-green-900 text-green-200 px-1 rounded">OWNED</span> : <span className="text-[10px] text-yellow-500">{skin.cost} C</span>}
+                                         </div>
+                                     </div>
+                                 ))}
+                             </div>
+                             {user.tier === UserTier.BRONZE && <p className="text-xs text-red-400 mt-2">{TRANSLATIONS[lang].bronze_shop_lock}</p>}
+                             
+                             {user.tier !== UserTier.BRONZE && (
+                                 <div className="mt-8 pt-4 border-t border-gray-700">
+                                     <h3 className="text-sm font-bold text-purple-300 mb-4">{TRANSLATIONS[lang].custom_skin_title}</h3>
+                                     
+                                     <div className="space-y-4">
+                                         <div className="border border-dashed border-gray-600 rounded p-4 text-center cursor-pointer hover:border-purple-500 relative">
+                                             <input type="file" accept="image/*" onChange={handleCustomSkinUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                             {customSkinImage ? <img src={customSkinImage} className="h-32 mx-auto object-contain" /> : <span className="text-xs text-gray-500">{TRANSLATIONS[lang].upload_skin}</span>}
+                                         </div>
+                                         
+                                         {customSkinImage && (
+                                             <div className="flex flex-col gap-2">
+                                                 <div className="flex gap-2 text-xs">
+                                                     <button onClick={() => setIsSkinPublic(false)} className={`flex-1 py-2 rounded border ${!isSkinPublic ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-600 text-gray-400'}`}>{TRANSLATIONS[lang].private_option}</button>
+                                                     <button onClick={() => setIsSkinPublic(true)} className={`flex-1 py-2 rounded border ${isSkinPublic ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-600 text-gray-400'}`}>{TRANSLATIONS[lang].public_option}</button>
+                                                 </div>
+                                                 <button onClick={handleSaveCustomSkin} className="w-full py-2 bg-white text-black font-bold rounded text-xs hover:bg-gray-200">Save Custom Skin</button>
+                                             </div>
+                                         )}
+
+                                         <div className="mt-4 pt-4 border-t border-gray-800">
+                                             <label className="text-xs text-gray-400 block mb-1">{TRANSLATIONS[lang].skin_code_label}</label>
+                                             <div className="flex gap-2">
+                                                 <input value={inputSkinCode} onChange={e=>setInputSkinCode(e.target.value)} placeholder={TRANSLATIONS[lang].skin_code_placeholder} className="flex-1 bg-black border border-gray-700 rounded px-2 text-xs text-white" />
+                                                 <button onClick={handleApplySkinCode} className="px-3 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600">{TRANSLATIONS[lang].skin_code_btn}</button>
+                                             </div>
+                                         </div>
+
+                                         {user.customSkins && user.customSkins.length > 0 && (
+                                             <div className="grid grid-cols-3 gap-2 mt-4">
+                                                 {user.customSkins.map(cs => (
+                                                     <div key={cs.id} onClick={() => updateUser(prev => ({...prev, activeCustomSkin: cs}))} className={`aspect-[2/3] rounded border cursor-pointer bg-cover bg-center ${user.activeCustomSkin?.id === cs.id ? 'border-purple-500 shadow-[0_0_10px_purple]' : 'border-gray-700'}`} style={{ backgroundImage: `url(${cs.imageUrl})` }}></div>
+                                                 ))}
+                                                 <div onClick={() => updateUser(prev => ({...prev, activeCustomSkin: null}))} className="aspect-[2/3] rounded border border-red-900 flex items-center justify-center text-red-500 text-xs cursor-pointer hover:bg-red-900/20">Reset</div>
+                                             </div>
+                                         )}
+                                     </div>
+                                 </div>
+                             )}
+                         </div>
+                     )}
+
+                     {settingsMode === 'RUG' && (
+                         <div className="space-y-4">
+                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-gray-400 mb-2">← Back</button>
+                             <h3 className="text-sm font-bold text-white mb-4">Select Rug Color</h3>
+                             <div className="grid grid-cols-3 gap-3">
+                                 {RK_COLORS.map(c => (
+                                     <div key={c.name} onClick={() => handleRugChange(c.color)} className={`aspect-square rounded-full cursor-pointer border-2 ${user.rugColor === c.color ? 'border-white shadow-[0_0_10px_white]' : 'border-transparent hover:scale-110 transition-transform'}`} style={{ backgroundColor: c.color }}></div>
+                                 ))}
+                             </div>
+                         </div>
+                     )}
+
+                     {settingsMode === 'BGM' && (
+                         <div className="space-y-4">
+                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-gray-400 mb-2">← Back</button>
+                             <h3 className="text-sm font-bold text-white mb-4">Upload Custom BGM</h3>
+                             <input type="file" accept="audio/*" onChange={handleBgmUpload} className="text-xs text-gray-400" />
+                             <p className="text-[10px] text-gray-500 mt-2">MP3, WAV supported. Local only.</p>
+                         </div>
+                     )}
+
+                     {settingsMode === 'HISTORY' && (
+                         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-gray-400 mb-2">← Back</button>
+                             <h3 className="text-sm font-bold text-white mb-4">{TRANSLATIONS[lang].history}</h3>
+                             {user.history.length === 0 ? <p className="text-gray-500 text-xs text-center">{TRANSLATIONS[lang].no_history}</p> : (
+                                 <div className="space-y-3">
+                                     {user.history.map((h, i) => (
+                                         <div key={i} className="bg-black/50 p-3 rounded border border-gray-800">
+                                             <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+                                                 <span>{new Date(h.date).toLocaleDateString()}</span>
+                                                 <span>{h.type || 'TAROT'}</span>
+                                             </div>
+                                             <p className="text-xs text-gray-200 font-bold truncate mb-1">{h.question}</p>
+                                             <p className="text-[10px] text-gray-400 line-clamp-2">{h.interpretation}</p>
+                                         </div>
+                                     ))}
+                                 </div>
+                             )}
+                         </div>
+                     )}
                  </div>
              </div>
           )}
 
-          {authMode && ( <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4"><div className="bg-gray-900 border border-purple-500 p-8 rounded max-w-sm w-full shadow-[0_0_50px_rgba(147,51,234,0.3)] relative"><button onClick={() => setAuthMode(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button><h2 className="text-2xl font-bold text-white mb-6 text-center">ACCESS REQUIRED</h2><AuthForm onClose={() => setAuthMode(null)} onLoginSuccess={() => { setAuthMode(null); checkUser(); }} /></div></div> )}
+          {authMode && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
+                  <div className="w-full max-w-sm bg-gray-900 border border-purple-500 rounded-lg p-8 relative shadow-[0_0_50px_rgba(147,51,234,0.3)]">
+                      <button onClick={() => setAuthMode(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
+                      <h2 className="text-2xl font-occult text-center mb-6 text-white">{authMode === 'LOGIN' ? 'LOGIN' : 'SIGN UP'}</h2>
+                      <AuthForm onClose={() => setAuthMode(null)} onLoginSuccess={() => { setAuthMode(null); checkUser(); }} />
+                  </div>
+              </div>
+          )}
       </div>
   );
 };
