@@ -983,11 +983,11 @@ const App: React.FC = () => {
     const updatedUser = { ...currentUser, tier: newTier, coins: newCoins, lastLoginDate: today, loginDates: newLoginDates, readingsToday: currentUser.lastReadingDate === today ? currentUser.readingsToday : 0, lastReadingDate: today, lastMonthlyReward: currentMonthlyReward, attendanceDay: newAttendanceDay, lastAttendance: newLastAttendance, monthlyCoinsSpent: newMonthlyCoinsSpent };
     setUser(updatedUser); 
     
-    // IMPORTANT: Forced navigation to WELCOME on refresh as requested.
-    setAppState(AppState.WELCOME);
-    saveUserState(updatedUser, AppState.WELCOME);
+    // NOTE: Removed forced navigation to WELCOME on update to prevent language switch reset.
+    // Navigation is now handled explicitly by user actions or initial mount logic if needed.
+    saveUserState(updatedUser, appState);
 
-  }, [lang]); 
+  }, []); // Removed [lang] dependency to prevent re-running on language change
 
   useEffect(() => { checkUser(); }, [checkUser]);
 
