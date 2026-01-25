@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from "./src/lib/supabase";
+import { supabase, isSupabaseConfigured } from "./src/lib/supabase";
 import { GoogleContinueButton } from "./components/AuthModal";
-import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult, UserTier, Country, BGM, Skin, ChatMessage, CustomSkin } from './types';
-import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTENDANCE_REWARDS } from './constants';
+import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult, UserTier, Country, BGM, Skin, ChatMessage, CustomSkin, CustomFrame } from './types';
+import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTENDANCE_REWARDS, RESULT_FRAMES } from './constants';
 import Background from './components/Background';
 import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
@@ -30,7 +30,7 @@ const TRANSLATIONS = {
     select_cards_title: "당신의 운명을 선택하세요",
     result_question: "질문",
     share: "결과 저장 & 공유", 
-    settings_title: "설정",
+    settings_title: "설정 (Settings)",
     bgm_control: "배경음악 설정",
     language_control: "언어 (Language)",
     tier_info: "나의 등급",
@@ -48,7 +48,7 @@ const TRANSLATIONS = {
     face_guide: "인물의 얼굴이 잘 보이는 사진을 업로드 하세요.",
     life_reading_title: "인생",
     life_reading_desc: "당신이 언제, 무엇으로 떼돈을 벌까요? 당신의 숨겨진 재능과 황금기, 미래 배우자까지 확인하세요.",
-    life_input_btn: "인생 치트키 확인 (-200 Coin)",
+    life_input_btn: "인생 치트키 확인 (-250 Coin)",
     life_guide: "당신의 생시를 알려주세요.",
     downloading: "초고속 저장 중...",
     time_label: "태어난 시간",
@@ -67,7 +67,7 @@ const TRANSLATIONS = {
     custom_q_ph: "구체적인 고민을 입력해 주세요.",
     history: "타로 히스토리",
     no_history: "기록이 없습니다.",
-    limit_reached: "오늘의 리딩 횟수를 모두 소진했습니다.",
+    limit_reached: "오늘의 리딩 횟수(10회)를 모두 소진했습니다. 내일 다시 시도하세요.",
     solution_lock: "실질적인 해결책 보기 (Gold+)",
     secret_compat: "당신과 그 사람의 은밀한 궁합 (-250 Coin)",
     partner_life: "그 사람의 타고난 인생 팔자 (-250 Coin)",
@@ -89,7 +89,7 @@ const TRANSLATIONS = {
     chat_entry_fee: "입장료 20 코인",
     chat_full: "방이 가득 찼습니다. (최대 50명)",
     chat_leave: "나가기",
-    custom_skin_title: "커스텀 스킨 스튜디오 (Silver+)",
+    custom_skin_title: "커스텀 스킨 스튜디오",
     upload_skin: "디자인 업로드",
     public_option: "공개 (코드 발급)",
     private_option: "비공개 (나만 사용)",
@@ -98,9 +98,11 @@ const TRANSLATIONS = {
     skin_code_placeholder: "숫자 코드 6자리",
     skin_saved: "스킨이 저장되었습니다.",
     skin_applied: "스킨이 적용되었습니다!",
-    rug_shop: "타로 러그 색상 (Gold+)",
-    bgm_upload: "BGM 업로드 (Gold+)",
-    back: "뒤로 가기"
+    rug_shop: "타로 러그 색상",
+    bgm_upload: "BGM 업로드",
+    back: "뒤로 가기",
+    frame_shop: "결과지 프레임",
+    custom_frame_title: "커스텀 프레임 제작"
   },
   en: {
     welcome_sub: "Cards don't lie.",
@@ -154,7 +156,7 @@ const TRANSLATIONS = {
     custom_q_ph: "Enter your specific concern here.",
     history: "Reading History",
     no_history: "No records found.",
-    limit_reached: "Daily reading limit reached.",
+    limit_reached: "Daily reading limit (10) reached.",
     solution_lock: "Unlock Practical Solution (Gold+)",
     secret_compat: "Secret Compatibility (-250 Coin)",
     partner_life: "Partner's Life Path (-250 Coin)",
@@ -176,7 +178,7 @@ const TRANSLATIONS = {
     chat_entry_fee: "Entry Fee 20 Coins",
     chat_full: "Room is full (Max 50)",
     chat_leave: "Leave",
-    custom_skin_title: "Custom Skin Studio (Silver+)",
+    custom_skin_title: "Custom Skin Studio",
     upload_skin: "Upload Design",
     public_option: "Public (Get Code)",
     private_option: "Private (Only Me)",
@@ -185,9 +187,11 @@ const TRANSLATIONS = {
     skin_code_placeholder: "6-Digit Code",
     skin_saved: "Skin saved successfully.",
     skin_applied: "Skin applied successfully!",
-    rug_shop: "Tarot Rug Color (Gold+)",
-    bgm_upload: "BGM Upload (Gold+)",
-    back: "Back"
+    rug_shop: "Tarot Rug Color",
+    bgm_upload: "BGM Upload",
+    back: "Back",
+    frame_shop: "Result Frame",
+    custom_frame_title: "Create Custom Frame"
   }
 };
 
@@ -247,11 +251,34 @@ const ChatView: React.FC<{
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const channelRef = useRef<RealtimeChannel | null>(null);
 
+    // Generate a stable ID for guest session if not present
+    const getChatUserId = () => {
+        if (user.email !== 'Guest') return user.email;
+        let guestId = sessionStorage.getItem('guest_chat_id');
+        if (!guestId) {
+            guestId = 'Guest-' + Math.random().toString(36).substring(2, 9);
+            sessionStorage.setItem('guest_chat_id', guestId);
+        }
+        return guestId;
+    };
+
+    const chatUserId = getChatUserId();
+
     useEffect(() => {
+        if (!isSupabaseConfigured) {
+            // Mock chat if backend is not configured
+            setMessages([{
+                id: 'system', userId: 'system', nickname: 'System', 
+                text: 'Chat is unavailable in demo mode (Backend not configured).', 
+                timestamp: Date.now(), tier: UserTier.PLATINUM, avatarUrl: ''
+            }]);
+            return;
+        }
+
         const channel = supabase.channel('black-tarot-global', {
             config: {
                 presence: {
-                    key: user.email 
+                    key: chatUserId
                 }
             }
         });
@@ -289,7 +316,7 @@ const ChatView: React.FC<{
 
         const msg: ChatMessage = {
             id: Math.random().toString(36).substring(2),
-            userId: user.email,
+            userId: chatUserId,
             nickname: user.userInfo?.name || 'Anonymous',
             avatarUrl: user.userInfo?.profileImage,
             bio: user.userInfo?.bio || '', // Send Bio with message for visibility
@@ -301,11 +328,13 @@ const ChatView: React.FC<{
         // Optimistic UI update
         setMessages(prev => [...prev, msg]); 
 
-        await channelRef.current?.send({
-            type: 'broadcast',
-            event: 'chat',
-            payload: msg
-        });
+        if (isSupabaseConfigured) {
+            await channelRef.current?.send({
+                type: 'broadcast',
+                event: 'chat',
+                payload: msg
+            });
+        }
 
         setInputText('');
     };
@@ -327,7 +356,7 @@ const ChatView: React.FC<{
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 scrollbar-thin scrollbar-thumb-purple-700">
                 {messages.map((msg, i) => {
-                    const isMe = msg.userId === user.email;
+                    const isMe = msg.userId === chatUserId;
                     return (
                         <div key={i} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                             {!isMe && (
@@ -541,6 +570,24 @@ const ResultView: React.FC<{
   const captureRef = useRef<HTMLDivElement>(null);
   const cardImages = selectedCards.map(c => c.generatedImage || c.imagePlaceholder);
 
+  // Frame Logic
+  const activeFrameId = user.resultFrame || 'default';
+  const systemFrame = RESULT_FRAMES.find(f => f.id === activeFrameId);
+  const customFrame = user.customFrames?.find(f => f.id === activeFrameId);
+  const frameStyle: React.CSSProperties = customFrame 
+    ? { border: '20px solid transparent', borderImage: `url(${customFrame.imageUrl}) 30 round` }
+    : (systemFrame ? { cssText: systemFrame.css } as any : {});
+
+  // For default inline styles not covered by simple 'cssText' mapping
+  if (systemFrame && systemFrame.id !== 'default' && !customFrame) {
+      if (systemFrame.id === 'simple_gold') frameStyle.border = '2px solid #fbbf24';
+      if (systemFrame.id === 'antique_double') frameStyle.border = '6px double #b8860b';
+      if (systemFrame.id === 'gothic_frame') {
+          frameStyle.border = '20px solid transparent';
+          frameStyle.borderImage = 'url("https://img.freepik.com/free-vector/vintage-ornamental-frame-design_53876-115822.jpg?w=740&t=st=1708840000~exp=1708840600~hmac=fake") 30 round';
+      }
+  }
+
   useEffect(() => {
     if(readingPromise) {
       readingPromise.then(t => {
@@ -574,15 +621,18 @@ const ResultView: React.FC<{
            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#2e0b49_0%,#000000_100%)] opacity-100"></div>
            <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E")` }}></div>
            
-           {/* Decorative Frame */}
-           <div className="absolute inset-6 border-2 border-[#b8860b] opacity-60 pointer-events-none"></div>
-           <div className="absolute inset-8 border border-[#b8860b] opacity-30 pointer-events-none"></div>
+           {/* Dynamic Result Frame Wrapper */}
+           <div className="absolute inset-4 pointer-events-none z-20" style={frameStyle}></div>
            
-           {/* Decorative Corners (SVG) */}
-           <div className="absolute top-6 left-6 text-[#b8860b] w-16 h-16 border-t-4 border-l-4 border-[#b8860b]"></div>
-           <div className="absolute top-6 right-6 text-[#b8860b] w-16 h-16 border-t-4 border-r-4 border-[#b8860b]"></div>
-           <div className="absolute bottom-6 left-6 text-[#b8860b] w-16 h-16 border-b-4 border-l-4 border-[#b8860b]"></div>
-           <div className="absolute bottom-6 right-6 text-[#b8860b] w-16 h-16 border-b-4 border-r-4 border-[#b8860b]"></div>
+           {/* Decorative Corners (SVG) if default */}
+           {activeFrameId === 'default' && (
+               <>
+               <div className="absolute top-6 left-6 text-[#b8860b] w-16 h-16 border-t-4 border-l-4 border-[#b8860b]"></div>
+               <div className="absolute top-6 right-6 text-[#b8860b] w-16 h-16 border-t-4 border-r-4 border-[#b8860b]"></div>
+               <div className="absolute bottom-6 left-6 text-[#b8860b] w-16 h-16 border-b-4 border-l-4 border-[#b8860b]"></div>
+               <div className="absolute bottom-6 right-6 text-[#b8860b] w-16 h-16 border-b-4 border-r-4 border-[#b8860b]"></div>
+               </>
+           )}
 
            {/* Content Container */}
            <div className="relative z-10 w-full h-full flex flex-col items-center p-20">
@@ -689,6 +739,10 @@ const AuthForm: React.FC<{ onClose: () => void; onLoginSuccess: () => void }> = 
     const [showResetLink, setShowResetLink] = useState(false);
 
     const handleAuth = async () => {
+        if (!isSupabaseConfigured) {
+            setMsg("System Error: Backend not configured. (Demo Mode)");
+            return;
+        }
         if(!email || !password) return alert("Please fill in all fields.");
         setLoading(true); setMsg(''); setShowResetLink(false);
         try {
@@ -720,6 +774,10 @@ const AuthForm: React.FC<{ onClose: () => void; onLoginSuccess: () => void }> = 
     };
 
     const handlePasswordReset = async () => {
+        if (!isSupabaseConfigured) {
+            alert("Backend not configured.");
+            return;
+        }
         if (!email) {
             alert("이메일을 입력해주세요.");
             return;
@@ -768,10 +826,10 @@ const RK_COLORS = [
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
-  const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0 });
+  const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0, resultFrame: 'default', customFrames: [] });
   const [authMode, setAuthMode] = useState<'LOGIN'|'SIGNUP'|null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsMode, setSettingsMode] = useState<'MAIN' | 'RUG' | 'BGM' | 'SKIN' | 'HISTORY'>('MAIN');
+  const [settingsMode, setSettingsMode] = useState<'MAIN' | 'RUG' | 'BGM' | 'SKIN' | 'HISTORY' | 'FRAME'>('MAIN');
   const [showShop, setShowShop] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showGuestBlock, setShowGuestBlock] = useState(false);
@@ -779,6 +837,7 @@ const App: React.FC = () => {
   const [attendanceReward, setAttendanceReward] = useState(0);
   const [editProfileData, setEditProfileData] = useState<UserInfo>({ name: '', birthDate: '', country: '', timezone: '', zodiacSign: '', nameChangeCount: 0, birthDateChanged: false, countryChanged: false });
   const [customSkinImage, setCustomSkinImage] = useState<string | null>(null);
+  const [customFrameImage, setCustomFrameImage] = useState<string | null>(null);
   const [isSkinPublic, setIsSkinPublic] = useState(false);
   const [inputSkinCode, setInputSkinCode] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<QuestionCategory | null>(null);
@@ -803,7 +862,7 @@ const App: React.FC = () => {
       } catch (e) {
           console.error("Local storage error (Quota exceeded?):", e);
       }
-      if (u.email !== 'Guest') {
+      if (u.email !== 'Guest' && isSupabaseConfigured) {
           supabase.from('profiles').upsert({ email: u.email, data: { ...u, lastAppState: state }, updated_at: new Date().toISOString() }, { onConflict: 'email' }).then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
       }
   }, []);
@@ -823,77 +882,110 @@ const App: React.FC = () => {
         } 
     } catch (e) {}
 
-    try {
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error || !data.session?.user) {
-           // Default to Guest if session check fails or no session
-           if (!localUser || localUser.email !== 'Guest') {
-               const newGuest: User = { ...user, email: "Guest", lastLoginDate: today }; 
-               setUser(newGuest); 
-               setAppState(AppState.WELCOME);
-           }
-           localStorage.setItem('tarot_device_id', 'true');
-           return;
-        }
-        
-        const u = data.session.user; 
-        const email = u.email || "User";
-        let cloudUser: User | null = null;
-        try { const { data: profileData } = await supabase.from('profiles').select('data').eq('email', email).single(); if (profileData && profileData.data) cloudUser = profileData.data; } catch(e) { console.warn("Failed to fetch cloud data", e); }
-        let currentUser = cloudUser || (localUser && localUser.email === email ? localUser : { ...user, email });
+    // Initial assumption
+    let currentUser = localUser || { ...user, email: "Guest" };
 
-        // Tier Demotion Logic (15 days)
-        const lastLoginDate = new Date(currentUser.lastLoginDate || today);
-        const currentDate = new Date();
-        const diffTime = Math.abs(currentDate.getTime() - lastLoginDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        let newTier = currentUser.tier;
-        if (diffDays >= 15) {
-            const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
-            const currentIdx = tiers.indexOf(newTier);
-            const drops = Math.floor(diffDays / 15);
-            const newIdx = Math.max(0, currentIdx - drops);
-            newTier = tiers[newIdx];
-            if (newTier !== currentUser.tier) alert(`오랜 기간 접속하지 않아 등급이 ${newTier}로 하향 조정되었습니다.`);
-        }
-
-        let newLoginDates = [...(currentUser.loginDates || [])]; if (!newLoginDates.includes(today)) newLoginDates.push(today);
-        let newCoins = currentUser.coins; let currentMonthlyReward = currentUser.lastMonthlyReward; let newAttendanceDay = currentUser.attendanceDay; let newLastAttendance = currentUser.lastAttendance;
-        let newMonthlyCoinsSpent = currentUser.monthlyCoinsSpent || 0;
-        const currentMonth = today.substring(0, 7);
-
-        if (currentMonthlyReward !== currentMonth) {
-            if (newTier !== UserTier.BRONZE) {
-                if (newTier === UserTier.GOLD) { newCoins = Math.floor(newCoins * 1.5); alert(TRANSLATIONS[lang].reward_popup + " (1.5x)"); }
-                else if (newTier === UserTier.PLATINUM) { newCoins = Math.floor(newCoins * 2.0); alert(TRANSLATIONS[lang].reward_popup + " (2.0x)"); }
+    if (isSupabaseConfigured) {
+        try {
+            const { data, error } = await supabase.auth.getSession();
+            
+            if (data.session?.user) {
+                const u = data.session.user; 
+                const email = u.email || "User";
+                try { 
+                    const { data: profileData } = await supabase.from('profiles').select('data').eq('email', email).single(); 
+                    if (profileData && profileData.data) currentUser = profileData.data; 
+                    else if (!localUser || localUser.email !== email) currentUser = { ...user, email };
+                    else currentUser = { ...localUser, email };
+                } catch(e) { console.warn("Failed to fetch cloud data", e); }
+                currentUser.email = email;
+            } else {
+                // If no session, rely on local or new Guest
+               if (!localUser || localUser.email !== 'Guest') {
+                   // Guest users start as Platinum for their first trial
+                   currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
+               }
+               if (!localStorage.getItem('tarot_device_id')) {
+                   localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
+               }
             }
-            newMonthlyCoinsSpent = 0; newTier = UserTier.BRONZE; currentMonthlyReward = currentMonth;
-        } else {
-            newTier = calculateTier(newMonthlyCoinsSpent);
+        } catch (err: any) { 
+            console.warn("Session check failed (network/config error), defaulting to Guest:", err);
+            
+            if (!localUser || localUser.email !== 'Guest') {
+                 currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
+            }
+            if (!localStorage.getItem('tarot_device_id')) {
+                localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
+            }
         }
-
-        if (newLastAttendance !== today) {
-            if (newAttendanceDay < 10) newAttendanceDay += 1; else newAttendanceDay = 1; 
-            const reward = ATTENDANCE_REWARDS[Math.min(newAttendanceDay, 10) - 1] || 20;
-            newCoins += reward; newLastAttendance = today; setAttendanceReward(reward); setShowAttendancePopup(true);
-        }
-        
-        const updatedUser = { ...currentUser, email: email, tier: newTier, coins: newCoins, lastLoginDate: today, loginDates: newLoginDates, readingsToday: currentUser.lastReadingDate === today ? currentUser.readingsToday : 0, lastReadingDate: today, lastMonthlyReward: currentMonthlyReward, attendanceDay: newAttendanceDay, lastAttendance: newLastAttendance, monthlyCoinsSpent: newMonthlyCoinsSpent };
-        setUser(updatedUser); saveUserState(updatedUser, updatedUser.lastAppState || AppState.WELCOME);
-        if (updatedUser.lastAppState && updatedUser.lastAppState !== AppState.WELCOME) setAppState(updatedUser.lastAppState);
-        else { if (updatedUser.userInfo?.name && updatedUser.userInfo?.birthDate) { setAppState(AppState.CATEGORY_SELECT); saveUserState(updatedUser, AppState.CATEGORY_SELECT); } else setAppState(AppState.INPUT_INFO); }
-    } catch (err: any) { 
-        // FIX: Handle fetch errors by defaulting to guest instead of just warning
-        console.warn("Session check failed (network/config error), defaulting to Guest:", err);
-        
+    } else {
+        // Not configured -> Guest Mode
         if (!localUser || localUser.email !== 'Guest') {
-             // Safe functional update to avoid stale state issues
-             setUser(prev => ({ ...prev, email: "Guest", lastLoginDate: today })); 
-             setAppState(AppState.WELCOME);
+             currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
         }
-        localStorage.setItem('tarot_device_id', 'true');
+        if (!localStorage.getItem('tarot_device_id')) {
+            localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
+        }
     }
+
+    // Common Logic (Attendance, Tier Demotion)
+    const lastLoginDate = new Date(currentUser.lastLoginDate || today);
+    const currentDate = new Date();
+    const diffTime = Math.abs(currentDate.getTime() - lastLoginDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    let newTier = currentUser.tier;
+    if (diffDays >= 15) {
+        const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
+        const currentIdx = tiers.indexOf(newTier);
+        const drops = Math.floor(diffDays / 15);
+        const newIdx = Math.max(0, currentIdx - drops);
+        newTier = tiers[newIdx];
+        if (newTier !== currentUser.tier) alert(`오랜 기간 접속하지 않아 등급이 ${newTier}로 하향 조정되었습니다.`);
+    }
+
+    let newLoginDates = [...(currentUser.loginDates || [])]; if (!newLoginDates.includes(today)) newLoginDates.push(today);
+    let newCoins = currentUser.coins; let currentMonthlyReward = currentUser.lastMonthlyReward; let newAttendanceDay = currentUser.attendanceDay; let newLastAttendance = currentUser.lastAttendance;
+    let newMonthlyCoinsSpent = currentUser.monthlyCoinsSpent || 0;
+    const currentMonth = today.substring(0, 7);
+
+    if (currentMonthlyReward !== currentMonth) {
+        if (newTier !== UserTier.BRONZE) {
+            if (newTier === UserTier.GOLD) { newCoins = Math.floor(newCoins * 1.5); alert(TRANSLATIONS[lang].reward_popup + " (1.5x)"); }
+            else if (newTier === UserTier.PLATINUM) { newCoins = Math.floor(newCoins * 2.0); alert(TRANSLATIONS[lang].reward_popup + " (2.0x)"); }
+        }
+        newMonthlyCoinsSpent = 0; newTier = UserTier.BRONZE; currentMonthlyReward = currentMonth;
+    } else {
+        newTier = calculateTier(newMonthlyCoinsSpent);
+    }
+
+    // Guests always have Platinum access until locked out
+    if (currentUser.email === 'Guest') {
+        newTier = UserTier.PLATINUM;
+    }
+
+    if (newLastAttendance !== today) {
+        // Attendance Logic
+        if (newAttendanceDay < 10) newAttendanceDay += 1; else newAttendanceDay = 1; 
+        const reward = ATTENDANCE_REWARDS[Math.min(newAttendanceDay, 10) - 1] || 20;
+        
+        // Only give rewards and show popup for logged-in users
+        if (currentUser.email !== 'Guest') {
+            newCoins += reward; 
+            setAttendanceReward(reward); 
+            setShowAttendancePopup(true);
+        }
+        // Always update last attendance date to prevent repeated checks today
+        newLastAttendance = today; 
+    }
+    
+    const updatedUser = { ...currentUser, tier: newTier, coins: newCoins, lastLoginDate: today, loginDates: newLoginDates, readingsToday: currentUser.lastReadingDate === today ? currentUser.readingsToday : 0, lastReadingDate: today, lastMonthlyReward: currentMonthlyReward, attendanceDay: newAttendanceDay, lastAttendance: newLastAttendance, monthlyCoinsSpent: newMonthlyCoinsSpent };
+    setUser(updatedUser); 
+    
+    // IMPORTANT: Forced navigation to WELCOME on refresh as requested.
+    setAppState(AppState.WELCOME);
+    saveUserState(updatedUser, AppState.WELCOME);
+
   }, [lang]); 
 
   useEffect(() => { checkUser(); }, [checkUser]);
@@ -908,6 +1000,10 @@ const App: React.FC = () => {
   };
   const handleCustomSkinUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomSkinImage(e.target?.result as string); reader.readAsDataURL(file); };
   const handleSaveCustomSkin = () => { if (!customSkinImage) return; const newSkin: CustomSkin = { id: Math.random().toString(36).substring(2), imageUrl: customSkinImage, isPublic: isSkinPublic, shareCode: isSkinPublic ? Math.floor(100000 + Math.random() * 900000).toString() : undefined }; updateUser(prev => ({ ...prev, customSkins: [...(prev.customSkins || []), newSkin], activeCustomSkin: newSkin })); setCustomSkinImage(null); alert(`${TRANSLATIONS[lang].skin_saved} ${newSkin.shareCode ? `Code: ${newSkin.shareCode}` : ''}`); };
+  
+  const handleCustomFrameUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomFrameImage(e.target?.result as string); reader.readAsDataURL(file); };
+  const handleSaveCustomFrame = () => { if (!customFrameImage) return; const newFrame: CustomFrame = { id: Math.random().toString(36).substring(2), imageUrl: customFrameImage, name: 'Custom Frame' }; updateUser(prev => ({ ...prev, customFrames: [...(prev.customFrames || []), newFrame], resultFrame: newFrame.id })); setCustomFrameImage(null); alert("Frame Saved & Applied!"); };
+
   const handleApplySkinCode = () => { const found = user.customSkins?.find(s => s.shareCode === inputSkinCode); if (found) { updateUser(prev => ({ ...prev, activeCustomSkin: found })); alert(TRANSLATIONS[lang].skin_applied); } else alert("Invalid Code (Simulation: Only local codes work in demo)"); };
   const handleBgmUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const url = URL.createObjectURL(file); const newBgm: BGM = { id: 'custom-' + Date.now(), name: file.name, url: url, category: 'DEFAULT' }; setCurrentBgm(newBgm); alert("BGM Applied!"); };
   const handleRugChange = (color: string) => { updateUser(prev => ({ ...prev, rugColor: color })); };
@@ -918,7 +1014,7 @@ const App: React.FC = () => {
       
       // Removed complex change logic constraints for better UX feedback - just update it
       // Ensure Supabase update happens
-      if (user.email !== 'Guest') {
+      if (user.email !== 'Guest' && isSupabaseConfigured) {
           const { error } = await supabase.from('profiles').upsert({ 
               email: user.email, 
               data: { ...user, userInfo: newInfo }, 
@@ -935,16 +1031,19 @@ const App: React.FC = () => {
       alert("프로필이 저장되었습니다."); 
       setShowProfile(false); 
   };
-  const handleDeleteAccount = async () => { if (confirm(TRANSLATIONS[lang].delete_confirm)) { await supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); localStorage.removeItem('tarot_device_id'); const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME }; setUser(cleanUser); setAppState(AppState.WELCOME); setShowProfile(false); } };
+  const handleDeleteAccount = async () => { if (confirm(TRANSLATIONS[lang].delete_confirm)) { if (isSupabaseConfigured) await supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); localStorage.removeItem('tarot_device_id'); const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME }; setUser(cleanUser); setAppState(AppState.WELCOME); setShowProfile(false); } };
   const initiatePayment = (amount: number, coins: number) => { if (user.email === 'Guest') { alert("Please login to purchase coins."); return; } setPendingPackage({ amount, coins }); setShopStep('METHOD'); };
   const processPayment = () => { if (!pendingPackage) return; setTimeout(() => { alert(`Payment Successful via ${selectedPaymentMethod}!`); updateUser(prev => ({ ...prev, coins: prev.coins + pendingPackage.coins, totalSpent: prev.totalSpent + pendingPackage.amount, })); setPendingPackage(null); setShopStep('AMOUNT'); setShowShop(false); }, 1500); };
   const handleCategorySelect = (category: QuestionCategory) => { if (category.minTier) { const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM]; if (tiers.indexOf(user.tier) < tiers.indexOf(category.minTier)) { alert(`This category requires ${category.minTier} tier or higher.`); return; } } setSelectedCategory(category); if (category.id === 'FACE') navigateTo(AppState.FACE_UPLOAD); else if (category.id === 'LIFE') navigateTo(AppState.LIFE_INPUT); else if (category.id === 'SECRET_COMPAT' || category.id === 'PARTNER_LIFE') navigateTo(AppState.PARTNER_INPUT); else navigateTo(AppState.QUESTION_SELECT); };
-  const handleEnterChat = async () => { if (user.tier === UserTier.BRONZE) return alert("Silver+ only."); if (!spendCoins(20)) return; navigateTo(AppState.CHAT_ROOM); };
+  const handleEnterChat = async () => { if (!spendCoins(20)) return; navigateTo(AppState.CHAT_ROOM); };
   const handleQuestionSelect = (q: string) => { setSelectedQuestion(q); navigateTo(AppState.SHUFFLING); };
   const startFaceReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!faceImage) return alert("Please upload a photo first."); if (!spendCoins(100)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].face_reading_title); setSelectedCards([]); setReadingPromise(getFaceReading(faceImage, user.userInfo, lang)); };
-  const startLifeReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!spendCoins(200)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].life_reading_title); setSelectedCards([]); setReadingPromise(getLifeReading({...user.userInfo!, birthTime: `${birthTime.h}:${birthTime.m}`}, lang)); };
+  const startLifeReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!spendCoins(250)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].life_reading_title); setSelectedCards([]); setReadingPromise(getLifeReading({...user.userInfo!, birthTime: `${birthTime.h}:${birthTime.m}`}, lang)); };
   const startPartnerReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!selectedCategory) return; const cost = selectedCategory.cost || 0; if (!spendCoins(cost)) return; if (!partnerBirth || partnerBirth.length < 8) return alert("Please enter a valid birthdate (YYYYMMDD)."); navigateTo(AppState.RESULT); setSelectedQuestion(selectedCategory.label); setSelectedCards([]); if (selectedCategory.id === 'SECRET_COMPAT') setReadingPromise(getCompatibilityReading(user.userInfo!, partnerBirth, lang)); else setReadingPromise(getPartnerLifeReading(partnerBirth, lang)); };
-  const handleCardSelect = (indices: number[]) => { if (user.email === 'Guest') { const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0'); if (guestReadings >= 1) { setShowGuestBlock(true); return; } localStorage.setItem('guest_readings', (guestReadings + 1).toString()); } else { const limit = user.tier === UserTier.BRONZE ? 5 : (user.tier === UserTier.SILVER ? 20 : 999); if (user.readingsToday >= limit) { alert(TRANSLATIONS[lang].limit_reached); return; } if (!spendCoins(5)) return; updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); } const selected = indices.map(i => { const cardName = TAROT_DECK[i]; const seed = Math.floor(Math.random() * 1000000); const genUrl = `https://image.pollinations.ai/prompt/tarot%20card%20${encodeURIComponent(cardName)}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=300&height=500&nologo=true&seed=${seed}&model=flux-schnell`; const img = new Image(); img.src = genUrl; return { id: i, name: cardName, isReversed: Math.random() < 0.3, imagePlaceholder: getFallbackTarotImage(i), generatedImage: genUrl, backDesign: 0 }; }); setSelectedCards(selected); navigateTo(AppState.RESULT); setReadingPromise(getTarotReading(selectedQuestion, selected, user.userInfo, lang, user.history, user.tier)); };
+  const handleCardSelect = (indices: number[]) => { if (user.email === 'Guest') { const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0'); if (guestReadings >= 1) { setShowGuestBlock(true); return; } localStorage.setItem('guest_readings', (guestReadings + 1).toString()); } else { const limit = user.tier === UserTier.BRONZE ? 10 : 999; if (user.readingsToday >= limit) { alert(TRANSLATIONS[lang].limit_reached); return; } if (!spendCoins(5)) return; updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); } const selected = indices.map(i => { const cardName = TAROT_DECK[i]; const seed = Math.floor(Math.random() * 1000000); const genUrl = `https://image.pollinations.ai/prompt/tarot%20card%20${encodeURIComponent(cardName)}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=300&height=500&nologo=true&seed=${seed}&model=flux-schnell`; const img = new Image(); img.src = genUrl; return { id: i, name: cardName, isReversed: Math.random() < 0.3, imagePlaceholder: getFallbackTarotImage(i), generatedImage: genUrl, backDesign: 0 }; }); setSelectedCards(selected); navigateTo(AppState.RESULT); setReadingPromise(getTarotReading(selectedQuestion, selected, user.userInfo, lang, user.history, user.tier)); };
+
+  const isFirstPurchase = user.totalSpent === 0 && user.email !== 'Guest';
+  const isGuest = user.email === 'Guest';
 
   return (
       <div className={`relative min-h-screen text-white font-sans overflow-hidden select-none ${SKINS.find(s=>s.id===user.currentSkin)?.cssClass}`}>
@@ -974,11 +1073,11 @@ const App: React.FC = () => {
           )}
           {appState === AppState.WELCOME && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center animate-fade-in relative z-10"><Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }} onLogin={() => setAuthMode("LOGIN")} openProfile={handleOpenProfile} /><Logo size="large" /><p className="font-serif-en text-sm md:text-base italic mb-12 text-gold-gradient font-bold tracking-widest uppercase drop-shadow-sm opacity-90">{TRANSLATIONS[lang].welcome_sub}</p><button onClick={handleStart} className="btn-gold-3d mb-8">{TRANSLATIONS[lang].enter}</button></div> )}
           {appState === AppState.INPUT_INFO && ( <div className="flex flex-col items-center justify-center min-h-screen p-6 relative z-10 animate-fade-in"><Logo size="small" /><div className="w-full max-w-md bg-black/60 border-wine-gradient p-8 rounded-lg backdrop-blur-sm"><h2 className="text-2xl font-occult text-purple-200 mb-2 text-center">{TRANSLATIONS[lang].info_title}</h2><p className="text-gray-400 text-sm mb-8 text-center">{TRANSLATIONS[lang].info_desc}</p><UserInfoForm onSubmit={handleUserInfoSubmit} lang={lang} /></div></div> )}
-          {appState === AppState.CATEGORY_SELECT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10"><h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center">{TRANSLATIONS[lang].select_cat_title}</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full relative">{(user.tier !== UserTier.BRONZE) && (<button onClick={handleEnterChat} className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group"><span className="text-2xl mb-1 group-hover:animate-bounce">💬</span><span className="text-[8px] text-white font-bold">{TRANSLATIONS[lang].chat_entry_fee}</span></button>)}{CATEGORIES.map((cat) => { const isVisible = (cat.id === 'FACE' || cat.id === 'LIFE') ? user.tier !== UserTier.BRONZE : (cat.id === 'SECRET_COMPAT') ? (user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) : (cat.id === 'PARTNER_LIFE') ? (user.tier === UserTier.PLATINUM) : true; if (!isVisible) return null; return (<button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]`}><span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span><span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{lang === 'en' ? cat.id : cat.label}</span>{cat.cost && <span className="absolute top-2 right-2 text-[10px] text-yellow-500 bg-black/80 px-1 rounded border border-yellow-700">-{cat.cost}</span>}</button>); })}</div></div> )}
+          {appState === AppState.CATEGORY_SELECT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10"><h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center">{TRANSLATIONS[lang].select_cat_title}</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full relative">{(<button onClick={handleEnterChat} className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group"><span className="text-2xl mb-1 group-hover:animate-bounce">💬</span><span className="text-[8px] text-white font-bold">{isGuest ? 'Free' : TRANSLATIONS[lang].chat_entry_fee}</span></button>)}{CATEGORIES.map((cat) => { const isVisible = (cat.id === 'FACE' || cat.id === 'LIFE') ? user.tier !== UserTier.BRONZE : (cat.id === 'SECRET_COMPAT') ? (user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) : (cat.id === 'PARTNER_LIFE') ? (user.tier === UserTier.PLATINUM) : true; if (!isVisible) return null; return (<button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]`}><span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span><span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{lang === 'en' ? cat.id : cat.label}</span>{!isGuest && cat.cost && <span className="absolute top-2 right-2 text-[10px] text-yellow-500 bg-black/80 px-1 rounded border border-yellow-700">-{cat.cost}</span>}</button>); })}</div></div> )}
           {appState === AppState.CHAT_ROOM && ( <ChatView user={user} lang={lang} onLeave={() => navigateTo(AppState.CATEGORY_SELECT)} /> )}
-          {appState === AppState.FACE_UPLOAD && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-4">{TRANSLATIONS[lang].face_reading_title}</h2><p className="text-gray-300 mb-6 text-sm md:text-base leading-relaxed break-keep">{TRANSLATIONS[lang].face_reading_desc}</p><div className="mb-6 border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative"><input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onloadend=()=>setFaceImage(r.result as string); r.readAsDataURL(f); } }} className="absolute inset-0 opacity-0 cursor-pointer" />{faceImage ? <img src={faceImage} className="max-h-48 mx-auto rounded" /> : <span className="text-gray-500">{TRANSLATIONS[lang].face_guide}</span>}</div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startFaceReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].face_upload_btn}</button></div></div></div> )}
-          {appState === AppState.LIFE_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{TRANSLATIONS[lang].life_reading_title}</h2><div className="flex gap-4 justify-center mb-6"><select value={birthTime.h} onChange={e=>setBirthTime({...birthTime, h:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:24}).map((_,i) => <option key={i} value={i.toString()}>{i}시</option>)}</select><select value={birthTime.m} onChange={e=>setBirthTime({...birthTime, m:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:60}).map((_,i) => <option key={i} value={i.toString()}>{i}분</option>)}</select></div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startLifeReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].life_input_btn}</button></div></div></div> )}
-          {appState === AppState.PARTNER_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{selectedCategory?.label}</h2><p className="text-gray-400 mb-6">{selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_desc : TRANSLATIONS[lang].partner_life_desc}</p><input value={partnerBirth} onChange={e=>setPartnerBirth(e.target.value)} placeholder={TRANSLATIONS[lang].partner_birth_ph} className="w-full p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 mb-6 outline-none"/><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startPartnerReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_btn : TRANSLATIONS[lang].partner_life_btn}</button></div></div></div> )}
+          {appState === AppState.FACE_UPLOAD && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-4">{TRANSLATIONS[lang].face_reading_title}</h2><p className="text-gray-300 mb-6 text-sm md:text-base leading-relaxed break-keep">{TRANSLATIONS[lang].face_reading_desc}</p><div className="mb-6 border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative"><input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onloadend=()=>setFaceImage(r.result as string); r.readAsDataURL(f); } }} className="absolute inset-0 opacity-0 cursor-pointer" />{faceImage ? <img src={faceImage} className="max-h-48 mx-auto rounded" /> : <span className="text-gray-500">{TRANSLATIONS[lang].face_guide}</span>}</div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startFaceReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].face_upload_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-100 Coin)')}</button></div></div></div> )}
+          {appState === AppState.LIFE_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{TRANSLATIONS[lang].life_reading_title}</h2><p className="text-gray-300 text-sm mb-6 leading-relaxed break-keep whitespace-pre-wrap">당신이 언제, 무엇으로 떼돈을 벌까요? 당신도 몰랐던 당신만의 천재적인 재능은 무엇일까요? 모두를 거느리는 내 인생의 황금기는 언제일까요? 미래의 배우자는 어떤 키, 외모, 분위기, 직업을 가지고 있을까요? 지금 당신의 숨겨진 인생 치트키를 알아보세요.</p><div className="flex gap-4 justify-center mb-6"><select value={birthTime.h} onChange={e=>setBirthTime({...birthTime, h:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:24}).map((_,i) => <option key={i} value={i.toString()}>{i}시</option>)}</select><select value={birthTime.m} onChange={e=>setBirthTime({...birthTime, m:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:60}).map((_,i) => <option key={i} value={i.toString()}>{i}분</option>)}</select></div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startLifeReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].life_input_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-250 Coin)')}</button></div></div></div> )}
+          {appState === AppState.PARTNER_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{selectedCategory?.label}</h2><p className="text-gray-400 mb-6">{selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_desc : TRANSLATIONS[lang].partner_life_desc}</p><input value={partnerBirth} onChange={e=>setPartnerBirth(e.target.value)} placeholder={TRANSLATIONS[lang].partner_birth_ph} className="w-full p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 mb-6 outline-none"/><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startPartnerReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{(selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_btn : TRANSLATIONS[lang].partner_life_btn).replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-250 Coin)')}</button></div></div></div> )}
           {appState === AppState.QUESTION_SELECT && selectedCategory && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20"><h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{selectedCategory.label}</h2><div className="w-full max-w-xl space-y-3">{selectedCategory.questions.map((q, i) => (<button key={i} onClick={() => handleQuestionSelect(q)} className="w-full p-4 text-left bg-black/60 border border-purple-900/50 rounded hover:bg-purple-900/30 hover:border-purple-500 transition-all text-gray-200 text-sm md:text-base">{q}</button>))}<div className="relative mt-6 pt-4 border-t border-gray-800"><input className="w-full p-4 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 focus:outline-none" placeholder={TRANSLATIONS[lang].custom_q_ph} value={customQuestion} onChange={(e) => setCustomQuestion(e.target.value)} /><button onClick={() => handleQuestionSelect(customQuestion)} className="absolute right-2 top-6 bottom-2 px-4 bg-purple-900 rounded text-xs font-bold hover:bg-purple-700 mt-4 mb-2">OK</button></div><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="w-full mt-6 py-3 bg-gray-800 text-gray-400 hover:text-white rounded border border-gray-700">{TRANSLATIONS[lang].back}</button></div></div> )}
           {appState === AppState.SHUFFLING && ( <ShufflingAnimation onComplete={() => navigateTo(AppState.CARD_SELECT)} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} rugColor={user.rugColor} /> )}
           {appState === AppState.CARD_SELECT && ( <CardSelection onSelectCards={handleCardSelect} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} /> )}
@@ -1002,11 +1101,12 @@ const App: React.FC = () => {
                             <div className="p-8 pb-4 relative z-10 text-center">
                                 <h2 className="text-3xl font-occult text-yellow-500 mb-2">{TRANSLATIONS[lang].shop_title}</h2>
                                 <p className="text-gray-400 text-sm">{TRANSLATIONS[lang].shop_subtitle}</p>
+                                {isFirstPurchase && <p className="text-green-400 font-bold text-xs mt-2 animate-pulse">🎉 First Purchase 50% OFF! 🎉</p>}
                             </div>
 
                             {/* Packages */}
                             <div className="p-8 pt-0 space-y-4 relative z-10">
-                                <button onClick={() => initiatePayment(4900, 60)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-gray-700 hover:border-yellow-500 p-4 rounded-xl flex items-center justify-between group transition-all">
+                                <button onClick={() => initiatePayment(isFirstPurchase ? 2450 : 4900, 60)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-gray-700 hover:border-yellow-500 p-4 rounded-xl flex items-center justify-between group transition-all">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-full bg-yellow-900/20 flex items-center justify-center text-xl">💰</div>
                                         <div className="text-left">
@@ -1014,9 +1114,12 @@ const App: React.FC = () => {
                                             <div className="text-gray-500 text-xs">Basic Reading</div>
                                         </div>
                                     </div>
-                                    <span className="text-white font-bold">{TRANSLATIONS[lang].shop_pkg_1}</span>
+                                    <div className="flex flex-col items-end">
+                                        {isFirstPurchase && <span className="text-xs text-gray-500 line-through">₩4,900</span>}
+                                        <span className="text-white font-bold">₩{(isFirstPurchase ? 2450 : 4900).toLocaleString()}</span>
+                                    </div>
                                 </button>
-                                <button onClick={() => initiatePayment(7900, 110)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-gray-700 hover:border-yellow-500 p-4 rounded-xl flex items-center justify-between group transition-all">
+                                <button onClick={() => initiatePayment(isFirstPurchase ? 3950 : 7900, 110)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-gray-700 hover:border-yellow-500 p-4 rounded-xl flex items-center justify-between group transition-all">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-full bg-yellow-900/20 flex items-center justify-center text-xl">💎</div>
                                         <div className="text-left">
@@ -1024,9 +1127,12 @@ const App: React.FC = () => {
                                             <div className="text-gray-500 text-xs">Popular Choice</div>
                                         </div>
                                     </div>
-                                    <span className="text-white font-bold">{TRANSLATIONS[lang].shop_pkg_2}</span>
+                                    <div className="flex flex-col items-end">
+                                        {isFirstPurchase && <span className="text-xs text-gray-500 line-through">₩7,900</span>}
+                                        <span className="text-white font-bold">₩{(isFirstPurchase ? 3950 : 7900).toLocaleString()}</span>
+                                    </div>
                                 </button>
-                                <button onClick={() => initiatePayment(15500, 220)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-yellow-700/50 hover:border-yellow-400 p-4 rounded-xl flex items-center justify-between group transition-all relative overflow-hidden">
+                                <button onClick={() => initiatePayment(isFirstPurchase ? 7750 : 15500, 220)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-yellow-700/50 hover:border-yellow-400 p-4 rounded-xl flex items-center justify-between group transition-all relative overflow-hidden">
                                     <div className="absolute inset-0 bg-yellow-900/10 group-hover:bg-yellow-900/20 transition-colors"></div>
                                     <div className="flex items-center gap-4 relative z-10">
                                         <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-xl text-black font-bold">👑</div>
@@ -1035,13 +1141,20 @@ const App: React.FC = () => {
                                             <div className="text-yellow-700 text-xs">Best Value</div>
                                         </div>
                                     </div>
-                                    <span className="text-yellow-400 font-bold relative z-10">{TRANSLATIONS[lang].shop_pkg_3}</span>
+                                    <div className="flex flex-col items-end relative z-10">
+                                        {isFirstPurchase && <span className="text-xs text-yellow-700 line-through">₩15,500</span>}
+                                        <span className="text-yellow-400 font-bold">₩{(isFirstPurchase ? 7750 : 15500).toLocaleString()}</span>
+                                    </div>
                                 </button>
                             </div>
                         </>
                      ) : (
                         <div className="p-8 relative z-10 text-center animate-fade-in">
                             <h2 className="text-2xl font-bold text-white mb-6">{TRANSLATIONS[lang].pay_title}</h2>
+                            <div className="mb-4">
+                                <p className="text-yellow-400 text-xl font-bold">{pendingPackage?.coins} Coins</p>
+                                <p className="text-white text-lg">₩{pendingPackage?.amount.toLocaleString()}</p>
+                            </div>
                             <div className="grid grid-cols-2 gap-4 mb-8">
                                 {['TOSS', 'PAYPAL', 'APPLE', 'KAKAO'].map(m => (
                                     <button 
@@ -1067,126 +1180,160 @@ const App: React.FC = () => {
           )}
           
           {showSettings && (
-             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
-                 <div className="w-full max-w-md bg-gray-900 border border-gray-700 rounded-lg p-6 relative">
-                     <button onClick={() => setShowSettings(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
-                     <h2 className="text-xl font-bold text-white mb-6">{TRANSLATIONS[lang].settings_title}</h2>
+             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4">
+                 {/* Stylish Purple Settings Container */}
+                 <div className="w-full max-w-md bg-[#0f0518]/95 border border-purple-500/40 rounded-2xl p-6 relative shadow-[0_0_60px_rgba(168,85,247,0.25)] backdrop-blur-xl">
+                     <button onClick={() => setShowSettings(false)} className="absolute top-4 right-4 text-purple-300/50 hover:text-white transition-colors">✕</button>
+                     <h2 className="text-2xl font-occult text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-purple-100 to-purple-400 mb-8 text-center border-b border-purple-500/20 pb-4 tracking-widest">{TRANSLATIONS[lang].settings_title}</h2>
                      
                      {settingsMode === 'MAIN' && (
                          <div className="space-y-6">
                              <div>
-                                 <label className="block text-sm text-gray-400 mb-2">{TRANSLATIONS[lang].language_control}</label>
-                                 <div className="flex bg-gray-800 rounded p-1">
-                                     <button onClick={() => setLang('ko')} className={`flex-1 py-2 rounded text-sm ${lang === 'ko' ? 'bg-purple-700 text-white' : 'text-gray-400'}`}>한국어</button>
-                                     <button onClick={() => setLang('en')} className={`flex-1 py-2 rounded text-sm ${lang === 'en' ? 'bg-purple-700 text-white' : 'text-gray-400'}`}>English</button>
+                                 <label className="block text-sm text-purple-200 mb-2 font-serif">{TRANSLATIONS[lang].language_control}</label>
+                                 <div className="flex bg-[#1a0b2e] rounded-xl border border-purple-500/30 p-1">
+                                     <button onClick={() => setLang('ko')} className={`flex-1 py-2 rounded-lg text-sm transition-all font-serif ${lang === 'ko' ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)]' : 'text-gray-400 hover:text-white'}`}>한국어</button>
+                                     <button onClick={() => setLang('en')} className={`flex-1 py-2 rounded-lg text-sm transition-all font-serif ${lang === 'en' ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)]' : 'text-gray-400 hover:text-white'}`}>English</button>
                                  </div>
                              </div>
                              <div>
-                                 <label className="block text-sm text-gray-400 mb-2">{TRANSLATIONS[lang].bgm_control}</label>
-                                 <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={e => setBgmVolume(parseFloat(e.target.value))} className="w-full accent-purple-500" />
+                                 <label className="block text-sm text-purple-200 mb-2 font-serif">{TRANSLATIONS[lang].bgm_control}</label>
+                                 <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={e => setBgmVolume(parseFloat(e.target.value))} className="w-full accent-purple-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer" />
                                  <div className="flex justify-between mt-2">
-                                     <button onClick={() => setBgmStopped(!bgmStopped)} className="text-xs text-gray-400 border border-gray-600 px-2 py-1 rounded">{bgmStopped ? 'PLAY' : 'STOP'}</button>
+                                     <button onClick={() => setBgmStopped(!bgmStopped)} className="text-xs text-purple-300 border border-purple-500/30 px-3 py-1 rounded-lg hover:bg-purple-500/20 transition-all">{bgmStopped ? 'PLAY' : 'STOP'}</button>
                                      <span className="text-xs text-gray-500">{currentBgm.name}</span>
                                  </div>
                              </div>
                              
-                             <div className="border-t border-gray-800 pt-4 space-y-2">
-                                 <button onClick={() => setSettingsMode('SKIN')} className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded text-left px-4 text-sm text-gray-200 flex justify-between">
-                                     <span>{TRANSLATIONS[lang].skin_shop}</span>
-                                     <span>🎨</span>
+                             <div className="border-t border-purple-500/20 pt-6 space-y-3">
+                                 <button onClick={() => setSettingsMode('SKIN')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                     <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].skin_shop}</span>
+                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🎨</span>
                                  </button>
-                                 {user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM ? (
-                                    <>
-                                        <button onClick={() => setSettingsMode('RUG')} className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded text-left px-4 text-sm text-gray-200 flex justify-between border border-yellow-900/30">
-                                            <span>{TRANSLATIONS[lang].rug_shop}</span>
-                                            <span>🧶</span>
-                                        </button>
-                                        <button onClick={() => setSettingsMode('BGM')} className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded text-left px-4 text-sm text-gray-200 flex justify-between border border-yellow-900/30">
-                                            <span>{TRANSLATIONS[lang].bgm_upload}</span>
-                                            <span>🎵</span>
-                                        </button>
-                                    </>
-                                 ) : null}
-                                 {user.tier !== UserTier.BRONZE && (
-                                     <button onClick={() => setSettingsMode('HISTORY')} className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded text-left px-4 text-sm text-gray-200 flex justify-between">
-                                         <span>{TRANSLATIONS[lang].history}</span>
-                                         <span>📜</span>
-                                     </button>
-                                 )}
+                                 <button onClick={() => setSettingsMode('FRAME')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                     <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].frame_shop}</span>
+                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🖼️</span>
+                                 </button>
+                                 <button onClick={() => setSettingsMode('RUG')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                     <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].rug_shop}</span>
+                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🧶</span>
+                                 </button>
+                                 <button onClick={() => setSettingsMode('BGM')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                     <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].bgm_upload}</span>
+                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🎵</span>
+                                 </button>
+                                 <button onClick={() => setSettingsMode('HISTORY')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                     <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].history}</span>
+                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">📜</span>
+                                 </button>
                              </div>
                              
-                             <div className="pt-4 border-t border-gray-800">
-                                <button onClick={() => { supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); window.location.reload(); }} className="text-xs text-red-400 hover:text-red-300 underline">{TRANSLATIONS[lang].logout}</button>
+                             {user.email !== 'Guest' && (
+                                <div className="pt-6 border-t border-purple-500/20 text-center">
+                                    <button onClick={() => { supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); window.location.reload(); }} className="text-xs text-red-400/70 hover:text-red-400 font-serif tracking-widest transition-colors">{TRANSLATIONS[lang].logout}</button>
+                                </div>
+                             )}
+                         </div>
+                     )}
+
+                     {settingsMode === 'FRAME' && (
+                         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
+                             <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Result Frame</h3>
+                             <div className="grid grid-cols-2 gap-4">
+                                 {RESULT_FRAMES.map(frame => (
+                                     <div key={frame.id} onClick={() => updateUser(prev => ({...prev, resultFrame: frame.id}))} className={`aspect-[3/4] border relative cursor-pointer bg-[#050505] flex items-center justify-center rounded-lg transition-all ${user.resultFrame === frame.id ? 'border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]' : 'border-gray-800 hover:border-purple-500/50'}`}>
+                                         {/* Preview Content */}
+                                         <div className="absolute inset-2 z-10 bg-gray-800/50 flex items-center justify-center text-[8px] text-gray-400 rounded">Preview</div>
+                                         <div className="absolute inset-0 z-20 pointer-events-none rounded-lg" style={{ cssText: frame.css } as any}></div>
+                                         <span className="absolute bottom-[-20px] text-[10px] text-gray-400 w-full text-center">{frame.name}</span>
+                                     </div>
+                                 ))}
+                             </div>
+
+                             <div className="mt-8 pt-4 border-t border-purple-500/20">
+                                 <h3 className="text-sm font-bold text-purple-200 mb-4">{TRANSLATIONS[lang].custom_frame_title}</h3>
+                                 <div className="border border-dashed border-purple-500/30 rounded-xl p-4 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative">
+                                     <input type="file" accept="image/*" onChange={handleCustomFrameUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                     {customFrameImage ? <img src={customFrameImage} className="h-20 mx-auto object-contain rounded" /> : <span className="text-xs text-gray-400">Upload Frame Image</span>}
+                                 </div>
+                                 {customFrameImage && <button onClick={handleSaveCustomFrame} className="w-full mt-2 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded-lg transition-colors font-bold shadow-lg">Save Frame</button>}
+                                 
+                                 {user.customFrames && user.customFrames.length > 0 && (
+                                     <div className="grid grid-cols-3 gap-2 mt-4">
+                                         {user.customFrames.map(cf => (
+                                             <div key={cf.id} onClick={() => updateUser(prev => ({...prev, resultFrame: cf.id}))} className={`aspect-[3/4] border cursor-pointer bg-black relative rounded-lg ${user.resultFrame === cf.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-gray-800'}`}>
+                                                 <div className="absolute inset-0 rounded-lg" style={{ border: '10px solid transparent', borderImage: `url(${cf.imageUrl}) 20 round` }}></div>
+                                             </div>
+                                         ))}
+                                     </div>
+                                 )}
                              </div>
                          </div>
                      )}
 
                      {settingsMode === 'SKIN' && (
-                         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-gray-400 mb-2">← Back</button>
-                             <h3 className="text-sm font-bold text-white mb-4">Select Card Skin</h3>
+                         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
+                             <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Card Skin</h3>
                              <div className="grid grid-cols-2 gap-4">
                                  {SKINS.map(skin => (
-                                     <div key={skin.id} onClick={() => buySkin(skin)} className={`border rounded p-2 cursor-pointer ${user.currentSkin === skin.id && !user.activeCustomSkin ? 'border-purple-500 bg-purple-900/20' : 'border-gray-700 hover:border-gray-500'} ${user.tier === UserTier.BRONZE && skin.cost > 0 ? 'opacity-50 grayscale' : ''}`}>
-                                         <div className={`h-24 rounded mb-2 w-full card-back ${skin.cssClass}`}></div>
+                                     <div key={skin.id} onClick={() => buySkin(skin)} className={`border rounded-lg p-2 cursor-pointer transition-all ${user.currentSkin === skin.id && !user.activeCustomSkin ? 'border-purple-500 bg-purple-900/20 shadow-[0_0_15px_rgba(168,85,247,0.3)]' : 'border-gray-800 hover:border-purple-500/50'} ${user.tier === UserTier.BRONZE && skin.cost > 0 && !isGuest ? 'opacity-50 grayscale' : ''}`}>
+                                         <div className={`h-24 rounded-md mb-2 w-full card-back ${skin.cssClass}`}></div>
                                          <div className="flex justify-between items-center">
-                                             <span className="text-xs text-gray-300">{skin.name}</span>
-                                             {user.ownedSkins.includes(skin.id) ? <span className="text-[10px] bg-green-900 text-green-200 px-1 rounded">OWNED</span> : <span className="text-[10px] text-yellow-500">{skin.cost} C</span>}
+                                             <span className="text-xs text-gray-300 font-serif">{skin.name}</span>
+                                             {user.ownedSkins.includes(skin.id) ? <span className="text-[10px] bg-green-900/50 text-green-300 px-1.5 py-0.5 rounded border border-green-800">OWNED</span> : <span className={`text-[10px] ${isGuest ? 'text-green-400' : 'text-purple-300'}`}>{isGuest ? 'Free' : skin.cost + ' C'}</span>}
                                          </div>
                                      </div>
                                  ))}
                              </div>
-                             {user.tier === UserTier.BRONZE && <p className="text-xs text-red-400 mt-2">{TRANSLATIONS[lang].bronze_shop_lock}</p>}
                              
-                             {user.tier !== UserTier.BRONZE && (
-                                 <div className="mt-8 pt-4 border-t border-gray-700">
-                                     <h3 className="text-sm font-bold text-purple-300 mb-4">{TRANSLATIONS[lang].custom_skin_title}</h3>
-                                     
-                                     <div className="space-y-4">
-                                         <div className="border border-dashed border-gray-600 rounded p-4 text-center cursor-pointer hover:border-purple-500 relative">
-                                             <input type="file" accept="image/*" onChange={handleCustomSkinUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                             {customSkinImage ? <img src={customSkinImage} className="h-32 mx-auto object-contain" /> : <span className="text-xs text-gray-500">{TRANSLATIONS[lang].upload_skin}</span>}
-                                         </div>
-                                         
-                                         {customSkinImage && (
-                                             <div className="flex flex-col gap-2">
-                                                 <div className="flex gap-2 text-xs">
-                                                     <button onClick={() => setIsSkinPublic(false)} className={`flex-1 py-2 rounded border ${!isSkinPublic ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-600 text-gray-400'}`}>{TRANSLATIONS[lang].private_option}</button>
-                                                     <button onClick={() => setIsSkinPublic(true)} className={`flex-1 py-2 rounded border ${isSkinPublic ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-600 text-gray-400'}`}>{TRANSLATIONS[lang].public_option}</button>
-                                                 </div>
-                                                 <button onClick={handleSaveCustomSkin} className="w-full py-2 bg-white text-black font-bold rounded text-xs hover:bg-gray-200">Save Custom Skin</button>
-                                             </div>
-                                         )}
-
-                                         <div className="mt-4 pt-4 border-t border-gray-800">
-                                             <label className="text-xs text-gray-400 block mb-1">{TRANSLATIONS[lang].skin_code_label}</label>
-                                             <div className="flex gap-2">
-                                                 <input value={inputSkinCode} onChange={e=>setInputSkinCode(e.target.value)} placeholder={TRANSLATIONS[lang].skin_code_placeholder} className="flex-1 bg-black border border-gray-700 rounded px-2 text-xs text-white" />
-                                                 <button onClick={handleApplySkinCode} className="px-3 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600">{TRANSLATIONS[lang].skin_code_btn}</button>
-                                             </div>
-                                         </div>
-
-                                         {user.customSkins && user.customSkins.length > 0 && (
-                                             <div className="grid grid-cols-3 gap-2 mt-4">
-                                                 {user.customSkins.map(cs => (
-                                                     <div key={cs.id} onClick={() => updateUser(prev => ({...prev, activeCustomSkin: cs}))} className={`aspect-[2/3] rounded border cursor-pointer bg-cover bg-center ${user.activeCustomSkin?.id === cs.id ? 'border-purple-500 shadow-[0_0_10px_purple]' : 'border-gray-700'}`} style={{ backgroundImage: `url(${cs.imageUrl})` }}></div>
-                                                 ))}
-                                                 <div onClick={() => updateUser(prev => ({...prev, activeCustomSkin: null}))} className="aspect-[2/3] rounded border border-red-900 flex items-center justify-center text-red-500 text-xs cursor-pointer hover:bg-red-900/20">Reset</div>
-                                             </div>
-                                         )}
+                             <div className="mt-8 pt-4 border-t border-purple-500/20">
+                                 <h3 className="text-sm font-bold text-purple-200 mb-4">{TRANSLATIONS[lang].custom_skin_title}</h3>
+                                 
+                                 <div className="space-y-4">
+                                     <div className="border border-dashed border-purple-500/30 rounded-xl p-4 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative">
+                                         <input type="file" accept="image/*" onChange={handleCustomSkinUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                         {customSkinImage ? <img src={customSkinImage} className="h-32 mx-auto object-contain rounded" /> : <span className="text-xs text-gray-400">{TRANSLATIONS[lang].upload_skin}</span>}
                                      </div>
+                                     
+                                     {customSkinImage && (
+                                         <div className="flex flex-col gap-2">
+                                             <div className="flex gap-2 text-xs">
+                                                 <button onClick={() => setIsSkinPublic(false)} className={`flex-1 py-2 rounded-lg border transition-all ${!isSkinPublic ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}>{TRANSLATIONS[lang].private_option}</button>
+                                                 <button onClick={() => setIsSkinPublic(true)} className={`flex-1 py-2 rounded-lg border transition-all ${isSkinPublic ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}>{TRANSLATIONS[lang].public_option}</button>
+                                             </div>
+                                             <button onClick={handleSaveCustomSkin} className="w-full py-2.5 bg-white text-black font-bold rounded-lg text-xs hover:bg-gray-200 shadow-lg">Save Custom Skin</button>
+                                         </div>
+                                     )}
+
+                                     <div className="mt-4 pt-4 border-t border-purple-500/20">
+                                         <label className="text-xs text-gray-400 block mb-2">{TRANSLATIONS[lang].skin_code_label}</label>
+                                         <div className="flex gap-2">
+                                             <input value={inputSkinCode} onChange={e=>setInputSkinCode(e.target.value)} placeholder={TRANSLATIONS[lang].skin_code_placeholder} className="flex-1 bg-black/50 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-purple-500 outline-none" />
+                                             <button onClick={handleApplySkinCode} className="px-4 py-2 bg-purple-900/50 border border-purple-500/50 text-purple-200 text-xs rounded-lg hover:bg-purple-800 transition-colors font-bold">{TRANSLATIONS[lang].skin_code_btn}</button>
+                                         </div>
+                                     </div>
+
+                                     {user.customSkins && user.customSkins.length > 0 && (
+                                         <div className="grid grid-cols-3 gap-2 mt-4">
+                                             {user.customSkins.map(cs => (
+                                                 <div key={cs.id} onClick={() => updateUser(prev => ({...prev, activeCustomSkin: cs}))} className={`aspect-[2/3] rounded-lg border cursor-pointer bg-cover bg-center transition-all ${user.activeCustomSkin?.id === cs.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)]' : 'border-gray-800 hover:border-purple-500/50'}`} style={{ backgroundImage: `url(${cs.imageUrl})` }}></div>
+                                             ))}
+                                             <div onClick={() => updateUser(prev => ({...prev, activeCustomSkin: null}))} className="aspect-[2/3] rounded-lg border border-red-900/50 flex items-center justify-center text-red-400 text-xs cursor-pointer hover:bg-red-900/20 hover:border-red-500 transition-all font-bold">Reset</div>
+                                         </div>
+                                     )}
                                  </div>
-                             )}
+                             </div>
                          </div>
                      )}
 
                      {settingsMode === 'RUG' && (
                          <div className="space-y-4">
-                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-gray-400 mb-2">← Back</button>
-                             <h3 className="text-sm font-bold text-white mb-4">Select Rug Color</h3>
-                             <div className="grid grid-cols-3 gap-3">
+                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
+                             <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Rug Color</h3>
+                             <div className="grid grid-cols-3 gap-4">
                                  {RK_COLORS.map(c => (
-                                     <div key={c.name} onClick={() => handleRugChange(c.color)} className={`aspect-square rounded-full cursor-pointer border-2 ${user.rugColor === c.color ? 'border-white shadow-[0_0_10px_white]' : 'border-transparent hover:scale-110 transition-transform'}`} style={{ backgroundColor: c.color }}></div>
+                                     <div key={c.name} onClick={() => handleRugChange(c.color)} className={`aspect-square rounded-full cursor-pointer border-2 transition-transform ${user.rugColor === c.color ? 'border-white shadow-[0_0_15px_white] scale-110' : 'border-transparent hover:scale-105'}`} style={{ backgroundColor: c.color }}></div>
                                  ))}
                              </div>
                          </div>
@@ -1194,27 +1341,31 @@ const App: React.FC = () => {
 
                      {settingsMode === 'BGM' && (
                          <div className="space-y-4">
-                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-gray-400 mb-2">← Back</button>
-                             <h3 className="text-sm font-bold text-white mb-4">Upload Custom BGM</h3>
-                             <input type="file" accept="audio/*" onChange={handleBgmUpload} className="text-xs text-gray-400" />
-                             <p className="text-[10px] text-gray-500 mt-2">MP3, WAV supported. Local only.</p>
+                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
+                             <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Upload Custom BGM</h3>
+                             <div className="border border-dashed border-purple-500/30 rounded-xl p-6 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative">
+                                <input type="file" accept="audio/*" onChange={handleBgmUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                <span className="text-2xl mb-2 block">🎵</span>
+                                <span className="text-xs text-gray-400">Click to upload MP3/WAV</span>
+                             </div>
+                             <p className="text-[10px] text-gray-500 mt-2 text-center">Supported: MP3, WAV. Stored locally.</p>
                          </div>
                      )}
 
                      {settingsMode === 'HISTORY' && (
-                         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-gray-400 mb-2">← Back</button>
-                             <h3 className="text-sm font-bold text-white mb-4">{TRANSLATIONS[lang].history}</h3>
-                             {user.history.length === 0 ? <p className="text-gray-500 text-xs text-center">{TRANSLATIONS[lang].no_history}</p> : (
+                         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
+                             <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">{TRANSLATIONS[lang].history}</h3>
+                             {user.history.length === 0 ? <p className="text-gray-500 text-xs text-center py-8">{TRANSLATIONS[lang].no_history}</p> : (
                                  <div className="space-y-3">
                                      {user.history.map((h, i) => (
-                                         <div key={i} className="bg-black/50 p-3 rounded border border-gray-800">
-                                             <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+                                         <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/5 hover:border-purple-500/30 transition-all">
+                                             <div className="flex justify-between text-[10px] text-purple-300 mb-2">
                                                  <span>{new Date(h.date).toLocaleDateString()}</span>
-                                                 <span>{h.type || 'TAROT'}</span>
+                                                 <span className="font-bold bg-purple-900/50 px-2 py-0.5 rounded">{h.type || 'TAROT'}</span>
                                              </div>
                                              <p className="text-xs text-gray-200 font-bold truncate mb-1">{h.question}</p>
-                                             <p className="text-[10px] text-gray-400 line-clamp-2">{h.interpretation}</p>
+                                             <p className="text-[10px] text-gray-400 line-clamp-2 leading-relaxed">{h.interpretation}</p>
                                          </div>
                                      ))}
                                  </div>

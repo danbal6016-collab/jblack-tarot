@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 
@@ -132,9 +133,9 @@ async function retryOperation<T>(
 }
 
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Timeout set to 300s (was 180s). 
-    // Increased to allow full 4000 token generation without premature timeout.
-    const API_TIMEOUT = 300000;   
+    // Timeout set to 25s (was 300s). 
+    // Reduced significantly to fail fast and show fallback if network hangs.
+    const API_TIMEOUT = 25000;   
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -156,7 +157,9 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             console.log(`Attempting generation with model: ${model}`);
             
             const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-            if (!config.maxOutputTokens) config.maxOutputTokens = 4000; // Ensure max tokens for full reading
+            
+            // OPTIMIZATION: Reduce tokens for non-deep analysis to speed up response
+            if (!config.maxOutputTokens) config.maxOutputTokens = 1300; 
 
             // Clean up config for flash models
             if (config.thinkingConfig) delete config.thinkingConfig;
@@ -223,7 +226,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
 
                     // Add timeout to fetch call to prevent hanging
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout per attempt
+                    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout per attempt
 
                     try {
                         const constEqRes = await fetch('/api/gemini', {
@@ -313,7 +316,7 @@ export const getTarotReading = async (
   const config = {
     systemInstruction: getBaseInstruction(lang),
     temperature: 0.9, 
-    maxOutputTokens: 4000,
+    maxOutputTokens: 1300, // Reduced from 2000 to 1300 to improve perceived speed
   };
 
   // UPDATED: Use 'gemini-3-flash-preview' for maximum speed and reliability
@@ -341,7 +344,7 @@ export const getCompatibilityReading = async (
     const config = {
         systemInstruction: getBaseInstruction(lang),
         temperature: 0.9,
-        maxOutputTokens: 2000,
+        maxOutputTokens: 1300,
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
@@ -367,7 +370,7 @@ export const getPartnerLifeReading = async (
     const config = {
         systemInstruction: getBaseInstruction(lang),
         temperature: 0.8,
-        maxOutputTokens: 4000,
+        maxOutputTokens: 2000, // Reduced for speed
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
@@ -390,7 +393,7 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     const config = { 
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.7, 
-        maxOutputTokens: 2000,
+        maxOutputTokens: 1500,
     };
     // Prioritize 3-flash-preview for vision tasks (multimodal support)
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', [imagePart], lang);
@@ -416,7 +419,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
     const config = { 
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.8, 
-        maxOutputTokens: 4000, 
+        maxOutputTokens: 3000, // Keep this relatively high for Life reading, but capped
     };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };

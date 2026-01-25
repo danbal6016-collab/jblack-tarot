@@ -1,7 +1,12 @@
-import { supabase } from "../src/lib/supabase.ts";
+import { supabase, isSupabaseConfigured } from "../src/lib/supabase.ts";
 
 export function GoogleContinueButton() {
   const signInWithGoogle = async () => {
+    if (!isSupabaseConfigured) {
+        alert("Backend not configured. Google Login is unavailable.");
+        return;
+    }
+
     // Safe env access for site URL
     let siteUrl = window.location.origin;
     try {

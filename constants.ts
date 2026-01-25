@@ -46,6 +46,13 @@ export const SKINS: Skin[] = [
   { id: 'idol_2', name: 'K-Idol All Black 2', cost: 150, type: 'IDOL', cssClass: 'design-idol-2' },
 ];
 
+export const RESULT_FRAMES = [
+    { id: 'default', name: 'Void (Default)', css: 'border: none;' },
+    { id: 'simple_gold', name: 'Simple Gold', css: 'border: 2px solid #fbbf24; border-radius: 12px;' },
+    { id: 'antique_double', name: 'Antique Double', css: 'border: 6px double #b8860b; border-radius: 4px;' },
+    { id: 'gothic_frame', name: 'Gothic Ornament', css: 'border: 20px solid transparent; border-image: url("https://img.freepik.com/free-vector/vintage-ornamental-frame-design_53876-115822.jpg?w=740&t=st=1708840000~exp=1708840600~hmac=fake") 30 round;' } 
+];
+
 // Updated Thresholds (Coins Spent)
 export const TIER_THRESHOLDS = {
   BRONZE: 0,
@@ -187,7 +194,7 @@ export const CATEGORIES: QuestionCategory[] = [
     icon: '🧬',
     questions: [], 
     minTier: UserTier.SILVER,
-    cost: 200
+    cost: 250 // Updated to 250
   },
   {
     id: 'SECRET_COMPAT',

@@ -77,6 +77,12 @@ export interface CustomSkin {
   shareCode?: string; // Only if Public
 }
 
+export interface CustomFrame {
+  id: string;
+  imageUrl: string;
+  name: string;
+}
+
 export interface User {
   email: string;
   coins: number;
@@ -106,6 +112,10 @@ export interface User {
   // Custom Skins (Silver+)
   customSkins?: CustomSkin[];
   activeCustomSkin?: CustomSkin | null;
+
+  // Result Frames
+  resultFrame?: string; // 'default', 'gold', 'ornate', or custom ID
+  customFrames?: CustomFrame[];
 
   lastMonthlyReward?: string; 
   monthlyCoinsSpent?: number;
