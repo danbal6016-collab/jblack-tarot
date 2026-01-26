@@ -581,14 +581,14 @@ const ResultView: React.FC<{
   useEffect(() => {
     let isMounted = true;
     if(readingPromise) {
-      // Optimized 10s safety timeout to reduce premature "cards silent" errors
+      // Optimized 12s safety timeout for immediate response feeling
       const timer = setTimeout(() => {
          if(isMounted && loading) {
              setAnalysisText("The cards are silent... (Network Timeout)\nBut your destiny is clear.");
              setSolutionText("Try again later.");
              setLoading(false);
          }
-      }, 10000); 
+      }, 12000); 
 
       readingPromise.then(t => {
         if(!isMounted) return;

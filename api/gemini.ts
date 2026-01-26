@@ -44,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const response = await ai.models.generateContent({
-      model: model || 'gemini-3-flash-preview',
+      model: model || 'gemini-2.5-flash',
       contents: contents,
       config: safeConfig
     });
