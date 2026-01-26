@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from "./src/lib/supabase";
 import { GoogleContinueButton } from "./components/AuthModal";
+import LoginForm from './components/LoginForm';
 import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult, UserTier, Country, BGM, Skin, ChatMessage, CustomSkin, CustomFrame } from './types';
 import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTENDANCE_REWARDS, RESULT_FRAMES } from './constants';
 import Background from './components/Background';
@@ -27,7 +29,7 @@ const TRANSLATIONS = {
     country_ph: "국가 선택 (Country)",
     select_cat_title: "오늘의 타로를 선택하세요.",
     shuffling: "운명을 섞는 중...",
-    select_cards_title: "당신의 운명을 선택하세요",
+    select_cards_title: "카드 3장을 고르세요.",
     result_question: "질문",
     share: "결과 저장 & 공유", 
     settings_title: "설정 (Settings)",
@@ -571,23 +573,18 @@ const ResultView: React.FC<{
   const captureRef = useRef<HTMLDivElement>(null);
   const cardImages = selectedCards.map(c => c.generatedImage || c.imagePlaceholder);
 
-  // Frame Logic
+  // Frame Logic - SIMPLIFIED AND DYNAMIC
   const activeFrameId = user.resultFrame || 'default';
   const systemFrame = RESULT_FRAMES.find(f => f.id === activeFrameId);
   const customFrame = user.customFrames?.find(f => f.id === activeFrameId);
-  const frameStyle: React.CSSProperties = customFrame 
+  
+  // Create style object directly from the frame definition
+  // If it's a custom frame, use the uploaded image
+  // If it's a system frame, use the 'css' property which contains the full style string
+  // For 'default', we pass an empty object or rely on base styles.
+  const frameStyle: any = customFrame 
     ? { border: '20px solid transparent', borderImage: `url(${customFrame.imageUrl}) 30 round` }
-    : (systemFrame ? { cssText: systemFrame.css } as any : {});
-
-  // For default inline styles not covered by simple 'cssText' mapping
-  if (systemFrame && systemFrame.id !== 'default' && !customFrame) {
-      if (systemFrame.id === 'simple_gold') frameStyle.border = '2px solid #fbbf24';
-      if (systemFrame.id === 'antique_double') frameStyle.border = '6px double #b8860b';
-      if (systemFrame.id === 'gothic_frame') {
-          frameStyle.border = '20px solid transparent';
-          frameStyle.borderImage = 'url("https://img.freepik.com/free-vector/vintage-ornamental-frame-design_53876-115822.jpg?w=740&t=st=1708840000~exp=1708840600~hmac=fake") 30 round';
-      }
-  }
+    : (systemFrame && systemFrame.id !== 'default' ? { cssText: systemFrame.css } : {});
 
   useEffect(() => {
     if(readingPromise) {
@@ -625,7 +622,7 @@ const ResultView: React.FC<{
            {/* Dynamic Result Frame Wrapper */}
            <div className="absolute inset-4 pointer-events-none z-20" style={frameStyle}></div>
            
-           {/* Decorative Corners (SVG) if default */}
+           {/* Decorative Corners (SVG) if default - ONLY SHOW IF DEFAULT */}
            {activeFrameId === 'default' && (
                <>
                <div className="absolute top-6 left-6 text-[#b8860b] w-16 h-16 border-t-4 border-l-4 border-[#b8860b]"></div>
@@ -952,8 +949,11 @@ const App: React.FC = () => {
 
     if (currentMonthlyReward !== currentMonth) {
         if (newTier !== UserTier.BRONZE) {
-            if (newTier === UserTier.GOLD) { newCoins = Math.floor(newCoins * 1.5); alert(TRANSLATIONS[lang].reward_popup + " (1.5x)"); }
-            else if (newTier === UserTier.PLATINUM) { newCoins = Math.floor(newCoins * 2.0); alert(TRANSLATIONS[lang].reward_popup + " (2.0x)"); }
+            // Only give bonus to logged-in users
+            if (currentUser.email !== 'Guest') {
+                if (newTier === UserTier.GOLD) { newCoins = Math.floor(newCoins * 1.5); alert(TRANSLATIONS[lang].reward_popup + " (1.5x)"); }
+                else if (newTier === UserTier.PLATINUM) { newCoins = Math.floor(newCoins * 2.0); alert(TRANSLATIONS[lang].reward_popup + " (2.0x)"); }
+            }
         }
         newMonthlyCoinsSpent = 0; newTier = UserTier.BRONZE; currentMonthlyReward = currentMonth;
     } else {
@@ -995,19 +995,28 @@ const App: React.FC = () => {
   const handleUserInfoSubmit = (info: UserInfo) => { updateUser((prev) => ({ ...prev, userInfo: info })); navigateTo(AppState.CATEGORY_SELECT); };
   const spendCoins = (amount: number): boolean => { if (user.email === 'Guest') return true; if (user.coins < amount) { if (confirm(TRANSLATIONS[lang].coin_shortage)) { setShowShop(true); setShopStep('AMOUNT'); } return false; } updateUser(prev => { const newSpent = (prev.monthlyCoinsSpent || 0) + amount; return { ...prev, coins: prev.coins - amount, monthlyCoinsSpent: newSpent, tier: calculateTier(newSpent) }; }); return true; };
   
+  const checkGuestAction = () => {
+      if (user.email === 'Guest') {
+          if (confirm("로그인이 필요한 기능입니다. 로그인 하시겠습니까?")) setAuthMode('LOGIN');
+          return true;
+      }
+      return false;
+  };
+
   const buySkin = (skin: Skin) => {
+      if (checkGuestAction()) return;
       if (user.ownedSkins.includes(skin.id)) { updateUser(prev => ({ ...prev, currentSkin: skin.id, activeCustomSkin: null })); return; }
       if (spendCoins(skin.cost)) { updateUser(prev => ({ ...prev, ownedSkins: [...prev.ownedSkins, skin.id], currentSkin: skin.id, activeCustomSkin: null })); }
   };
   const handleCustomSkinUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomSkinImage(e.target?.result as string); reader.readAsDataURL(file); };
-  const handleSaveCustomSkin = () => { if (!customSkinImage) return; const newSkin: CustomSkin = { id: Math.random().toString(36).substring(2), imageUrl: customSkinImage, isPublic: isSkinPublic, shareCode: isSkinPublic ? Math.floor(100000 + Math.random() * 900000).toString() : undefined }; updateUser(prev => ({ ...prev, customSkins: [...(prev.customSkins || []), newSkin], activeCustomSkin: newSkin })); setCustomSkinImage(null); alert(`${TRANSLATIONS[lang].skin_saved} ${newSkin.shareCode ? `Code: ${newSkin.shareCode}` : ''}`); };
+  const handleSaveCustomSkin = () => { if (checkGuestAction()) return; if (!customSkinImage) return; const newSkin: CustomSkin = { id: Math.random().toString(36).substring(2), imageUrl: customSkinImage, isPublic: isSkinPublic, shareCode: isSkinPublic ? Math.floor(100000 + Math.random() * 900000).toString() : undefined }; updateUser(prev => ({ ...prev, customSkins: [...(prev.customSkins || []), newSkin], activeCustomSkin: newSkin })); setCustomSkinImage(null); alert(`${TRANSLATIONS[lang].skin_saved} ${newSkin.shareCode ? `Code: ${newSkin.shareCode}` : ''}`); };
   
   const handleCustomFrameUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomFrameImage(e.target?.result as string); reader.readAsDataURL(file); };
-  const handleSaveCustomFrame = () => { if (!customFrameImage) return; const newFrame: CustomFrame = { id: Math.random().toString(36).substring(2), imageUrl: customFrameImage, name: 'Custom Frame' }; updateUser(prev => ({ ...prev, customFrames: [...(prev.customFrames || []), newFrame], resultFrame: newFrame.id })); setCustomFrameImage(null); alert("Frame Saved & Applied!"); };
+  const handleSaveCustomFrame = () => { if (checkGuestAction()) return; if (!customFrameImage) return; const newFrame: CustomFrame = { id: Math.random().toString(36).substring(2), imageUrl: customFrameImage, name: 'Custom Frame' }; updateUser(prev => ({ ...prev, customFrames: [...(prev.customFrames || []), newFrame], resultFrame: newFrame.id })); setCustomFrameImage(null); alert("Frame Saved & Applied!"); };
 
-  const handleApplySkinCode = () => { const found = user.customSkins?.find(s => s.shareCode === inputSkinCode); if (found) { updateUser(prev => ({ ...prev, activeCustomSkin: found })); alert(TRANSLATIONS[lang].skin_applied); } else alert("Invalid Code (Simulation: Only local codes work in demo)"); };
-  const handleBgmUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const url = URL.createObjectURL(file); const newBgm: BGM = { id: 'custom-' + Date.now(), name: file.name, url: url, category: 'DEFAULT' }; setCurrentBgm(newBgm); alert("BGM Applied!"); };
-  const handleRugChange = (color: string) => { updateUser(prev => ({ ...prev, rugColor: color })); };
+  const handleApplySkinCode = () => { if (checkGuestAction()) return; const found = user.customSkins?.find(s => s.shareCode === inputSkinCode); if (found) { updateUser(prev => ({ ...prev, activeCustomSkin: found })); alert(TRANSLATIONS[lang].skin_applied); } else alert("Invalid Code (Simulation: Only local codes work in demo)"); };
+  const handleBgmUpload = (e: React.ChangeEvent<HTMLInputElement>) => { if (checkGuestAction()) return; const file = e.target.files?.[0]; if (!file) return; const url = URL.createObjectURL(file); const newBgm: BGM = { id: 'custom-' + Date.now(), name: file.name, url: url, category: 'DEFAULT' }; setCurrentBgm(newBgm); alert("BGM Applied!"); };
+  const handleRugChange = (color: string) => { if (checkGuestAction()) return; updateUser(prev => ({ ...prev, rugColor: color })); };
   const handleOpenProfile = () => { if (user.userInfo) setEditProfileData({ ...user.userInfo }); setShowProfile(true); };
   const handleSaveProfile = async () => { 
       if (!user.userInfo) return; 
@@ -1183,7 +1192,7 @@ const App: React.FC = () => {
           {showSettings && (
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4">
                  {/* Stylish Purple Settings Container */}
-                 <div className="w-full max-w-md bg-[#0f0518]/95 border border-purple-500/40 rounded-2xl p-6 relative shadow-[0_0_60px_rgba(168,85,247,0.25)] backdrop-blur-xl">
+                 <div className="w-full max-w-md bg-[#0f0518]/95 border border-purple-500/40 rounded-2xl p-6 relative shadow-[0_0_60px_rgba(168,85,247,0.25)] backdrop-blur-xl max-h-[85vh] overflow-y-auto custom-scrollbar">
                      <button onClick={() => setShowSettings(false)} className="absolute top-4 right-4 text-purple-300/50 hover:text-white transition-colors">✕</button>
                      <h2 className="text-2xl font-occult text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-purple-100 to-purple-400 mb-8 text-center border-b border-purple-500/20 pb-4 tracking-widest">{TRANSLATIONS[lang].settings_title}</h2>
                      
@@ -1237,12 +1246,12 @@ const App: React.FC = () => {
                      )}
 
                      {settingsMode === 'FRAME' && (
-                         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                         <div className="space-y-4">
                              <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
                              <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Result Frame</h3>
                              <div className="grid grid-cols-2 gap-4">
                                  {RESULT_FRAMES.map(frame => (
-                                     <div key={frame.id} onClick={() => updateUser(prev => ({...prev, resultFrame: frame.id}))} className={`aspect-[3/4] border relative cursor-pointer bg-[#050505] flex items-center justify-center rounded-lg transition-all ${user.resultFrame === frame.id ? 'border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]' : 'border-gray-800 hover:border-purple-500/50'}`}>
+                                     <div key={frame.id} onClick={() => { if(checkGuestAction()) return; updateUser(prev => ({...prev, resultFrame: frame.id})); }} className={`aspect-[3/4] border relative cursor-pointer bg-[#050505] flex items-center justify-center rounded-lg transition-all ${user.resultFrame === frame.id ? 'border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]' : 'border-gray-800 hover:border-purple-500/50'}`}>
                                          {/* Preview Content */}
                                          <div className="absolute inset-2 z-10 bg-gray-800/50 flex items-center justify-center text-[8px] text-gray-400 rounded">Preview</div>
                                          <div className="absolute inset-0 z-20 pointer-events-none rounded-lg" style={{ cssText: frame.css } as any}></div>
@@ -1262,7 +1271,7 @@ const App: React.FC = () => {
                                  {user.customFrames && user.customFrames.length > 0 && (
                                      <div className="grid grid-cols-3 gap-2 mt-4">
                                          {user.customFrames.map(cf => (
-                                             <div key={cf.id} onClick={() => updateUser(prev => ({...prev, resultFrame: cf.id}))} className={`aspect-[3/4] border cursor-pointer bg-black relative rounded-lg ${user.resultFrame === cf.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-gray-800'}`}>
+                                             <div key={cf.id} onClick={() => { if(checkGuestAction()) return; updateUser(prev => ({...prev, resultFrame: cf.id})); }} className={`aspect-[3/4] border cursor-pointer bg-black relative rounded-lg ${user.resultFrame === cf.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-gray-800'}`}>
                                                  <div className="absolute inset-0 rounded-lg" style={{ border: '10px solid transparent', borderImage: `url(${cf.imageUrl}) 20 round` }}></div>
                                              </div>
                                          ))}
@@ -1273,7 +1282,7 @@ const App: React.FC = () => {
                      )}
 
                      {settingsMode === 'SKIN' && (
-                         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                         <div className="space-y-4">
                              <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
                              <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Card Skin</h3>
                              <div className="grid grid-cols-2 gap-4">
@@ -1318,9 +1327,9 @@ const App: React.FC = () => {
                                      {user.customSkins && user.customSkins.length > 0 && (
                                          <div className="grid grid-cols-3 gap-2 mt-4">
                                              {user.customSkins.map(cs => (
-                                                 <div key={cs.id} onClick={() => updateUser(prev => ({...prev, activeCustomSkin: cs}))} className={`aspect-[2/3] rounded-lg border cursor-pointer bg-cover bg-center transition-all ${user.activeCustomSkin?.id === cs.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)]' : 'border-gray-800 hover:border-purple-500/50'}`} style={{ backgroundImage: `url(${cs.imageUrl})` }}></div>
+                                                 <div key={cs.id} onClick={() => { if(checkGuestAction()) return; updateUser(prev => ({...prev, activeCustomSkin: cs})); }} className={`aspect-[2/3] rounded-lg border cursor-pointer bg-cover bg-center transition-all ${user.activeCustomSkin?.id === cs.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)]' : 'border-gray-800 hover:border-purple-500/50'}`} style={{ backgroundImage: `url(${cs.imageUrl})` }}></div>
                                              ))}
-                                             <div onClick={() => updateUser(prev => ({...prev, activeCustomSkin: null}))} className="aspect-[2/3] rounded-lg border border-red-900/50 flex items-center justify-center text-red-400 text-xs cursor-pointer hover:bg-red-900/20 hover:border-red-500 transition-all font-bold">Reset</div>
+                                             <div onClick={() => { if(checkGuestAction()) return; updateUser(prev => ({...prev, activeCustomSkin: null})); }} className="aspect-[2/3] rounded-lg border border-red-900/50 flex items-center justify-center text-red-400 text-xs cursor-pointer hover:bg-red-900/20 hover:border-red-500 transition-all font-bold">Reset</div>
                                          </div>
                                      )}
                                  </div>
@@ -1354,7 +1363,7 @@ const App: React.FC = () => {
                      )}
 
                      {settingsMode === 'HISTORY' && (
-                         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                         <div className="space-y-4">
                              <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
                              <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">{TRANSLATIONS[lang].history}</h3>
                              {user.history.length === 0 ? <p className="text-gray-500 text-xs text-center py-8">{TRANSLATIONS[lang].no_history}</p> : (
