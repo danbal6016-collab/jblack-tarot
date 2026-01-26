@@ -1,7 +1,5 @@
 {
   "name": "Black Tarot",
   "description": "Unveil your destiny with Black Tarot.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

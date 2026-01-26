@@ -117,6 +117,10 @@ export interface User {
   resultFrame?: string; // 'default', 'gold', 'ornate', or custom ID
   customFrames?: CustomFrame[];
 
+  // Result Customization
+  resultBackground?: string;
+  customStickers?: string[];
+
   lastMonthlyReward?: string; 
   monthlyCoinsSpent?: number;
   

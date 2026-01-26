@@ -21,12 +21,10 @@ STRICT RULES:
 };
 
 const getTarotStructure = (lang: Language, tier: string = 'BRONZE') => {
-    // Gold+ gets a Special Section
     const specialSection = (tier === 'GOLD' || tier === 'PLATINUM') 
         ? `\n[Jennie's Secret Tip]\n(One spicy sentence)` 
         : "";
 
-    // Platinum gets full transparency
     const platinumNote = (tier === 'PLATINUM')
         ? `\n(PLATINUM: Raw outcome)`
         : "";
@@ -49,7 +47,6 @@ ${platinumNote}
 };
 
 // --- EMERGENCY FALLBACK TEXT ---
-// Used when all API calls fail to prevent the UI from showing an error.
 const EMERGENCY_FALLBACK_RESPONSE = `
 [내용 분석]
 우주의 기운이 잠시 메롱하네요. 하지만 당신은 이미 답을 알고 있지 않나요?
@@ -75,12 +72,11 @@ const SAFETY_SETTINGS = [
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Fallback Chain
-// OPTIMIZATION: Use gemini-2.5-flash as primary for speed/reliability on Vercel Hobby.
 const MODEL_FALLBACK_CHAIN = [
-    'gemini-2.5-flash',
-    'gemini-flash-lite-latest',
     'gemini-3-flash-preview',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-flash-lite-latest',
 ];
 
 async function retryOperation<T>(
@@ -95,40 +91,14 @@ async function retryOperation<T>(
             return await operation();
         } catch (error: any) {
             lastError = error;
-            const status = error.status || error.response?.status;
-            const errorMessage = error.message?.toLowerCase() || '';
-            
-            // Critical: If Referrer Blocked (403), do NOT retry the same way, throw immediately
-            if (status === 403 || errorMessage.includes('referer') || errorMessage.includes('permission_denied')) {
-                throw error; 
-            }
-
-            // Retry on rate limits (429), server errors (500+), or network issues (Failed to fetch)
-            if (
-                status === 429 || 
-                status >= 500 || 
-                errorMessage.includes('fetch') || 
-                errorMessage.includes('network') || 
-                errorMessage.includes('overloaded') ||
-                errorMessage.includes('aborted') ||
-                errorMessage.includes('timeout')
-            ) {
-                if (i === maxAttempts - 1) break;
-
-                const delay = baseDelay * Math.pow(2, i); 
-                console.warn(`Retry ${i+1}/${maxAttempts} after ${delay}ms due to error:`, error.message);
-                await wait(delay);
-                continue;
-            }
-            throw error;
+            await wait(baseDelay);
         }
     }
     throw lastError;
 }
 
-async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.5-flash', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Global Timeout - Increased slightly but we rely on faster models
-    const API_TIMEOUT = 50000;   
+async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
+    const API_TIMEOUT = 60000; // Increased to 60s to prevent timeout errors
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -141,8 +111,6 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
         });
     };
 
-    // Construct model list: Preferred -> Fallbacks
-    // Use Set to remove duplicates if preferredModel is already in chain
     const chainSet = new Set([preferredModel, ...MODEL_FALLBACK_CHAIN]);
     const modelsToTry = Array.from(chainSet);
 
@@ -151,10 +119,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             console.log(`Attempting generation with model: ${model}`);
             
             const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-            
-            // OPTIMIZATION: Reduce tokens to ensure speed on Vercel Hobby (10s limit)
             if (!config.maxOutputTokens) config.maxOutputTokens = 800; 
-
             if (config.thinkingConfig) delete config.thinkingConfig;
 
             let responseText = "";
@@ -181,6 +146,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                     responseText = await withTimeout(retryOperation(async () => {
                         const ai = new GoogleGenAI({ apiKey });
                         
+                        // SDK v1.x compatible content structure
                         let contents: any = { parts: [{ text: prompt }] };
                         if (imageParts && imageParts.length > 0) {
                             contents = { parts: [...imageParts, { text: prompt }] };
@@ -193,21 +159,13 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         });
 
                         if (response.text) return response.text;
-                        
-                        if (response.candidates && response.candidates.length > 0 && response.candidates[0].finishReason) {
-                             throw new Error(`Blocked: ${response.candidates[0].finishReason}`);
-                        }
-                        
-                        throw new Error("No text generated from model (empty response).");
+                        throw new Error("No text generated from model.");
                     }, 2, 1000), API_TIMEOUT);
 
                     if (responseText) return responseText;
 
                 } catch (e: any) {
-                    console.warn(`Client-side SDK failed for ${model}. trying proxy...`, e.message);
-                    if (e.message.includes("Blocked") || e.message.includes("invalid_argument") || e.message.includes("api_key")) {
-                        throw e; // Don't fallback to proxy if it's a critical client error
-                    }
+                    console.warn(`Client-side SDK failed for ${model}.`, e.message);
                 }
             }
 
@@ -218,9 +176,8 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                     if (imageParts) body.imageParts = imageParts;
 
                     const controller = new AbortController();
-                    // Vercel Hobby/Pro timeout safety. 
-                    // Lower local timeout to fail fast and try next model if stuck.
-                    const timeoutId = setTimeout(() => controller.abort(), 20000); 
+                    // Increased fetch abort timeout to 55s
+                    const timeoutId = setTimeout(() => controller.abort(), 55000); 
 
                     try {
                         const constEqRes = await fetch('/api/gemini', {
@@ -232,25 +189,12 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         
                         clearTimeout(timeoutId);
 
-                        if (!constEqRes.ok) {
-                            if (constEqRes.status === 404) {
-                                throw new Error("Proxy endpoint not found (404)");
-                            }
-                            // If 504 Gateway Timeout, throw specific error
-                            if (constEqRes.status === 504) {
-                                throw new Error("Server Timeout (504)");
-                            }
-                            const errText = await constEqRes.text().catch(() => constEqRes.statusText);
-                            throw new Error(`Proxy ${constEqRes.status}: ${errText}`);
-                        }
+                        if (!constEqRes.ok) throw new Error(`Proxy error: ${constEqRes.status}`);
                         const data = await constEqRes.json();
                         if (!data.text) throw new Error("Empty response from proxy");
                         return data.text as string;
                     } catch (fetchErr: any) {
                         clearTimeout(timeoutId);
-                        if (fetchErr.name === 'AbortError') {
-                            throw new Error("Proxy request timed out locally");
-                        }
                         throw fetchErr;
                     }
                 }, 2, 1000);
@@ -259,17 +203,16 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
 
             } catch (proxyError: any) {
                 console.error(`Proxy failed for ${model}:`, proxyError);
-                lastErrorMessage = proxyError.message || "Proxy Error";
+                lastErrorMessage = proxyError.message;
             }
 
         } catch (modelError: any) {
-            console.warn(`Model ${model} failed fully.`, modelError);
-            lastErrorMessage = modelError.message || JSON.stringify(modelError);
+            console.warn(`Model ${model} failed fully.`);
             continue;
         }
     }
 
-    console.error("All models failed. Returning Emergency Fallback. Last Error:", lastErrorMessage);
+    console.error("All models failed. Returning Emergency Fallback.");
     return EMERGENCY_FALLBACK_RESPONSE;
 }
 
@@ -285,20 +228,11 @@ export const getTarotReading = async (
 ): Promise<string> => {
   const cardNames = cards.map(c => c.name + (c.isReversed ? " (Reversed)" : "")).join(", ");
   const userContext = userInfo ? `User: ${userInfo.name}, ${userInfo.birthDate}` : "User: Anonymous";
-  
-  let personalizationContext = "";
-  if ((tier === 'SILVER' || tier === 'GOLD' || tier === 'PLATINUM') && history.length > 0) {
-      const recentHistory = history.slice(0, 2).map(h => `Q: ${h.question}`).join("\n");
-      personalizationContext = `\nContext: ${recentHistory}`;
-  }
-
-  // Inject Randomness to prevent caching
   const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
 
   const prompt = `
     ${randomSeed}
     ${userContext}
-    ${personalizationContext}
     Q: "${question}"
     Cards: ${cardNames}
     FAST RESPONSE REQUIRED.
@@ -308,11 +242,10 @@ export const getTarotReading = async (
   const config = {
     systemInstruction: getBaseInstruction(lang),
     temperature: 0.9, 
-    maxOutputTokens: 1000, 
+    maxOutputTokens: 800, 
   };
 
-  // Use gemini-2.5-flash for speed
-  return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
+  return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
 export const getCompatibilityReading = async (
@@ -321,7 +254,6 @@ export const getCompatibilityReading = async (
     lang: Language = 'ko'
 ): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-
     const prompt = `
       ${randomSeed}
       SECRET COMPATIBILITY between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
@@ -330,78 +262,35 @@ export const getCompatibilityReading = async (
       [감춰진 욕망]
       [결론]
     `;
-    const config = {
-        systemInstruction: getBaseInstruction(lang),
-        temperature: 0.9,
-        maxOutputTokens: 1000,
-    };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 800 };
+    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
-export const getPartnerLifeReading = async (
-    partnerBirth: string,
-    lang: Language = 'ko'
-): Promise<string> => {
+export const getPartnerLifeReading = async (partnerBirth: string, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-
     const prompt = `
       ${randomSeed}
       LIFE PATH for ${partnerBirth}.
-      Sections:
-      1. [초년]
-      2. [중년]
-      3. [노년]
-      Tone: Mysterious, Fast.
+      Sections: [초년], [중년], [노년]. Tone: Mysterious, Fast.
     `;
-    const config = {
-        systemInstruction: getBaseInstruction(lang),
-        temperature: 0.8,
-        maxOutputTokens: 1000, 
-    };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 800 };
+    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
-    const prompt = `
-      ${randomSeed}
-      Physiognomy Analysis.
-      Tone: Cynical, Fast.
-      Result: Personality & Fortune.
-    `;
+    const prompt = `${randomSeed} Physiognomy Analysis. Tone: Cynical, Fast. Result: Personality & Fortune.`;
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
-    const config = { 
-        systemInstruction: getBaseInstruction(lang), 
-        temperature: 0.7, 
-        maxOutputTokens: 1000,
-    };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', [imagePart], lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 800 };
+    return await callGenAI(prompt, config, 'gemini-3-flash-preview', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-
-    const prompt = `
-      ${randomSeed}
-      Saju for ${userInfo.name}, ${userInfo.birthDate} ${userInfo.birthTime}.
-      Content: Wealth, Talent, Spouse.
-      Tone: Fast, Direct.
-    `;
-    const config = { 
-        systemInstruction: getBaseInstruction(lang), 
-        temperature: 0.8, 
-        maxOutputTokens: 1000, 
-    };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
-};
-
-export const generateTarotImage = async (cardName: string): Promise<string> => {
-  const seed = Math.floor(Math.random() * 1000000);
-  const encodedName = encodeURIComponent(cardName);
-  const url = `https://image.pollinations.ai/prompt/tarot%20card%20${encodedName}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=400&height=600&nologo=true&seed=${seed}&model=flux`;
-  return url;
+    const prompt = `${randomSeed} Saju for ${userInfo.name}, ${userInfo.birthDate} ${userInfo.birthTime}. Content: Wealth, Talent, Spouse. Tone: Fast, Direct.`;
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 800 };
+    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
 export const getFallbackTarotImage = (cardId: number): string => {

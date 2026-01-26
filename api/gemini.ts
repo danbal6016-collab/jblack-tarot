@@ -1,9 +1,8 @@
-
 import { GoogleGenAI } from "@google/genai";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 export const config = {
-  maxDuration: 60, // Try to extend if on Pro, ignored on Hobby but good practice
+  maxDuration: 60, 
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -28,29 +27,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    // Construct contents correctly for the SDK
+    // Strict content formatting for SDK compatibility
     let contents: any;
     
     if (imageParts && Array.isArray(imageParts) && imageParts.length > 0) {
-        // If images are present, we must use the { parts: [...] } structure
-        // imageParts should be an array of objects like { inlineData: { ... } }
-        // text prompt should be { text: string }
         contents = { parts: [...imageParts, { text: prompt }] };
     } else {
-        // Simple text only
-        contents = prompt;
+        // Always wrap text in parts to be safe with all models
+        contents = { parts: [{ text: prompt }] };
+    }
+
+    // Ensure thinkingConfig is removed if present to prevent errors with models that don't support it
+    const safeConfig = { ...config };
+    if (safeConfig.thinkingConfig) {
+        delete safeConfig.thinkingConfig;
     }
 
     const response = await ai.models.generateContent({
-      model: model || 'gemini-flash-lite-latest',
+      model: model || 'gemini-3-flash-preview',
       contents: contents,
-      config: config
+      config: safeConfig
     });
 
     return res.status(200).json({ text: response.text });
   } catch (e: any) {
     console.error("Gemini Proxy Error:", e);
-    // Return a valid JSON error structure so the client can parse it and retry
     const status = e.status || (e.response && e.response.status) || 500;
     return res.status(status).json({ 
         error: e.message || "Internal Server Error", 

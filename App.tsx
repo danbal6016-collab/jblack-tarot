@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from "./src/lib/supabase";
 import { GoogleContinueButton } from "./components/AuthModal";
 import LoginForm from './components/LoginForm';
 import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult, UserTier, Country, BGM, Skin, ChatMessage, CustomSkin, CustomFrame } from './types';
-import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTENDANCE_REWARDS, RESULT_FRAMES } from './constants';
+import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTENDANCE_REWARDS, RESULT_FRAMES, RESULT_BACKGROUNDS, DEFAULT_STICKERS } from './constants';
 import Background from './components/Background';
 import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
@@ -33,6 +32,7 @@ const TRANSLATIONS = {
     result_question: "질문",
     share: "결과 저장 & 공유", 
     settings_title: "설정 (Settings)",
+    settings_login_only: "※ 설정 기능은 로그인 유저만 사용할 수 있습니다.",
     bgm_control: "배경음악 설정",
     language_control: "언어 (Language)",
     tier_info: "나의 등급",
@@ -104,7 +104,12 @@ const TRANSLATIONS = {
     bgm_upload: "BGM 업로드",
     back: "뒤로 가기",
     frame_shop: "결과지 프레임",
-    custom_frame_title: "커스텀 프레임 제작"
+    custom_frame_title: "커스텀 프레임 제작",
+    result_bg_shop: "결과지 배경",
+    sticker_shop: "스티커 관리",
+    sticker_upload: "커스텀 스티커 업로드",
+    decorate_btn: "꾸미기",
+    save_changes: "저장 완료"
   },
   en: {
     welcome_sub: "Cards don't lie.",
@@ -122,6 +127,7 @@ const TRANSLATIONS = {
     result_question: "Question",
     share: "Save & Share", 
     settings_title: "Settings",
+    settings_login_only: "※ Features require login.",
     bgm_control: "BGM",
     language_control: "Language",
     tier_info: "My Tier",
@@ -193,7 +199,12 @@ const TRANSLATIONS = {
     bgm_upload: "BGM Upload",
     back: "Back",
     frame_shop: "Result Frame",
-    custom_frame_title: "Create Custom Frame"
+    custom_frame_title: "Create Custom Frame",
+    result_bg_shop: "Result Background",
+    sticker_shop: "Sticker Manager",
+    sticker_upload: "Upload Custom Sticker",
+    decorate_btn: "Decorate",
+    save_changes: "Saved"
   }
 };
 
@@ -217,29 +228,6 @@ const GoldCoinIcon: React.FC<{ sizeClass?: string }> = ({ sizeClass = "w-6 h-6" 
         <span className="text-yellow-900 font-bold text-[8px] md:text-[10px] z-10">$</span>
     </div>
 );
-
-const TypewriterText: React.FC<{ text: string }> = ({ text }) => {
-    const [visibleCount, setVisibleCount] = useState(0);
-    useEffect(() => {
-        setVisibleCount(0);
-        // Faster text speed for responsiveness - Increased from 5 to 25 to prevent stopping sensation
-        const timer = setInterval(() => {
-            setVisibleCount(p => {
-                if (p >= text.length) {
-                    clearInterval(timer);
-                    return p;
-                }
-                return p + 25;
-            });
-        }, 20); 
-        return () => clearInterval(timer);
-    }, [text]);
-    return (
-        <div className="whitespace-pre-line leading-relaxed font-sans text-gray-200">
-            {text.substring(0, visibleCount)}
-        </div>
-    );
-};
 
 const ChatView: React.FC<{
     user: User;
@@ -568,27 +556,43 @@ const ResultView: React.FC<{
   const [solutionText, setSolutionText] = useState('');
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState<boolean[]>([false,false,false]);
-  // Updated: Unlock logic for Guest users OR First-time users (empty history)
   const [isSolutionUnlocked, setIsSolutionUnlocked] = useState(user.email === 'Guest' || user.history.length === 0);
   const captureRef = useRef<HTMLDivElement>(null);
   const cardImages = selectedCards.map(c => c.generatedImage || c.imagePlaceholder);
 
-  // Frame Logic - SIMPLIFIED AND DYNAMIC
+  // Background Logic
+  const activeBgId = user.resultBackground || 'default';
+  const systemBg = RESULT_BACKGROUNDS.find(b => b.id === activeBgId);
+  // Check if it's a custom uploaded background URL (not starting with 'default', 'midnight', etc.) or assume system
+  const bgStyle = systemBg 
+    ? { background: systemBg.css } 
+    : { backgroundImage: `url(${activeBgId})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+
+  // Frame Logic
   const activeFrameId = user.resultFrame || 'default';
   const systemFrame = RESULT_FRAMES.find(f => f.id === activeFrameId);
   const customFrame = user.customFrames?.find(f => f.id === activeFrameId);
   
-  // Create style object directly from the frame definition
-  // If it's a custom frame, use the uploaded image
-  // If it's a system frame, use the 'css' property which contains the full style string
-  // For 'default', we pass an empty object or rely on base styles.
   const frameStyle: any = customFrame 
     ? { border: '20px solid transparent', borderImage: `url(${customFrame.imageUrl}) 30 round` }
     : (systemFrame && systemFrame.id !== 'default' ? { cssText: systemFrame.css } : {});
 
+  // Immediate Result Fallback Timer
   useEffect(() => {
+    let isMounted = true;
     if(readingPromise) {
+      // Optimized 10s safety timeout to reduce premature "cards silent" errors
+      const timer = setTimeout(() => {
+         if(isMounted && loading) {
+             setAnalysisText("The cards are silent... (Network Timeout)\nBut your destiny is clear.");
+             setSolutionText("Try again later.");
+             setLoading(false);
+         }
+      }, 10000); 
+
       readingPromise.then(t => {
+        if(!isMounted) return;
+        clearTimeout(timer);
         setFullText(t);
         const parts = t.split('[실질적인 해결책]');
         setAnalysisText(parts[0]);
@@ -597,10 +601,13 @@ const ResultView: React.FC<{
         setLoading(false);
         onReadingComplete(t);
       }).catch(e => {
+        if(!isMounted) return;
+        clearTimeout(timer);
         setAnalysisText("Error: " + (e.message || "Failed to fetch response"));
         setLoading(false);
       });
     }
+    return () => { isMounted = false; };
   }, [readingPromise]);
 
   const toggleReveal = (i: number) => { if(!revealed[i]) { playSound('REVEAL'); const newR = [...revealed]; newR[i] = true; setRevealed(newR); } };
@@ -615,8 +622,8 @@ const ResultView: React.FC<{
   return (
     <div className={`min-h-screen pt-28 pb-20 px-4 flex flex-col items-center z-10 relative overflow-y-auto overflow-x-hidden ${!user.activeCustomSkin ? SKINS.find(s=>s.id===user.currentSkin)?.cssClass : ''}`}>
        <div ref={captureRef} style={{ position: 'fixed', left: '-9999px', top: 0, width: '1080px', minHeight: '1920px', zIndex: -10 }} className="bg-[#050505] text-white flex flex-col items-center font-serif relative overflow-hidden">
-           {/* Background layers */}
-           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#2e0b49_0%,#000000_100%)] opacity-100"></div>
+           {/* Dynamic Background */}
+           <div className="absolute inset-0 opacity-100" style={bgStyle}></div>
            <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E")` }}></div>
            
            {/* Dynamic Result Frame Wrapper */}
@@ -700,11 +707,11 @@ const ResultView: React.FC<{
          <div className="relative">
             <div className="bg-black/60 backdrop-blur-md border border-purple-900/30 p-6 md:p-8 rounded-sm shadow-2xl min-h-[200px]">
                 {loading ? <div className="flex flex-col items-center justify-center h-40 gap-4"><div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div><span className="text-purple-300 font-occult animate-pulse text-sm tracking-widest">Reading Fate...</span></div> : (
-                    <div className="text-gray-200 font-sans text-sm md:text-base leading-relaxed md:leading-loose whitespace-pre-wrap break-keep">
-                        <TypewriterText text={analysisText} />
+                    <div className="text-gray-200 font-sans text-sm md:text-base leading-relaxed md:leading-loose whitespace-pre-wrap break-keep animate-fade-in">
+                        {analysisText}
                         {solutionText && (
                             <div className="mt-8 pt-8 border-t border-purple-900/50 relative">
-                                {isSolutionUnlocked ? <div className="animate-fade-in"><TypewriterText text={solutionText} /></div> : (
+                                {isSolutionUnlocked ? <div className="animate-fade-in">{solutionText}</div> : (
                                     <div className="relative rounded-lg overflow-hidden select-none min-h-[200px]">
                                         <div className="filter blur-[8px] opacity-60 text-gray-400 text-xs leading-relaxed select-none pointer-events-none" style={{ userSelect: 'none' }}>{solutionText}</div>
                                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-transparent via-black/60 to-black/80 z-10 p-4">
@@ -720,6 +727,7 @@ const ResultView: React.FC<{
             </div>
          </div>
        </div>
+       
        <div className="fixed bottom-6 z-40 flex gap-4 animate-fade-in-up">
          <button onClick={onRetry} className="px-8 py-3 bg-gray-900/80 border border-gray-600 rounded text-gray-300 font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg backdrop-blur-md uppercase text-sm tracking-wider">{TRANSLATIONS[lang].next}</button>
          <button onClick={handleCapture} className="px-8 py-3 bg-gradient-to-r from-purple-900 to-indigo-900 border border-purple-500 rounded text-white font-bold hover:brightness-110 transition-all shadow-[0_0_15px_rgba(147,51,234,0.4)] backdrop-blur-md uppercase text-sm tracking-wider flex items-center gap-2"><span>✨</span> {TRANSLATIONS[lang].share}</button>
@@ -824,10 +832,10 @@ const RK_COLORS = [
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
-  const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0, resultFrame: 'default', customFrames: [] });
+  const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0, resultFrame: 'default', customFrames: [], resultBackground: 'default', customStickers: [] });
   const [authMode, setAuthMode] = useState<'LOGIN'|'SIGNUP'|null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsMode, setSettingsMode] = useState<'MAIN' | 'RUG' | 'BGM' | 'SKIN' | 'HISTORY' | 'FRAME'>('MAIN');
+  const [settingsMode, setSettingsMode] = useState<'MAIN' | 'RUG' | 'BGM' | 'SKIN' | 'HISTORY' | 'FRAME' | 'RESULT_BG' | 'STICKER'>('MAIN');
   const [showShop, setShowShop] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showGuestBlock, setShowGuestBlock] = useState(false);
@@ -836,6 +844,8 @@ const App: React.FC = () => {
   const [editProfileData, setEditProfileData] = useState<UserInfo>({ name: '', birthDate: '', country: '', timezone: '', zodiacSign: '', nameChangeCount: 0, birthDateChanged: false, countryChanged: false });
   const [customSkinImage, setCustomSkinImage] = useState<string | null>(null);
   const [customFrameImage, setCustomFrameImage] = useState<string | null>(null);
+  const [customBgImage, setCustomBgImage] = useState<string | null>(null);
+  const [customStickerImage, setCustomStickerImage] = useState<string | null>(null);
   const [isSkinPublic, setIsSkinPublic] = useState(false);
   const [inputSkinCode, setInputSkinCode] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<QuestionCategory | null>(null);
@@ -898,9 +908,7 @@ const App: React.FC = () => {
                 } catch(e) { console.warn("Failed to fetch cloud data", e); }
                 currentUser.email = email;
             } else {
-                // If no session, rely on local or new Guest
                if (!localUser || localUser.email !== 'Guest') {
-                   // Guest users start as Platinum for their first trial
                    currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
                }
                if (!localStorage.getItem('tarot_device_id')) {
@@ -918,7 +926,6 @@ const App: React.FC = () => {
             }
         }
     } else {
-        // Not configured -> Guest Mode
         if (!localUser || localUser.email !== 'Guest') {
              currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
         }
@@ -949,7 +956,6 @@ const App: React.FC = () => {
 
     if (currentMonthlyReward !== currentMonth) {
         if (newTier !== UserTier.BRONZE) {
-            // Only give bonus to logged-in users
             if (currentUser.email !== 'Guest') {
                 if (newTier === UserTier.GOLD) { newCoins = Math.floor(newCoins * 1.5); alert(TRANSLATIONS[lang].reward_popup + " (1.5x)"); }
                 else if (newTier === UserTier.PLATINUM) { newCoins = Math.floor(newCoins * 2.0); alert(TRANSLATIONS[lang].reward_popup + " (2.0x)"); }
@@ -960,34 +966,27 @@ const App: React.FC = () => {
         newTier = calculateTier(newMonthlyCoinsSpent);
     }
 
-    // Guests always have Platinum access until locked out
     if (currentUser.email === 'Guest') {
         newTier = UserTier.PLATINUM;
     }
 
     if (newLastAttendance !== today) {
-        // Attendance Logic
         if (newAttendanceDay < 10) newAttendanceDay += 1; else newAttendanceDay = 1; 
         const reward = ATTENDANCE_REWARDS[Math.min(newAttendanceDay, 10) - 1] || 20;
         
-        // Only give rewards and show popup for logged-in users
         if (currentUser.email !== 'Guest') {
             newCoins += reward; 
             setAttendanceReward(reward); 
             setShowAttendancePopup(true);
         }
-        // Always update last attendance date to prevent repeated checks today
         newLastAttendance = today; 
     }
     
     const updatedUser = { ...currentUser, tier: newTier, coins: newCoins, lastLoginDate: today, loginDates: newLoginDates, readingsToday: currentUser.lastReadingDate === today ? currentUser.readingsToday : 0, lastReadingDate: today, lastMonthlyReward: currentMonthlyReward, attendanceDay: newAttendanceDay, lastAttendance: newLastAttendance, monthlyCoinsSpent: newMonthlyCoinsSpent };
     setUser(updatedUser); 
-    
-    // NOTE: Removed forced navigation to WELCOME on update to prevent language switch reset.
-    // Navigation is now handled explicitly by user actions or initial mount logic if needed.
     saveUserState(updatedUser, appState);
 
-  }, []); // Removed [lang] dependency to prevent re-running on language change
+  }, []);
 
   useEffect(() => { checkUser(); }, [checkUser]);
 
@@ -995,9 +994,10 @@ const App: React.FC = () => {
   const handleUserInfoSubmit = (info: UserInfo) => { updateUser((prev) => ({ ...prev, userInfo: info })); navigateTo(AppState.CATEGORY_SELECT); };
   const spendCoins = (amount: number): boolean => { if (user.email === 'Guest') return true; if (user.coins < amount) { if (confirm(TRANSLATIONS[lang].coin_shortage)) { setShowShop(true); setShopStep('AMOUNT'); } return false; } updateUser(prev => { const newSpent = (prev.monthlyCoinsSpent || 0) + amount; return { ...prev, coins: prev.coins - amount, monthlyCoinsSpent: newSpent, tier: calculateTier(newSpent) }; }); return true; };
   
+  // Replaced confirm dialog with Alert and strict return false for Guest
   const checkGuestAction = () => {
       if (user.email === 'Guest') {
-          if (confirm("로그인이 필요한 기능입니다. 로그인 하시겠습니까?")) setAuthMode('LOGIN');
+          alert("로그인한 사용자만 이용 가능합니다.");
           return true;
       }
       return false;
@@ -1014,6 +1014,12 @@ const App: React.FC = () => {
   const handleCustomFrameUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomFrameImage(e.target?.result as string); reader.readAsDataURL(file); };
   const handleSaveCustomFrame = () => { if (checkGuestAction()) return; if (!customFrameImage) return; const newFrame: CustomFrame = { id: Math.random().toString(36).substring(2), imageUrl: customFrameImage, name: 'Custom Frame' }; updateUser(prev => ({ ...prev, customFrames: [...(prev.customFrames || []), newFrame], resultFrame: newFrame.id })); setCustomFrameImage(null); alert("Frame Saved & Applied!"); };
 
+  const handleCustomBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomBgImage(e.target?.result as string); reader.readAsDataURL(file); };
+  const handleSaveCustomBg = () => { if (checkGuestAction()) return; if (!customBgImage) return; updateUser(prev => ({ ...prev, resultBackground: customBgImage })); setCustomBgImage(null); alert("Background Saved & Applied!"); };
+
+  const handleCustomStickerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomStickerImage(e.target?.result as string); reader.readAsDataURL(file); };
+  const handleSaveCustomSticker = () => { if (checkGuestAction()) return; if (!customStickerImage) return; updateUser(prev => ({ ...prev, customStickers: [...(prev.customStickers || []), customStickerImage] })); setCustomStickerImage(null); alert("Sticker Added!"); };
+
   const handleApplySkinCode = () => { if (checkGuestAction()) return; const found = user.customSkins?.find(s => s.shareCode === inputSkinCode); if (found) { updateUser(prev => ({ ...prev, activeCustomSkin: found })); alert(TRANSLATIONS[lang].skin_applied); } else alert("Invalid Code (Simulation: Only local codes work in demo)"); };
   const handleBgmUpload = (e: React.ChangeEvent<HTMLInputElement>) => { if (checkGuestAction()) return; const file = e.target.files?.[0]; if (!file) return; const url = URL.createObjectURL(file); const newBgm: BGM = { id: 'custom-' + Date.now(), name: file.name, url: url, category: 'DEFAULT' }; setCurrentBgm(newBgm); alert("BGM Applied!"); };
   const handleRugChange = (color: string) => { if (checkGuestAction()) return; updateUser(prev => ({ ...prev, rugColor: color })); };
@@ -1021,22 +1027,14 @@ const App: React.FC = () => {
   const handleSaveProfile = async () => { 
       if (!user.userInfo) return; 
       const newInfo = { ...editProfileData }; 
-      
-      // Removed complex change logic constraints for better UX feedback - just update it
-      // Ensure Supabase update happens
       if (user.email !== 'Guest' && isSupabaseConfigured) {
           const { error } = await supabase.from('profiles').upsert({ 
               email: user.email, 
               data: { ...user, userInfo: newInfo }, 
               updated_at: new Date().toISOString() 
           }, { onConflict: 'email' });
-          
-          if (error) {
-              alert("저장 실패: " + error.message);
-              return;
-          }
+          if (error) { alert("저장 실패: " + error.message); return; }
       }
-      
       updateUser(prev => ({ ...prev, userInfo: newInfo })); 
       alert("프로필이 저장되었습니다."); 
       setShowProfile(false); 
@@ -1054,6 +1052,15 @@ const App: React.FC = () => {
 
   const isFirstPurchase = user.totalSpent === 0 && user.email !== 'Guest';
   const isGuest = user.email === 'Guest';
+
+  // Strict check for settings buttons
+  const handleSettingsClick = (mode: 'SKIN' | 'FRAME' | 'RUG' | 'BGM' | 'HISTORY' | 'RESULT_BG' | 'STICKER') => {
+      if (user.email === 'Guest') {
+          alert("로그인한 사용자만 이용 가능합니다.");
+          return;
+      }
+      setSettingsMode(mode);
+  };
 
   return (
       <div className={`relative min-h-screen text-white font-sans overflow-hidden select-none ${SKINS.find(s=>s.id===user.currentSkin)?.cssClass}`}>
@@ -1215,23 +1222,31 @@ const App: React.FC = () => {
                              </div>
                              
                              <div className="border-t border-purple-500/20 pt-6 space-y-3">
-                                 <button onClick={() => setSettingsMode('SKIN')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                 <button onClick={() => handleSettingsClick('SKIN')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].skin_shop}</span>
                                      <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🎨</span>
                                  </button>
-                                 <button onClick={() => setSettingsMode('FRAME')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                 <button onClick={() => handleSettingsClick('FRAME')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].frame_shop}</span>
                                      <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🖼️</span>
                                  </button>
-                                 <button onClick={() => setSettingsMode('RUG')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                 <button onClick={() => handleSettingsClick('RESULT_BG')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                     <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].result_bg_shop}</span>
+                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🌌</span>
+                                 </button>
+                                 <button onClick={() => handleSettingsClick('STICKER')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                     <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].sticker_shop}</span>
+                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🦋</span>
+                                 </button>
+                                 <button onClick={() => handleSettingsClick('RUG')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].rug_shop}</span>
                                      <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🧶</span>
                                  </button>
-                                 <button onClick={() => setSettingsMode('BGM')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                 <button onClick={() => handleSettingsClick('BGM')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].bgm_upload}</span>
                                      <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🎵</span>
                                  </button>
-                                 <button onClick={() => setSettingsMode('HISTORY')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
+                                 <button onClick={() => handleSettingsClick('HISTORY')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].history}</span>
                                      <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">📜</span>
                                  </button>
@@ -1252,7 +1267,6 @@ const App: React.FC = () => {
                              <div className="grid grid-cols-2 gap-4">
                                  {RESULT_FRAMES.map(frame => (
                                      <div key={frame.id} onClick={() => { if(checkGuestAction()) return; updateUser(prev => ({...prev, resultFrame: frame.id})); }} className={`aspect-[3/4] border relative cursor-pointer bg-[#050505] flex items-center justify-center rounded-lg transition-all ${user.resultFrame === frame.id ? 'border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]' : 'border-gray-800 hover:border-purple-500/50'}`}>
-                                         {/* Preview Content */}
                                          <div className="absolute inset-2 z-10 bg-gray-800/50 flex items-center justify-center text-[8px] text-gray-400 rounded">Preview</div>
                                          <div className="absolute inset-0 z-20 pointer-events-none rounded-lg" style={{ cssText: frame.css } as any}></div>
                                          <span className="absolute bottom-[-20px] text-[10px] text-gray-400 w-full text-center">{frame.name}</span>
@@ -1278,6 +1292,52 @@ const App: React.FC = () => {
                                      </div>
                                  )}
                              </div>
+                         </div>
+                     )}
+
+                     {settingsMode === 'RESULT_BG' && (
+                         <div className="space-y-4">
+                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
+                             <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Result Background</h3>
+                             <div className="grid grid-cols-2 gap-4">
+                                 {RESULT_BACKGROUNDS.map(bg => (
+                                     <div key={bg.id} onClick={() => updateUser(prev => ({...prev, resultBackground: bg.id}))} className={`aspect-square border cursor-pointer rounded-lg transition-all relative overflow-hidden ${user.resultBackground === bg.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-gray-800'}`}>
+                                         <div className="absolute inset-0" style={{ background: bg.css }}></div>
+                                         <span className="absolute bottom-1 w-full text-center text-[10px] text-white/70 bg-black/30 backdrop-blur-sm">{bg.name}</span>
+                                     </div>
+                                 ))}
+                             </div>
+                             
+                             <div className="mt-4 pt-4 border-t border-purple-500/20">
+                                 <h3 className="text-sm font-bold text-purple-200 mb-4">Custom Background</h3>
+                                 <div className="border border-dashed border-purple-500/30 rounded-xl p-4 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative">
+                                     <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                     {customBgImage ? <img src={customBgImage} className="h-20 mx-auto object-cover rounded" /> : <span className="text-xs text-gray-400">Upload Background</span>}
+                                 </div>
+                                 {customBgImage && <button onClick={handleSaveCustomBg} className="w-full mt-2 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded-lg font-bold shadow-lg">Set Background</button>}
+                             </div>
+                         </div>
+                     )}
+
+                     {settingsMode === 'STICKER' && (
+                         <div className="space-y-4">
+                             <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
+                             <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Manage Stickers</h3>
+                             <div className="flex flex-wrap gap-2 mb-4 bg-black/40 p-2 rounded-lg">
+                                {user.customStickers?.map((s, i) => (
+                                    <div key={i} className="w-10 h-10 border border-gray-700 rounded bg-black/60 p-1 relative group">
+                                        <img src={s} className="w-full h-full object-contain" />
+                                        <button onClick={() => updateUser(prev => ({...prev, customStickers: prev.customStickers?.filter((_, idx) => idx !== i)}))} className="absolute -top-1 -right-1 bg-red-500 text-white w-4 h-4 rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100">✕</button>
+                                    </div>
+                                ))}
+                                {(!user.customStickers || user.customStickers.length === 0) && <span className="text-xs text-gray-500 w-full text-center py-2">No custom stickers yet.</span>}
+                             </div>
+                             
+                             <div className="border border-dashed border-purple-500/30 rounded-xl p-4 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative">
+                                 <input type="file" accept="image/*" onChange={handleCustomStickerUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                 {customStickerImage ? <img src={customStickerImage} className="h-20 mx-auto object-contain" /> : <span className="text-xs text-gray-400">{TRANSLATIONS[lang].sticker_upload}</span>}
+                             </div>
+                             {customStickerImage && <button onClick={handleSaveCustomSticker} className="w-full mt-2 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded-lg font-bold shadow-lg">Add Sticker</button>}
                          </div>
                      )}
 
@@ -1345,6 +1405,10 @@ const App: React.FC = () => {
                                  {RK_COLORS.map(c => (
                                      <div key={c.name} onClick={() => handleRugChange(c.color)} className={`aspect-square rounded-full cursor-pointer border-2 transition-transform ${user.rugColor === c.color ? 'border-white shadow-[0_0_15px_white] scale-110' : 'border-transparent hover:scale-105'}`} style={{ backgroundColor: c.color }}></div>
                                  ))}
+                             </div>
+                             <div className="flex items-center gap-4 mt-4 p-4 bg-white/5 rounded-xl">
+                                 <span className="text-sm text-gray-300">Custom Color:</span>
+                                 <input type="color" value={user.rugColor || '#2e0b49'} onChange={(e) => handleRugChange(e.target.value)} className="w-10 h-10 rounded cursor-pointer border-none p-0 bg-transparent" />
                              </div>
                          </div>
                      )}

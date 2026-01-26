@@ -1,4 +1,5 @@
 
+
 import { CategoryKey, QuestionCategory, UserTier, Country, BGM, Skin } from './types';
 
 // --- COUNTRIES (Top 50 Selection) ---
@@ -56,6 +57,18 @@ export const RESULT_FRAMES = [
     { id: 'ethereal_glow', name: 'Ethereal Glow', css: 'border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 0 30px rgba(255,255,255,0.3), inset 0 0 30px rgba(255,255,255,0.1); border-radius: 20px; backdrop-filter: blur(5px);' },
     { id: 'blood_ruby', name: 'Blood Ruby', css: 'border: 4px ridge #7f1d1d; box-shadow: 0 0 15px #ef4444; border-radius: 2px; background: linear-gradient(to bottom, rgba(50,0,0,0.5), transparent);' },
     { id: 'starry_night', name: 'Starry Night', css: 'border: 3px dashed #fbbf24; border-radius: 15px; box-shadow: 0 0 10px #fbbf24; background-image: radial-gradient(white 1px, transparent 1px); background-size: 20px 20px;' }
+];
+
+export const RESULT_BACKGROUNDS = [
+    { id: 'default', name: 'Mystic Void', css: 'radial-gradient(circle at center, #2e1065 0%, #000000 100%)' },
+    { id: 'midnight_fog', name: 'Midnight Fog', css: 'linear-gradient(to bottom, #0f172a, #000000)' },
+    { id: 'crimson_tide', name: 'Crimson Tide', css: 'linear-gradient(45deg, #450a0a, #000000)' },
+    { id: 'emerald_abyss', name: 'Emerald Abyss', css: 'radial-gradient(circle at top right, #064e3b, #000000)' },
+    { id: 'royal_gold', name: 'Royal Gold', css: 'linear-gradient(to bottom right, #422006, #000000)' },
+];
+
+export const DEFAULT_STICKERS = [
+    "✨", "🌙", "🔮", "🦋", "🕯️", "⚰️", "🥀", "💀", "🗝️", "🧿"
 ];
 
 // Updated Thresholds (Coins Spent)
