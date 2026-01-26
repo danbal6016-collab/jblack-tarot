@@ -76,11 +76,11 @@ const SAFETY_SETTINGS = [
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Fallback Chain
-// OPTIMIZATION: Prioritize gemini-3-flash-preview for better performance/quality balance.
+// OPTIMIZATION: Use gemini-2.5-flash as primary for speed/reliability on Vercel Hobby.
 const MODEL_FALLBACK_CHAIN = [
-    'gemini-3-flash-preview',
     'gemini-2.5-flash',
     'gemini-flash-lite-latest',
+    'gemini-3-flash-preview',
 ];
 
 async function retryOperation<T>(
@@ -126,9 +126,9 @@ async function retryOperation<T>(
     throw lastError;
 }
 
-async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Global Timeout
-    const API_TIMEOUT = 45000;   
+async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.5-flash', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
+    // Global Timeout - Increased slightly but we rely on faster models
+    const API_TIMEOUT = 50000;   
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -141,6 +141,8 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
         });
     };
 
+    // Construct model list: Preferred -> Fallbacks
+    // Use Set to remove duplicates if preferredModel is already in chain
     const chainSet = new Set([preferredModel, ...MODEL_FALLBACK_CHAIN]);
     const modelsToTry = Array.from(chainSet);
 
@@ -150,8 +152,8 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             
             const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
             
-            // OPTIMIZATION: Ensure enough tokens for response
-            if (!config.maxOutputTokens) config.maxOutputTokens = 2000; 
+            // OPTIMIZATION: Reduce tokens to ensure speed on Vercel Hobby (10s limit)
+            if (!config.maxOutputTokens) config.maxOutputTokens = 800; 
 
             if (config.thinkingConfig) delete config.thinkingConfig;
 
@@ -216,9 +218,9 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                     if (imageParts) body.imageParts = imageParts;
 
                     const controller = new AbortController();
-                    // Vercel Hobby/Pro timeout safety. Set to 25s to catch it before Global Timeout.
-                    // If Vercel kills it at 10s (Hobby), this will fail with fetch error, triggering retry or next model.
-                    const timeoutId = setTimeout(() => controller.abort(), 25000); 
+                    // Vercel Hobby/Pro timeout safety. 
+                    // Lower local timeout to fail fast and try next model if stuck.
+                    const timeoutId = setTimeout(() => controller.abort(), 20000); 
 
                     try {
                         const constEqRes = await fetch('/api/gemini', {
@@ -306,10 +308,11 @@ export const getTarotReading = async (
   const config = {
     systemInstruction: getBaseInstruction(lang),
     temperature: 0.9, 
-    maxOutputTokens: 2000, 
+    maxOutputTokens: 1000, 
   };
 
-  return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+  // Use gemini-2.5-flash for speed
+  return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getCompatibilityReading = async (
@@ -330,9 +333,9 @@ export const getCompatibilityReading = async (
     const config = {
         systemInstruction: getBaseInstruction(lang),
         temperature: 0.9,
-        maxOutputTokens: 2000,
+        maxOutputTokens: 1000,
     };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getPartnerLifeReading = async (
@@ -353,9 +356,9 @@ export const getPartnerLifeReading = async (
     const config = {
         systemInstruction: getBaseInstruction(lang),
         temperature: 0.8,
-        maxOutputTokens: 2000, 
+        maxOutputTokens: 1000, 
     };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -372,9 +375,9 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     const config = { 
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.7, 
-        maxOutputTokens: 2000,
+        maxOutputTokens: 1000,
     };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', [imagePart], lang);
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -389,9 +392,9 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
     const config = { 
         systemInstruction: getBaseInstruction(lang), 
         temperature: 0.8, 
-        maxOutputTokens: 2000, 
+        maxOutputTokens: 1000, 
     };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const generateTarotImage = async (cardName: string): Promise<string> => {
