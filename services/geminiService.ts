@@ -17,6 +17,7 @@ STRICT RULES:
 2. NO INTROS/OUTROS.
 3. BE SAVAGE & WITTY.
 4. ABSOLUTELY NO ASTERISKS (*) OR MARKDOWN BOLDING. Do not use * ever. I strictly forbid the use of *.
+5. This is for ENTERTAINMENT PURPOSES ONLY.
 `;
 };
 
@@ -32,7 +33,7 @@ const getTarotStructure = (lang: Language, tier: string = 'BRONZE') => {
     return `
 FORMAT:
 [내용 분석]
-(10 sentences. Analyze the cards deeply.)
+(10 sentences. Analyze the situation deeply.)
 
 [조언 한마디]
 (1 punchy sentence)
@@ -83,16 +84,16 @@ const SAFETY_SETTINGS = [
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Use gemini-flash-latest for maximum stability and speed
+// Prioritize faster, stable models to prevent timeouts and cutoffs
 const MODEL_FALLBACK_CHAIN = [
-    'gemini-flash-latest',
-    'gemini-2.0-flash-exp',
-    'gemini-3-flash-preview'
+    'gemini-1.5-flash',     // Fastest and most reliable for long context
+    'gemini-2.0-flash',     // Good alternative
+    'gemini-flash-latest'   // Alias
 ];
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
-    maxAttempts: number = 2, 
+    maxAttempts: number = 3, // Increased attempts
     baseDelay: number = 500
 ): Promise<T> {
     let lastError: any;
@@ -102,14 +103,16 @@ async function retryOperation<T>(
             return await operation();
         } catch (error: any) {
             lastError = error;
-            await wait(baseDelay);
+            console.warn(`Attempt ${i + 1} failed:`, error.message);
+            // Exponential backoff
+            await wait(baseDelay * Math.pow(2, i));
         }
     }
     throw lastError;
 }
 
-async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-flash-latest', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const API_TIMEOUT = 120000; 
+async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-1.5-flash', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
+    const API_TIMEOUT = 90000; // 90 seconds timeout
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -130,7 +133,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             console.log(`Attempting generation with model: ${model}`);
             
             const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-            if (!config.maxOutputTokens) config.maxOutputTokens = 4000; 
+            if (!config.maxOutputTokens) config.maxOutputTokens = 8192; // Increased to prevent cutoffs
             if (config.thinkingConfig) delete config.thinkingConfig;
 
             let responseText = "";
@@ -171,7 +174,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
 
                         if (response.text) return response.text;
                         throw new Error("No text generated from model.");
-                    }, 2, 1000), API_TIMEOUT);
+                    }, 2, 800), API_TIMEOUT);
 
                     if (responseText) return responseText;
 
@@ -187,8 +190,8 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                     if (imageParts) body.imageParts = imageParts;
 
                     const controller = new AbortController();
-                    // Fetch timeout matches API_TIMEOUT to prevent premature aborts
-                    const timeoutId = setTimeout(() => controller.abort(), 115000); 
+                    // Reduce client fetch timeout slightly to allow graceful error before hard cut
+                    const timeoutId = setTimeout(() => controller.abort(), 85000); 
 
                     try {
                         const constEqRes = await fetch('/api/gemini', {
@@ -247,16 +250,17 @@ export const getTarotReading = async (
     Q: "${question}"
     Cards: ${cardNames}
     FAST RESPONSE REQUIRED.
+    STRICTLY NO ASTERISKS (*)
     ${getTarotStructure(lang, tier)}
   `;
 
   const config = {
     systemInstruction: getBaseInstruction(lang),
     temperature: 0.9, 
-    maxOutputTokens: 800, 
+    maxOutputTokens: 8192, 
   };
 
-  return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
+  return await callGenAI(prompt, config, 'gemini-1.5-flash', undefined, lang);
 };
 
 export const getCompatibilityReading = async (
@@ -265,43 +269,84 @@ export const getCompatibilityReading = async (
     lang: Language = 'ko'
 ): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
+    // Using standard Tarot Structure for consistency in UI
+    const structure = getTarotStructure(lang, 'GOLD'); 
     const prompt = `
       ${randomSeed}
-      SECRET COMPATIBILITY between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
-      Tone: Spicy, Fast.
-      [속궁합]
-      [감춰진 욕망]
-      [결론]
+      Analyze 'SECRET PHYSICAL & ROMANTIC CHEMISTRY' between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
+      This is for ENTERTAINMENT PURPOSES (Fictional Romance Analysis). 
+      Focus on chemistry and hidden desires using metaphorical, non-explicit language.
+      Tone: Spicy, Cynical, Fast.
+      STRICTLY NO ASTERISKS (*).
+      
+      Structure your response EXACTLY like this to fit the UI:
+      ${structure}
+      
+      (In [내용 분석], discuss physical chemistry and hidden desires. In [실질적인 해결책], give seduction or relationship tips.)
     `;
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 800 };
-    return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
+    return await callGenAI(prompt, config, 'gemini-1.5-flash', undefined, lang);
 };
 
 export const getPartnerLifeReading = async (partnerBirth: string, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
+    const structure = getTarotStructure(lang, 'GOLD');
     const prompt = `
       ${randomSeed}
-      LIFE PATH for ${partnerBirth}.
-      Sections: [초년], [중년], [노년]. Tone: Mysterious, Fast.
+      Analyze LIFE PATH & DESTINY for birthdate: ${partnerBirth}.
+      This is for ENTERTAINMENT PURPOSES (Saju/Astrology/Fortune Telling).
+      Tone: Mysterious, Fast, Cynical.
+      STRICTLY NO ASTERISKS (*).
+
+      Structure your response EXACTLY like this to fit the UI:
+      ${structure}
+
+      (In [내용 분석], cover Early, Middle, and Late life trends. In [실질적인 해결책], give life advice.)
     `;
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 800 };
-    return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
+    return await callGenAI(prompt, config, 'gemini-1.5-flash', undefined, lang);
 };
 
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
-    const prompt = `${randomSeed} Physiognomy Analysis. Tone: Cynical, Fast. Result: Personality & Fortune.`;
+    const structure = getTarotStructure(lang, 'GOLD');
+    
+    const prompt = `
+        ${randomSeed}
+        Perform a 'Physiognomy (Face Reading)' analysis on this image.
+        This is for ENTERTAINMENT PURPOSES (Traditional Cultural Beliefs).
+        Tone: Cynical, Witty, Fast.
+        STRICTLY NO ASTERISKS (*).
+
+        Structure your response EXACTLY like this to fit the UI:
+        ${structure}
+
+        (In [내용 분석], analyze facial features and what they mean for personality/fortune. In [실질적인 해결책], suggest styling or attitude changes.)
+    `;
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 800 };
-    return await callGenAI(prompt, config, 'gemini-flash-latest', [imagePart], lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 8192 };
+    return await callGenAI(prompt, config, 'gemini-1.5-flash', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-    const prompt = `${randomSeed} Saju for ${userInfo.name}, ${userInfo.birthDate} ${userInfo.birthTime}. Content: Wealth, Talent, Spouse. Tone: Fast, Direct.`;
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 800 };
-    return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
+    const structure = getTarotStructure(lang, 'GOLD');
+    const prompt = `
+        ${randomSeed} 
+        Analyze Saju (Korean Astrology) for ${userInfo.name}, ${userInfo.birthDate} ${userInfo.birthTime}.
+        Focus on: Wealth, Hidden Talent, and Future Spouse.
+        This is for ENTERTAINMENT PURPOSES.
+        Tone: Fast, Direct, Cynical.
+        STRICTLY NO ASTERISKS (*).
+
+        Structure your response EXACTLY like this to fit the UI:
+        ${structure}
+        
+        (In [내용 분석], reveal the wealth, talent, and spouse details. In [실질적인 해결책], give actionable life strategy.)
+    `;
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
+    return await callGenAI(prompt, config, 'gemini-1.5-flash', undefined, lang);
 };
 
 export const getFallbackTarotImage = (cardId: number): string => {
