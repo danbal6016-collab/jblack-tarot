@@ -7,7 +7,7 @@ import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTEND
 import Background from './components/Background';
 import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
-import { getTarotReading, getFallbackTarotImage, getFaceReading, getLifeReading, getCompatibilityReading, getPartnerLifeReading } from './services/geminiService';
+import { getTarotReading, getFallbackTarotImage, getFaceReading, getLifeReading, getCompatibilityReading, getPartnerLifeReading, generateTarotCardImage } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop, initSounds } from './services/soundService';
 import html2canvas from 'html2canvas';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -697,7 +697,14 @@ const ResultView: React.FC<{
                         <div className={`w-24 h-40 md:w-32 md:h-52 relative transition-all duration-700 transform-style-3d ${revealed[i] ? 'rotate-y-180' : 'hover:-translate-y-2'}`}>
                            <div className="absolute inset-0 backface-hidden rounded-lg card-back shadow-[0_0_15px_rgba(0,0,0,0.8)] border border-purple-500/20" style={user.activeCustomSkin ? { backgroundImage: `url(${user.activeCustomSkin.imageUrl})`, backgroundSize: 'cover' } : {}}></div>
                            <div className="absolute inset-0 backface-hidden rotate-y-180 bg-black rounded-lg overflow-hidden border border-yellow-600/50 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                              <img src={cardImages[i]} className={`w-full h-full object-cover opacity-90 ${c.isReversed?'rotate-180':''}`} alt={c.name} />
+                              {/* If generatedImage is loading, show spinner or placeholder */}
+                              {c.generatedImage ? (
+                                <img src={c.generatedImage} className={`w-full h-full object-cover opacity-90 ${c.isReversed?'rotate-180':''}`} alt={c.name} />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-900">
+                                    <div className="w-6 h-6 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                              )}
                               <div className="absolute bottom-2 left-0 right-0 text-center"><span className="text-[10px] md:text-xs font-occult text-yellow-500 uppercase tracking-widest bg-black/50 px-2 py-0.5 rounded">{c.name}</span></div>
                            </div>
                         </div>
@@ -1072,7 +1079,63 @@ const App: React.FC = () => {
   const startFaceReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!faceImage) return alert("Please upload a photo first."); if (!spendCoins(100)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].face_reading_title); setSelectedCards([]); setReadingPromise(getFaceReading(faceImage, user.userInfo, lang)); };
   const startLifeReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!spendCoins(250)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].life_reading_title); setSelectedCards([]); setReadingPromise(getLifeReading({...user.userInfo!, birthTime: `${birthTime.h}:${birthTime.m}`}, lang)); };
   const startPartnerReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!selectedCategory) return; const cost = selectedCategory.cost || 0; if (!spendCoins(cost)) return; if (!partnerBirth || partnerBirth.length < 8) return alert("Please enter a valid birthdate (YYYYMMDD)."); navigateTo(AppState.RESULT); setSelectedQuestion(selectedCategory.label); setSelectedCards([]); if (selectedCategory.id === 'SECRET_COMPAT') setReadingPromise(getCompatibilityReading(user.userInfo!, partnerBirth, lang)); else setReadingPromise(getPartnerLifeReading(partnerBirth, lang)); };
-  const handleCardSelect = (indices: number[]) => { if (user.email === 'Guest') { const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0'); if (guestReadings >= 1) { setShowGuestBlock(true); return; } localStorage.setItem('guest_readings', (guestReadings + 1).toString()); } else { const limit = user.tier === UserTier.BRONZE ? 10 : 999; if (user.readingsToday >= limit) { alert(TRANSLATIONS[lang].limit_reached); return; } if (!spendCoins(5)) return; updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); } const selected = indices.map(i => { const cardName = TAROT_DECK[i]; const seed = Math.floor(Math.random() * 1000000); const genUrl = `https://image.pollinations.ai/prompt/tarot%20card%20${encodeURIComponent(cardName)}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=300&height=500&nologo=true&seed=${seed}&model=flux-schnell`; const img = new Image(); img.src = genUrl; return { id: i, name: cardName, isReversed: Math.random() < 0.3, imagePlaceholder: getFallbackTarotImage(i), generatedImage: genUrl, backDesign: 0 }; }); setSelectedCards(selected); navigateTo(AppState.RESULT); setReadingPromise(getTarotReading(selectedQuestion, selected, user.userInfo, lang, user.history, user.tier)); };
+  
+  const handleCardSelect = (indices: number[]) => { 
+      if (user.email === 'Guest') { 
+          const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0'); 
+          if (guestReadings >= 1) { setShowGuestBlock(true); return; } 
+          localStorage.setItem('guest_readings', (guestReadings + 1).toString()); 
+      } else { 
+          const limit = user.tier === UserTier.BRONZE ? 10 : 999; 
+          if (user.readingsToday >= limit) { alert(TRANSLATIONS[lang].limit_reached); return; } 
+          if (!spendCoins(5)) return; 
+          updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); 
+      } 
+      
+      const selected = indices.map(i => { 
+          const cardName = TAROT_DECK[i]; 
+          return { 
+              id: i, 
+              name: cardName, 
+              isReversed: Math.random() < 0.3, 
+              imagePlaceholder: getFallbackTarotImage(i), 
+              generatedImage: undefined, // Start with undefined to show loading
+              backDesign: 0 
+          }; 
+      }); 
+      
+      setSelectedCards(selected); 
+      navigateTo(AppState.RESULT); 
+      setReadingPromise(getTarotReading(selectedQuestion, selected, user.userInfo, lang, user.history, user.tier)); 
+
+      // Trigger Async Image Generation for each card
+      selected.forEach((card, idx) => {
+          generateTarotCardImage(card.name)
+            .then(base64 => {
+                const imageUrl = `data:image/png;base64,${base64}`;
+                setSelectedCards(prev => {
+                    const newCards = [...prev];
+                    // Verify we're updating the correct card instance
+                    if (newCards[idx] && newCards[idx].name === card.name) {
+                        newCards[idx] = { ...newCards[idx], generatedImage: imageUrl };
+                    }
+                    return newCards;
+                });
+            })
+            .catch(err => {
+                console.warn("Gemini Image Gen failed, falling back to Pollinations", err);
+                const seed = Math.floor(Math.random() * 1000000);
+                const genUrl = `https://image.pollinations.ai/prompt/tarot%20card%20${encodeURIComponent(card.name)}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=300&height=500&nologo=true&seed=${seed}&model=flux-schnell`;
+                setSelectedCards(prev => {
+                    const newCards = [...prev];
+                    if (newCards[idx] && newCards[idx].name === card.name) {
+                        newCards[idx] = { ...newCards[idx], generatedImage: genUrl };
+                    }
+                    return newCards;
+                });
+            });
+      });
+  };
 
   const isFirstPurchase = user.totalSpent === 0 && user.email !== 'Guest';
   const isGuest = user.email === 'Guest';

@@ -361,3 +361,47 @@ export const getFallbackTarotImage = (cardId: number): string => {
   else filename = "00.jpg"; 
   return `${baseUrl}${filename}`;
 };
+
+export const generateTarotCardImage = async (cardName: string): Promise<string> => {
+    const prompt = `Mystical Tarot Card: ${cardName}. Dark fantasy style, deep purple and gold aesthetic, ethereal smoke, intricate details, 8k resolution. No text.`;
+    
+    // API Key retrieval (duplicated for isolation)
+    let apiKey = '';
+    try {
+        // @ts-ignore
+        if (typeof import.meta !== 'undefined' && import.meta.env) {
+            // @ts-ignore
+            apiKey = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
+        }
+    } catch(e) {}
+    try {
+        // @ts-ignore
+        if (!apiKey && typeof process !== 'undefined' && process.env) {
+            apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
+        }
+    } catch(e) {}
+
+    if (!apiKey) throw new Error("No API Key");
+
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: { parts: [{ text: prompt }] },
+        config: {
+            // @ts-ignore - Allowing loose config for image generation
+            imageConfig: {
+                aspectRatio: "9:16"
+            }
+        }
+    });
+
+    // Extract image
+    if (response.candidates && response.candidates.length > 0) {
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData && part.inlineData.data) {
+                return part.inlineData.data;
+            }
+        }
+    }
+    throw new Error("No image generated");
+};
