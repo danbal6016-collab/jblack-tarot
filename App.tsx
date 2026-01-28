@@ -581,14 +581,14 @@ const ResultView: React.FC<{
   useEffect(() => {
     let isMounted = true;
     if(readingPromise) {
-      // Optimized 12s safety timeout for immediate response feeling
+      // Optimized 30s safety timeout to prevent "Silent" message from appearing too early on slower networks/models
       const timer = setTimeout(() => {
          if(isMounted && loading) {
              setAnalysisText("The cards are silent... (Network Timeout)\nBut your destiny is clear.");
              setSolutionText("Try again later.");
              setLoading(false);
          }
-      }, 12000); 
+      }, 30000); 
 
       readingPromise.then(t => {
         if(!isMounted) return;
@@ -1056,7 +1056,9 @@ const App: React.FC = () => {
   // Strict check for settings buttons
   const handleSettingsClick = (mode: 'SKIN' | 'FRAME' | 'RUG' | 'BGM' | 'HISTORY' | 'RESULT_BG' | 'STICKER') => {
       if (user.email === 'Guest') {
-          alert("로그인한 사용자만 이용 가능합니다.");
+          // Changed: Alert first, then directly open login popup
+          alert("로그인이 필요한 기능입니다.");
+          setAuthMode('LOGIN');
           return;
       }
       setSettingsMode(mode);
