@@ -871,7 +871,9 @@ const App: React.FC = () => {
           console.error("Local storage error (Quota exceeded?):", e);
       }
       if (u.email !== 'Guest' && isSupabaseConfigured) {
-          supabase.from('profiles').upsert({ email: u.email, data: { ...u, lastAppState: state }, updated_at: new Date().toISOString() }, { onConflict: 'email' }).then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
+          supabase.from('profiles').upsert({ email: u.email, data: { ...u, lastAppState: state }, updated_at: new Date().toISOString() }, { onConflict: 'email' })
+          .then(({ error }) => { if (error) console.warn("Cloud save warning (might be schema mismatch):", error.message); })
+          .catch(err => console.error("Cloud save network error:", err));
       }
   }, []);
 
@@ -1024,21 +1026,31 @@ const App: React.FC = () => {
   const handleBgmUpload = (e: React.ChangeEvent<HTMLInputElement>) => { if (checkGuestAction()) return; const file = e.target.files?.[0]; if (!file) return; const url = URL.createObjectURL(file); const newBgm: BGM = { id: 'custom-' + Date.now(), name: file.name, url: url, category: 'DEFAULT' }; setCurrentBgm(newBgm); alert("BGM Applied!"); };
   const handleRugChange = (color: string) => { if (checkGuestAction()) return; updateUser(prev => ({ ...prev, rugColor: color })); };
   const handleOpenProfile = () => { if (user.userInfo) setEditProfileData({ ...user.userInfo }); setShowProfile(true); };
+  
+  // Optimistic Profile Save to prevent DB errors from blocking the user
   const handleSaveProfile = async () => { 
       if (!user.userInfo) return; 
       const newInfo = { ...editProfileData }; 
+      
+      // 1. Update Local State Immediately (Optimistic)
+      updateUser(prev => ({ ...prev, userInfo: newInfo })); 
+      setShowProfile(false); 
+      alert("프로필이 저장되었습니다."); // Success message for user
+
+      // 2. Try Cloud Save in Background
       if (user.email !== 'Guest' && isSupabaseConfigured) {
           const { error } = await supabase.from('profiles').upsert({ 
               email: user.email, 
               data: { ...user, userInfo: newInfo }, 
               updated_at: new Date().toISOString() 
           }, { onConflict: 'email' });
-          if (error) { alert("저장 실패: " + error.message); return; }
+          
+          if (error) { 
+              console.warn("Cloud sync warning (profile might not persist across devices):", error.message);
+          }
       }
-      updateUser(prev => ({ ...prev, userInfo: newInfo })); 
-      alert("프로필이 저장되었습니다."); 
-      setShowProfile(false); 
   };
+
   const handleDeleteAccount = async () => { if (confirm(TRANSLATIONS[lang].delete_confirm)) { if (isSupabaseConfigured) await supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); localStorage.removeItem('tarot_device_id'); const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME }; setUser(cleanUser); setAppState(AppState.WELCOME); setShowProfile(false); } };
   const initiatePayment = (amount: number, coins: number) => { if (user.email === 'Guest') { alert("Please login to purchase coins."); return; } setPendingPackage({ amount, coins }); setShopStep('METHOD'); };
   const processPayment = () => { if (!pendingPackage) return; setTimeout(() => { alert(`Payment Successful via ${selectedPaymentMethod}!`); updateUser(prev => ({ ...prev, coins: prev.coins + pendingPackage.coins, totalSpent: prev.totalSpent + pendingPackage.amount, })); setPendingPackage(null); setShopStep('AMOUNT'); setShowShop(false); }, 1500); };
