@@ -850,6 +850,12 @@ const App: React.FC = () => {
   const [showProfile, setShowProfile] = useState(false);
   const [showGuestBlock, setShowGuestBlock] = useState(false);
   const [showAttendancePopup, setShowAttendancePopup] = useState(false);
+  
+  // Tier Change Popups
+  const [showTierChangePopup, setShowTierChangePopup] = useState(false);
+  const [tierChangeDirection, setTierChangeDirection] = useState<'UP' | 'DOWN'>('UP');
+  const [tierChangeNewTier, setTierChangeNewTier] = useState<UserTier>(UserTier.BRONZE);
+
   const [attendanceReward, setAttendanceReward] = useState(0);
   const [editProfileData, setEditProfileData] = useState<UserInfo>({ name: '', birthDate: '', country: '', timezone: '', zodiacSign: '', nameChangeCount: 0, birthDateChanged: false, countryChanged: false });
   const [customSkinImage, setCustomSkinImage] = useState<string | null>(null);
@@ -944,6 +950,9 @@ const App: React.FC = () => {
         }
     }
 
+    // Capture old tier for comparison
+    const oldTier = currentUser.tier;
+
     // Common Logic (Attendance, Tier Demotion)
     const lastLoginDate = new Date(currentUser.lastLoginDate || today);
     const currentDate = new Date();
@@ -956,7 +965,10 @@ const App: React.FC = () => {
         const drops = Math.floor(diffDays / 15);
         const newIdx = Math.max(0, currentIdx - drops);
         newTier = tiers[newIdx];
-        if (newTier !== currentUser.tier) alert(`오랜 기간 접속하지 않아 등급이 ${newTier}로 하향 조정되었습니다.`);
+        // If tier changed due to inactivity
+        if (newTier !== oldTier) {
+             // Will be handled below in unified tier change check
+        }
     }
 
     let newLoginDates = [...(currentUser.loginDates || [])]; if (!newLoginDates.includes(today)) newLoginDates.push(today);
@@ -964,20 +976,44 @@ const App: React.FC = () => {
     let newMonthlyCoinsSpent = currentUser.monthlyCoinsSpent || 0;
     const currentMonth = today.substring(0, 7);
 
+    // Monthly Reset logic - this forces tier recalculation based on spend 
+    // BUT we also need to respect tiers earned through accumulated spend if that logic existed.
+    // Assuming simple monthly spend -> tier logic for now based on prompt context.
     if (currentMonthlyReward !== currentMonth) {
+        // Reset month logic
         if (newTier !== UserTier.BRONZE) {
             if (currentUser.email !== 'Guest') {
                 if (newTier === UserTier.GOLD) { newCoins = Math.floor(newCoins * 1.5); alert(TRANSLATIONS[lang].reward_popup + " (1.5x)"); }
                 else if (newTier === UserTier.PLATINUM) { newCoins = Math.floor(newCoins * 2.0); alert(TRANSLATIONS[lang].reward_popup + " (2.0x)"); }
             }
         }
-        newMonthlyCoinsSpent = 0; newTier = UserTier.BRONZE; currentMonthlyReward = currentMonth;
+        newMonthlyCoinsSpent = 0; 
+        newTier = UserTier.BRONZE; // Reset to Bronze on new month start? Or maintain based on something else? 
+        // Typically apps maintain tier based on PREVIOUS month, but here let's assume strict reset or recalculate. 
+        // Based on "calculateTier(newMonthlyCoinsSpent)", it resets.
+        currentMonthlyReward = currentMonth;
     } else {
         newTier = calculateTier(newMonthlyCoinsSpent);
     }
 
     if (currentUser.email === 'Guest') {
         newTier = UserTier.PLATINUM;
+    }
+
+    // Tier Change Popup Logic
+    if (currentUser.email !== 'Guest' && newTier !== oldTier) {
+        const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
+        const oldIdx = tiers.indexOf(oldTier);
+        const newIdx = tiers.indexOf(newTier);
+        
+        setTierChangeNewTier(newTier);
+        if (newIdx > oldIdx) {
+            setTierChangeDirection('UP');
+            setShowTierChangePopup(true);
+        } else {
+            setTierChangeDirection('DOWN');
+            setShowTierChangePopup(true);
+        }
     }
 
     if (newLastAttendance !== today) {
@@ -992,7 +1028,10 @@ const App: React.FC = () => {
         newLastAttendance = today; 
     }
     
-    const updatedUser = { ...currentUser, tier: newTier, coins: newCoins, lastLoginDate: today, loginDates: newLoginDates, readingsToday: currentUser.lastReadingDate === today ? currentUser.readingsToday : 0, lastReadingDate: today, lastMonthlyReward: currentMonthlyReward, attendanceDay: newAttendanceDay, lastAttendance: newLastAttendance, monthlyCoinsSpent: newMonthlyCoinsSpent };
+    // Reset daily readings if it's a new day
+    const readingsToday = currentUser.lastReadingDate === today ? currentUser.readingsToday : 0;
+
+    const updatedUser = { ...currentUser, tier: newTier, coins: newCoins, lastLoginDate: today, loginDates: newLoginDates, readingsToday: readingsToday, lastReadingDate: today, lastMonthlyReward: currentMonthlyReward, attendanceDay: newAttendanceDay, lastAttendance: newLastAttendance, monthlyCoinsSpent: newMonthlyCoinsSpent };
     setUser(updatedUser); 
     saveUserState(updatedUser, appState);
 
@@ -1034,21 +1073,69 @@ const App: React.FC = () => {
   const handleBgmUpload = (e: React.ChangeEvent<HTMLInputElement>) => { if (checkGuestAction()) return; const file = e.target.files?.[0]; if (!file) return; const url = URL.createObjectURL(file); const newBgm: BGM = { id: 'custom-' + Date.now(), name: file.name, url: url, category: 'DEFAULT' }; setCurrentBgm(newBgm); alert("BGM Applied!"); };
   const handleRugChange = (color: string) => { if (checkGuestAction()) return; updateUser(prev => ({ ...prev, rugColor: color })); };
   const handleOpenProfile = () => { if (user.userInfo) setEditProfileData({ ...user.userInfo }); setShowProfile(true); };
+  
   const handleSaveProfile = async () => { 
-      if (!user.userInfo) return; 
-      const newInfo = { ...editProfileData }; 
-      if (user.email !== 'Guest' && isSupabaseConfigured) {
+      if (!user.userInfo) return;
+      if (checkGuestAction()) return;
+
+      const oldInfo = user.userInfo;
+      const newInfo = { ...editProfileData };
+      let updatedUser = { ...user };
+
+      // Validate & Update Counts
+      // Name
+      if (newInfo.name !== oldInfo.name) {
+          if (oldInfo.nameChangeCount >= 5) {
+              alert("이름 변경 횟수(5회)를 초과했습니다.");
+              return;
+          }
+          newInfo.nameChangeCount = (oldInfo.nameChangeCount || 0) + 1;
+      }
+
+      // Birthdate
+      if (newInfo.birthDate !== oldInfo.birthDate) {
+          if (oldInfo.birthDateChanged) {
+              alert("생년월일은 한 번만 변경할 수 있습니다.");
+              return;
+          }
+          newInfo.birthDateChanged = true;
+      }
+
+      // Country
+      if (newInfo.country !== oldInfo.country) {
+          if (oldInfo.countryChanged) {
+              alert("국가는 한 번만 변경할 수 있습니다.");
+              return;
+          }
+          newInfo.countryChanged = true;
+      }
+
+      // Update Local State
+      updatedUser.userInfo = newInfo;
+      setUser(updatedUser);
+      saveUserState(updatedUser, appState);
+
+      // Update Supabase
+      if (isSupabaseConfigured) {
           const { error } = await supabase.from('profiles').upsert({ 
               email: user.email, 
-              data: { ...user, userInfo: newInfo }, 
+              data: updatedUser, // Save entire user object for simplicity as per current schema structure
               updated_at: new Date().toISOString() 
           }, { onConflict: 'email' });
-          if (error) { alert("저장 실패: " + error.message); return; }
+          
+          if (error) { 
+              alert("저장 실패 (클라우드): " + error.message); 
+              // Revert local state if cloud save fails? For now, we trust local storage as fallback.
+          } else {
+              alert("프로필이 성공적으로 저장되었습니다.");
+          }
+      } else {
+          alert("프로필이 저장되었습니다. (로컬 모드)");
       }
-      updateUser(prev => ({ ...prev, userInfo: newInfo })); 
-      alert("프로필이 저장되었습니다."); 
+      
       setShowProfile(false); 
   };
+
   const handleDeleteAccount = async () => { if (confirm(TRANSLATIONS[lang].delete_confirm)) { if (isSupabaseConfigured) await supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); localStorage.removeItem('tarot_device_id'); const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME }; setUser(cleanUser); setAppState(AppState.WELCOME); setShowProfile(false); } };
   const initiatePayment = (amount: number, coins: number) => { if (user.email === 'Guest') { alert("Please login to purchase coins."); return; } setPendingPackage({ amount, coins }); setShopStep('METHOD'); };
   const processPayment = () => { if (!pendingPackage) return; setTimeout(() => { alert(`Payment Successful via ${selectedPaymentMethod}!`); updateUser(prev => ({ ...prev, coins: prev.coins + pendingPackage.coins, totalSpent: prev.totalSpent + pendingPackage.amount, })); setPendingPackage(null); setShopStep('AMOUNT'); setShowShop(false); }, 1500); };
@@ -1076,9 +1163,57 @@ const App: React.FC = () => {
 
   const handleEnterChat = async () => { if (!spendCoins(20)) return; navigateTo(AppState.CHAT_ROOM); };
   const handleQuestionSelect = (q: string) => { setSelectedQuestion(q); navigateTo(AppState.SHUFFLING); };
-  const startFaceReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!faceImage) return alert("Please upload a photo first."); if (!spendCoins(100)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].face_reading_title); setSelectedCards([]); setReadingPromise(getFaceReading(faceImage, user.userInfo, lang)); };
-  const startLifeReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!spendCoins(250)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].life_reading_title); setSelectedCards([]); setReadingPromise(getLifeReading({...user.userInfo!, birthTime: `${birthTime.h}:${birthTime.m}`}, lang)); };
-  const startPartnerReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!selectedCategory) return; const cost = selectedCategory.cost || 0; if (!spendCoins(cost)) return; if (!partnerBirth || partnerBirth.length < 8) return alert("Please enter a valid birthdate (YYYYMMDD)."); navigateTo(AppState.RESULT); setSelectedQuestion(selectedCategory.label); setSelectedCards([]); if (selectedCategory.id === 'SECRET_COMPAT') setReadingPromise(getCompatibilityReading(user.userInfo!, partnerBirth, lang)); else setReadingPromise(getPartnerLifeReading(partnerBirth, lang)); };
+  
+  // TIER LIMITS HELPER
+  const checkTierLimit = () => {
+      if (user.email === 'Guest') return true; // Handled separately
+      if (user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) return true; // Unlimited
+      
+      const limit = user.tier === UserTier.SILVER ? 30 : 10;
+      if (user.readingsToday >= limit) {
+          alert(`${user.tier} 등급의 일일 리딩 한도(${limit}회)를 초과했습니다. 내일 다시 시도하세요.`);
+          return false;
+      }
+      return true;
+  };
+
+  const startFaceReading = () => { 
+      if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } 
+      if (!checkTierLimit()) return;
+      if (!faceImage) return alert("Please upload a photo first."); 
+      if (!spendCoins(100)) return; 
+      navigateTo(AppState.RESULT); 
+      setSelectedQuestion(TRANSLATIONS[lang].face_reading_title); 
+      setSelectedCards([]); 
+      setReadingPromise(getFaceReading(faceImage, user.userInfo, lang)); 
+      updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
+  };
+
+  const startLifeReading = () => { 
+      if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } 
+      if (!checkTierLimit()) return;
+      if (!spendCoins(250)) return; 
+      navigateTo(AppState.RESULT); 
+      setSelectedQuestion(TRANSLATIONS[lang].life_reading_title); 
+      setSelectedCards([]); 
+      setReadingPromise(getLifeReading({...user.userInfo!, birthTime: `${birthTime.h}:${birthTime.m}`}, lang)); 
+      updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
+  };
+
+  const startPartnerReading = () => { 
+      if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } 
+      if (!checkTierLimit()) return;
+      if (!selectedCategory) return; 
+      const cost = selectedCategory.cost || 0; 
+      if (!spendCoins(cost)) return; 
+      if (!partnerBirth || partnerBirth.length < 8) return alert("Please enter a valid birthdate (YYYYMMDD)."); 
+      navigateTo(AppState.RESULT); 
+      setSelectedQuestion(selectedCategory.label); 
+      setSelectedCards([]); 
+      if (selectedCategory.id === 'SECRET_COMPAT') setReadingPromise(getCompatibilityReading(user.userInfo!, partnerBirth, lang)); 
+      else setReadingPromise(getPartnerLifeReading(partnerBirth, lang)); 
+      updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
+  };
   
   const handleCardSelect = (indices: number[]) => { 
       if (user.email === 'Guest') { 
@@ -1086,8 +1221,7 @@ const App: React.FC = () => {
           if (guestReadings >= 1) { setShowGuestBlock(true); return; } 
           localStorage.setItem('guest_readings', (guestReadings + 1).toString()); 
       } else { 
-          const limit = user.tier === UserTier.BRONZE ? 10 : 999; 
-          if (user.readingsToday >= limit) { alert(TRANSLATIONS[lang].limit_reached); return; } 
+          if (!checkTierLimit()) return;
           if (!spendCoins(5)) return; 
           updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); 
       } 
@@ -1159,6 +1293,52 @@ const App: React.FC = () => {
               <div className="z-50 pointer-events-auto"><Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }} onLogin={() => setAuthMode("LOGIN")} openProfile={handleOpenProfile} /></div>
           )}
           {showGuestBlock && ( <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in p-6"><div className="bg-gray-900 border border-purple-500 p-8 rounded text-center max-w-sm w-full shadow-[0_0_50px_rgba(168,85,247,0.5)]"><h2 className="text-2xl font-bold text-white mb-4">STOP</h2><p className="text-gray-300 mb-8 leading-relaxed">{TRANSLATIONS[lang].guest_lock_msg}</p><button onClick={() => { setShowGuestBlock(false); setAuthMode('LOGIN'); }} className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded shadow-[0_0_20px_rgba(147,51,234,0.5)] transition-all hover:scale-105">{TRANSLATIONS[lang].guest_lock_btn}</button></div></div> )}
+          
+          {/* TIER CHANGE POPUP */}
+          {showTierChangePopup && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-xl animate-fade-in p-6" onClick={() => setShowTierChangePopup(false)}>
+                  <div className="relative bg-[#1a103c] border-2 border-yellow-500 rounded-xl p-8 max-w-sm w-full text-center shadow-[0_0_80px_rgba(250,204,21,0.6)] overflow-hidden" onClick={e=>e.stopPropagation()}>
+                      {/* Rays */}
+                      {tierChangeDirection === 'UP' && <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/20 to-transparent animate-pulse pointer-events-none"></div>}
+                      
+                      <div className="text-6xl mb-4 animate-bounce">
+                          {tierChangeDirection === 'UP' ? '🚀' : '📉'}
+                      </div>
+                      <h2 className="text-3xl font-occult text-white mb-2 uppercase font-bold tracking-wider">
+                          {tierChangeDirection === 'UP' ? 'LEVEL UP!' : 'LEVEL DOWN'}
+                      </h2>
+                      <p className={`text-lg font-bold mb-6 ${tierChangeDirection === 'UP' ? 'text-yellow-400' : 'text-gray-400'}`}>
+                          Current Tier: <span className="text-2xl">{tierChangeNewTier}</span>
+                      </p>
+                      
+                      {tierChangeDirection === 'UP' && (
+                          <div className="bg-black/40 p-4 rounded-lg border border-white/10 mb-6 text-sm text-gray-300 text-left">
+                              <p className="mb-2 font-bold text-white">New Benefits Unlocked:</p>
+                              <ul className="list-disc list-inside space-y-1">
+                                  {tierChangeNewTier === UserTier.SILVER && <li>Daily Reading Limit: 30</li>}
+                                  {tierChangeNewTier === UserTier.GOLD && (
+                                      <>
+                                          <li>Daily Reading Limit: Unlimited</li>
+                                          <li>Monthly Coin Bonus: 1.5x</li>
+                                      </>
+                                  )}
+                                  {tierChangeNewTier === UserTier.PLATINUM && (
+                                      <>
+                                          <li>Monthly Coin Bonus: 2.0x</li>
+                                          <li>Exclusive VIP Profile Badge</li>
+                                      </>
+                                  )}
+                              </ul>
+                          </div>
+                      )}
+                      
+                      <button onClick={() => setShowTierChangePopup(false)} className="w-full py-3 bg-gradient-to-r from-purple-700 to-indigo-600 text-white font-bold rounded hover:brightness-110 transition-all shadow-lg">
+                          Confirm
+                      </button>
+                  </div>
+              </div>
+          )}
+
           {showAttendancePopup && ( <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-lg animate-fade-in p-4"><div className="relative bg-gradient-to-br from-[#2e1065] via-[#4c1d95] to-[#2e1065] p-1 rounded-2xl shadow-[0_0_80px_rgba(250,204,21,0.4)] max-w-sm w-full scale-100 animate-[bounce_1s_infinite]"><div className="relative bg-[#1a103c] rounded-xl p-8 text-center border border-yellow-500/50 overflow-hidden"><h2 className="text-3xl font-occult text-shine mb-4 relative z-10 font-bold uppercase tracking-widest">{TRANSLATIONS[lang].attendance_popup}</h2><div className="text-7xl mb-6 relative z-10 animate-bounce">🎁</div><p className="text-yellow-200 text-lg mb-2 font-bold relative z-10">Day {user.attendanceDay} Reached!</p><p className="text-gray-300 mb-8 relative z-10">You received <span className="text-yellow-400 font-bold text-xl">{attendanceReward} Coins</span></p><button onClick={() => setShowAttendancePopup(false)} className="relative z-10 w-full py-3 bg-gradient-to-r from-yellow-600 to-yellow-400 text-black font-extrabold rounded-lg shadow-lg">Claim Reward</button></div></div></div> )}
           {showProfile && user.email !== 'Guest' && (
               <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">

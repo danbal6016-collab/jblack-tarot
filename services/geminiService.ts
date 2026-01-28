@@ -269,39 +269,54 @@ export const getCompatibilityReading = async (
     lang: Language = 'ko'
 ): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-    // Using standard Tarot Structure for consistency in UI
-    const structure = getTarotStructure(lang, 'GOLD'); 
+    
+    // 19+ Logic: Spicy Compatibility
     const prompt = `
       ${randomSeed}
-      Analyze 'SECRET PHYSICAL & ROMANTIC CHEMISTRY' between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
-      This is for ENTERTAINMENT PURPOSES (Fictional Romance Analysis). 
-      Focus on chemistry and hidden desires using metaphorical, non-explicit language.
-      Tone: Spicy, Cynical, Fast.
+      Analyze 'INTENSE 19+ PHYSICAL & SAJU COMPATIBILITY' between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
+      This is for ENTERTAINMENT PURPOSES.
+      Tone: Spicy, Arousing, Cynical, Bold.
+      Language: Korean (Adult style).
       STRICTLY NO ASTERISKS (*).
       
-      Structure your response EXACTLY like this to fit the UI:
-      ${structure}
+      Generate roughly 30 lines of analysis.
       
-      (In [내용 분석], discuss physical chemistry and hidden desires. In [실질적인 해결책], give seduction or relationship tips.)
+      Structure:
+      [속궁합 분석]
+      (Analyze physical chemistry, specific compatibility, energy fit. Be bold but safe.)
+      
+      [숨겨진 욕망]
+      (What they secretly want from each other.)
+      
+      [결론 및 조언]
+      (Final verdict on their nights together.)
     `;
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-1.5-flash', undefined, lang);
 };
 
 export const getPartnerLifeReading = async (partnerBirth: string, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-    const structure = getTarotStructure(lang, 'GOLD');
+    
+    // Celebrity/Partner Life Logic
     const prompt = `
       ${randomSeed}
-      Analyze LIFE PATH & DESTINY for birthdate: ${partnerBirth}.
-      This is for ENTERTAINMENT PURPOSES (Saju/Astrology/Fortune Telling).
-      Tone: Mysterious, Fast, Cynical.
+      Analyze 'COMPLETE LIFE PATH SAJU' for birthdate: ${partnerBirth}.
+      Tone: Mysterious, Insightful, Cynical.
       STRICTLY NO ASTERISKS (*).
 
-      Structure your response EXACTLY like this to fit the UI:
-      ${structure}
+      Structure:
+      [초년운 (Early Life)]
+      (Analyze their youth, foundation, and early struggles/successes.)
 
-      (In [내용 분석], cover Early, Middle, and Late life trends. In [실질적인 해결책], give life advice.)
+      [중년운 (Middle Life)]
+      (Analyze their prime years, career peak, and major turning points.)
+
+      [말년운 (Late Life)]
+      (Analyze their later years, wealth accumulation, and final reputation.)
+
+      [덕질 조언 (Fandom Advice)]
+      (How to support this person based on their destiny. What fans should know.)
     `;
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-1.5-flash', undefined, lang);
@@ -310,19 +325,22 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
-    const structure = getTarotStructure(lang, 'GOLD');
     
+    // Face Reading Logic: Expert level, 20 lines, Constructive
     const prompt = `
         ${randomSeed}
-        Perform a 'Physiognomy (Face Reading)' analysis on this image.
-        This is for ENTERTAINMENT PURPOSES (Traditional Cultural Beliefs).
-        Tone: Cynical, Witty, Fast.
+        Perform an 'EXPERT PHYSIOGNOMY (Face Reading)' analysis on this image.
+        Role: Master Face Reader.
+        Tone: Professional, Insightful, Slightly Cynical but Constructive (Do not be overly mean).
+        Length: Approximately 20 lines.
         STRICTLY NO ASTERISKS (*).
 
-        Structure your response EXACTLY like this to fit the UI:
-        ${structure}
+        Structure:
+        [관상 분석]
+        (Analyze eyes, nose, mouth, face shape details. Connect features to personality and fortune.)
 
-        (In [내용 분석], analyze facial features and what they mean for personality/fortune. In [실질적인 해결책], suggest styling or attitude changes.)
+        [운세 총평]
+        (Overall destiny regarding wealth, success, and love based on the face.)
     `;
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 8192 };
@@ -331,19 +349,28 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-    const structure = getTarotStructure(lang, 'GOLD');
+    
+    // Life Reading Logic: Detailed Saju, 50 lines
     const prompt = `
         ${randomSeed} 
-        Analyze Saju (Korean Astrology) for ${userInfo.name}, ${userInfo.birthDate} ${userInfo.birthTime}.
-        Focus on: Wealth, Hidden Talent, and Future Spouse.
-        This is for ENTERTAINMENT PURPOSES.
-        Tone: Fast, Direct, Cynical.
+        Analyze 'DETAILED SAJU (Korean Astrology)' for ${userInfo.name}, Born: ${userInfo.birthDate}, Time: ${userInfo.birthTime}.
+        Focus on: Wealth Timing, Hidden Talents, Golden Age, Future Spouse Details.
+        Tone: Fast, Direct, Cynical, Extremely Detailed.
+        Length: Approximately 50 lines.
         STRICTLY NO ASTERISKS (*).
 
-        Structure your response EXACTLY like this to fit the UI:
-        ${structure}
-        
-        (In [내용 분석], reveal the wealth, talent, and spouse details. In [실질적인 해결책], give actionable life strategy.)
+        Structure:
+        [재물운: 언제 떼돈을 버는가?]
+        (Specific timing, method of wealth accumulation, windfalls.)
+
+        [숨겨진 재능과 인생 팁]
+        (Talents they don't know they have. Facts they must know to succeed.)
+
+        [인생의 황금기]
+        (Exact age range of peak success and happiness.)
+
+        [미래 배우자 상세 분석]
+        (Key details: Height, Appearance/Vibe, Occupation, Personality. Be very specific.)
     `;
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-1.5-flash', undefined, lang);
