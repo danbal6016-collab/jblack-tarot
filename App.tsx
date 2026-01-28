@@ -849,6 +849,29 @@ const RK_COLORS = [
     { name: 'Royal Gold', color: '#422006' }
 ];
 
+const TIER_POPUP_TEXT = {
+    ko: {
+        up_title: "🎉 티어 상승! 축하합니다!",
+        down_title: "📉 티어 하락",
+        up_msg: "등급이 올랐습니다! 다음 혜택이 적용됩니다:",
+        down_msg: "활동 부족으로 티어가 하락하였습니다.",
+        confirm: "확인",
+        benefit_silver: "일일 리딩 횟수 30회로 증가",
+        benefit_gold: "일일 리딩 무제한 + 월 코인 1.5배",
+        benefit_platinum: "월 코인 2.0배 + VIP 배지"
+    },
+    en: {
+        up_title: "🎉 LEVEL UP! Congratulations!",
+        down_title: "📉 Tier Dropped",
+        up_msg: "You've reached a new tier! Enjoy these benefits:",
+        down_msg: "Your tier has dropped due to inactivity.",
+        confirm: "Confirm",
+        benefit_silver: "Daily Limit increased to 30",
+        benefit_gold: "Unlimited Readings + 1.5x Monthly Coins",
+        benefit_platinum: "2.0x Monthly Coins + VIP Badge"
+    }
+};
+
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
   const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0, resultFrame: 'default', customFrames: [], resultBackground: 'default', customStickers: [] });
@@ -1374,35 +1397,29 @@ const App: React.FC = () => {
                           {tierChangeDirection === 'UP' ? '🚀' : '📉'}
                       </div>
                       <h2 className="text-3xl font-occult text-white mb-2 uppercase font-bold tracking-wider">
-                          {tierChangeDirection === 'UP' ? 'LEVEL UP!' : 'LEVEL DOWN'}
+                          {tierChangeDirection === 'UP' ? TIER_POPUP_TEXT[lang].up_title : TIER_POPUP_TEXT[lang].down_title}
                       </h2>
                       <p className={`text-lg font-bold mb-6 ${tierChangeDirection === 'UP' ? 'text-yellow-400' : 'text-gray-400'}`}>
                           Current Tier: <span className="text-2xl">{tierChangeNewTier}</span>
                       </p>
                       
-                      {tierChangeDirection === 'UP' && (
+                      {tierChangeDirection === 'UP' ? (
                           <div className="bg-black/40 p-4 rounded-lg border border-white/10 mb-6 text-sm text-gray-300 text-left">
-                              <p className="mb-2 font-bold text-white">New Benefits Unlocked:</p>
+                              <p className="mb-2 font-bold text-white">{TIER_POPUP_TEXT[lang].up_msg}</p>
                               <ul className="list-disc list-inside space-y-1">
-                                  {tierChangeNewTier === UserTier.SILVER && <li>Daily Reading Limit: 30</li>}
-                                  {tierChangeNewTier === UserTier.GOLD && (
-                                      <>
-                                          <li>Daily Reading Limit: Unlimited</li>
-                                          <li>Monthly Coin Bonus: 1.5x</li>
-                                      </>
-                                  )}
-                                  {tierChangeNewTier === UserTier.PLATINUM && (
-                                      <>
-                                          <li>Monthly Coin Bonus: 2.0x</li>
-                                          <li>Exclusive VIP Profile Badge</li>
-                                      </>
-                                  )}
+                                  {tierChangeNewTier === UserTier.SILVER && <li>{TIER_POPUP_TEXT[lang].benefit_silver}</li>}
+                                  {tierChangeNewTier === UserTier.GOLD && <li>{TIER_POPUP_TEXT[lang].benefit_gold}</li>}
+                                  {tierChangeNewTier === UserTier.PLATINUM && <li>{TIER_POPUP_TEXT[lang].benefit_platinum}</li>}
                               </ul>
+                          </div>
+                      ) : (
+                          <div className="bg-black/40 p-4 rounded-lg border border-white/10 mb-6 text-sm text-gray-300">
+                              <p>{TIER_POPUP_TEXT[lang].down_msg}</p>
                           </div>
                       )}
                       
                       <button onClick={() => setShowTierChangePopup(false)} className="w-full py-3 bg-gradient-to-r from-purple-700 to-indigo-600 text-white font-bold rounded hover:brightness-110 transition-all shadow-lg">
-                          Confirm
+                          {TIER_POPUP_TEXT[lang].confirm}
                       </button>
                   </div>
               </div>
