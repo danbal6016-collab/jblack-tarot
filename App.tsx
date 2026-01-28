@@ -873,10 +873,23 @@ const App: React.FC = () => {
       } catch (e) {
           console.error("Local storage error (Quota exceeded?):", e);
       }
-      if (u.email !== 'Guest' && isSupabaseConfigured) {
-          supabase.from('profiles').upsert({ email: u.email, data: { ...u, lastAppState: state }, updated_at: new Date().toISOString() }, { onConflict: 'email' }).then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
-      }
-  }, []);
+     if (u.email !== 'Guest' && isSupabaseConfigured) {
+  supabase.auth.getUser().then(({ data }) => {
+    const uid = data.user?.id;
+    if (!uid) return;
+
+    supabase
+      .from('profiles')
+      .upsert(
+        { id: uid, email: u.email, data: { ...u, lastAppState: state }, updated_at: new Date().toISOString() },
+        { onConflict: 'id' }
+      )
+      .then(({ error }) => {
+        if (error) console.warn("Cloud save failed:", error.message);
+      });
+  });
+}
+
 
   const navigateTo = (newState: AppState) => { setAppState(newState); saveUserState(user, newState); };
   const updateUser = (updater: (prev: User) => User) => { setUser(prev => { const newUser = updater(prev); saveUserState(newUser, appState); return newUser; }); };
@@ -904,7 +917,13 @@ const App: React.FC = () => {
                 const u = data.session.user; 
                 const email = u.email || "User";
                 try { 
-                    const { data: profileData } = await supabase.from('profiles').select('data').eq('email', email).single(); 
+                    const uid = u.id;
+const { data: profileData } = await supabase
+  .from('profiles')
+  .select('data')
+  .eq('id', uid)
+  .single();
+
                     if (profileData && profileData.data) currentUser = profileData.data; 
                     else if (!localUser || localUser.email !== email) currentUser = { ...user, email };
                     else currentUser = { ...localUser, email };
@@ -1031,11 +1050,17 @@ const App: React.FC = () => {
       if (!user.userInfo) return; 
       const newInfo = { ...editProfileData }; 
       if (user.email !== 'Guest' && isSupabaseConfigured) {
-          const { error } = await supabase.from('profiles').upsert({ 
-              email: user.email, 
-              data: { ...user, userInfo: newInfo }, 
-              updated_at: new Date().toISOString() 
-          }, { onConflict: 'email' });
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+const uid = authUser?.id;
+if (!uid) { alert("저장 실패: 로그인 정보를 찾을 수 없음"); return; }
+
+const { error } = await supabase
+  .from('profiles')
+  .upsert(
+    { id: uid, email: user.email, data: { ...user, userInfo: newInfo }, updated_at: new Date().toISOString() },
+    { onConflict: 'id' }
+  );
+
           if (error) { alert("저장 실패: " + error.message); return; }
       }
       updateUser(prev => ({ ...prev, userInfo: newInfo })); 
