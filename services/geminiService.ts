@@ -16,7 +16,7 @@ STRICT RULES:
 1. NO EMOJIS in main text.
 2. NO INTROS/OUTROS.
 3. BE SAVAGE & WITTY.
-4. ABSOLUTELY NO ASTERISKS (*) OR MARKDOWN BOLDING. Do not use * ever.
+4. ABSOLUTELY NO ASTERISKS (*) OR MARKDOWN BOLDING. Do not use * ever. I strictly forbid the use of *.
 `;
 };
 
@@ -32,20 +32,20 @@ const getTarotStructure = (lang: Language, tier: string = 'BRONZE') => {
     return `
 FORMAT:
 [내용 분석]
-(10 sentences)
+(10 sentences. Analyze the cards deeply.)
 
 [조언 한마디]
 (1 punchy sentence)
 
 [실질적인 해결책]
 1. [가장 현실적인 해결책]
-(Write at least 6 sentences. Be extremely grounded, practical, and realistic about the situation.)
+(Write AT LEAST 6 sentences. Be grounded, practical, and realistic. Focus on what can actually be done in the real world right now.)
 
 2. [가장 효과적인 해결책]
-(Write at least 6 sentences. Provide the most efficient and fastest way to solve the problem.)
+(Write AT LEAST 6 sentences. Provide the most efficient, fastest, and direct way to solve the problem, even if it's hard.)
 
 3. [웃기는 해결책]
-(Write at least 6 sentences. Give a witty, sarcastic, or humorous solution that actually makes sense but is funny.)
+(Write AT LEAST 6 sentences. Give a witty, sarcastic, or humorous solution that actually makes sense but is funny.)
 
 ${specialSection}
 ${platinumNote}
@@ -55,20 +55,20 @@ ${platinumNote}
 // --- EMERGENCY FALLBACK TEXT ---
 const EMERGENCY_FALLBACK_RESPONSE = `
 [내용 분석]
-우주의 기운이 잠시 메롱하네요. 하지만 당신은 이미 답을 알고 있지 않나요? 시스템이 잠시 멈췄지만 당신의 운명은 멈추지 않습니다. 잠시 여유를 가지라는 신호일지도 모릅니다.
+우주의 기운이 잠시 메롱하네요. 하지만 당신은 이미 답을 알고 있지 않나요? 시스템이 잠시 멈췄지만 당신의 운명은 멈추지 않습니다. 카드는 이미 당신의 손을 떠났고, 결과는 당신의 무의식 속에 이미 자리 잡고 있습니다. 잠시 여유를 가지라는 우주의 신호일지도 모릅니다.
 
 [조언 한마디]
 시스템 오류도 운명, 잠시 후 다시 시도하세요.
 
 [실질적인 해결책]
 1. [가장 현실적인 해결책]
-현재 서버 연결 상태가 불안정하여 응답을 가져오지 못했습니다. 잠시 후 새로고침을 하거나 1분 정도 기다렸다가 다시 시도하는 것이 가장 좋습니다. 와이파이나 데이터 연결 상태를 확인해보세요. 기술적인 문제는 시간이 해결해 줄 때가 많습니다. 조급해하지 말고 차 한 잔 마시며 기다려보세요. 지금은 잠시 쉬어가는 타이밍입니다.
+현재 서버 연결 상태가 불안정하여 응답을 가져오지 못했습니다. 가장 현실적인 방법은 잠시 후 새로고침을 하거나 1분 정도 기다렸다가 다시 시도하는 것입니다. 와이파이나 데이터 연결 상태를 확인해보세요. 기술적인 문제는 시간이 해결해 줄 때가 많습니다. 조급해하지 말고 차 한 잔 마시며 기다려보세요. 지금은 잠시 쉬어가는 타이밍입니다.
 
 2. [가장 효과적인 해결책]
 가장 빠른 방법은 브라우저를 완전히 닫았다가 다시 여는 것입니다. 캐시가 꼬였을 수도 있으니 강력 새로고침을 시도해보세요. 다른 기기로 접속해보는 것도 하나의 방법입니다. 네트워크 환경이 좋은 곳으로 이동하여 다시 시도하면 해결될 확률이 높습니다. 오류가 계속된다면 잠시 폰을 꺼두는 것도 방법입니다.
 
 3. [웃기는 해결책]
-개발자가 지금쯤 식은땀을 흘리며 서버를 고치고 있을 겁니다. 그에게 힘내라고 텔레파시를 보내보세요. 아니면 모니터 앞에서 '열려라 참깨'를 외쳐보는 건 어떨까요? 운명이 당신의 인내심을 테스트하고 있는 중입니다. 이 오류 화면마저도 당신의 특별한 운명 중 하나라고 생각하고 웃어넘기세요.
+개발자가 지금쯤 식은땀을 흘리며 서버를 고치고 있을 겁니다. 그에게 힘내라고 텔레파시를 보내보세요. 아니면 모니터 앞에서 '열려라 참깨'를 외쳐보는 건 어떨까요? 운명이 당신의 인내심을 테스트하고 있는 중입니다. 이 오류 화면마저도 당신의 특별한 운명 중 하나라고 생각하고 웃어넘기세요. 화내면 주름만 늘어납니다.
 `;
 
 // --- SAFETY SETTINGS ---
@@ -253,7 +253,7 @@ export const getTarotReading = async (
   const config = {
     systemInstruction: getBaseInstruction(lang),
     temperature: 0.9, 
-    maxOutputTokens: 4000, 
+    maxOutputTokens: 800, 
   };
 
   return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
@@ -273,7 +273,7 @@ export const getCompatibilityReading = async (
       [감춰진 욕망]
       [결론]
     `;
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 4000 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 800 };
     return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
 };
 
@@ -284,7 +284,7 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
       LIFE PATH for ${partnerBirth}.
       Sections: [초년], [중년], [노년]. Tone: Mysterious, Fast.
     `;
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 4000 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 800 };
     return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
 };
 
@@ -293,14 +293,14 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
     const prompt = `${randomSeed} Physiognomy Analysis. Tone: Cynical, Fast. Result: Personality & Fortune.`;
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 4000 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 800 };
     return await callGenAI(prompt, config, 'gemini-flash-latest', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
     const prompt = `${randomSeed} Saju for ${userInfo.name}, ${userInfo.birthDate} ${userInfo.birthTime}. Content: Wealth, Talent, Spouse. Tone: Fast, Direct.`;
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 4000 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 800 };
     return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
 };
 

@@ -197,13 +197,12 @@ export const CATEGORIES: QuestionCategory[] = [
       '이 관계는 나에게 어떤 영향을 끼칠까?'
     ]
   },
-  // --- SPECIAL TIERS (UPDATED PRICES & LABELS) ---
+  // --- SPECIAL CATEGORIES (Visible to all, Login required for use) ---
   {
     id: 'FACE',
     label: '관상',
     icon: '👁️',
     questions: [], 
-    minTier: UserTier.SILVER,
     cost: 100 
   },
   {
@@ -211,23 +210,20 @@ export const CATEGORIES: QuestionCategory[] = [
     label: '인생',
     icon: '🧬',
     questions: [], 
-    minTier: UserTier.SILVER,
-    cost: 250 // Updated to 250
+    cost: 250
   },
   {
     id: 'SECRET_COMPAT',
     label: '19금',
     icon: '🔞',
     questions: [],
-    minTier: UserTier.GOLD,
-    cost: 250
+    cost: 200
   },
   {
     id: 'PARTNER_LIFE',
     label: '연예인', 
     icon: '👥',
     questions: [],
-    minTier: UserTier.PLATINUM,
     cost: 250
   }
 ];
