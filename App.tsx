@@ -586,9 +586,9 @@ const ResultView: React.FC<{
          if(isMounted && loading) {
              setAnalysisText("The cards are silent... (Network Timeout)\nBut your destiny is clear.");
              setSolutionText("Try again later.");
-             setLoading(false);
+          
          }
-      }, 30000); 
+      }, 90000); 
 
       readingPromise.then(t => {
         if(!isMounted) return;
