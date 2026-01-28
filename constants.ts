@@ -1,5 +1,4 @@
 
-
 import { CategoryKey, QuestionCategory, UserTier, Country, BGM, Skin } from './types';
 
 // --- COUNTRIES (Top 50 Selection) ---
@@ -210,7 +209,7 @@ export const CATEGORIES: QuestionCategory[] = [
     label: '인생',
     icon: '🧬',
     questions: [], 
-    cost: 250
+    cost: 150 
   },
   {
     id: 'SECRET_COMPAT',

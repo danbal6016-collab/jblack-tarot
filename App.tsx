@@ -46,11 +46,11 @@ const TRANSLATIONS = {
     reward_popup: "등급 보상 지급!",
     face_reading_title: "관상",
     face_reading_desc: "연락 할까 말까 고민하는 시간도 아까워요. 그 사람이 당신이 찾던 그 이인지, 지금 확인해 보세요.",
-    face_upload_btn: "관상 보기 (-100 Coin)",
+    face_upload_btn: "관상 보기 (-150 Coin)",
     face_guide: "인물의 얼굴이 잘 보이는 사진을 업로드 하세요.",
     life_reading_title: "인생",
     life_reading_desc: "당신이 언제, 무엇으로 떼돈을 벌까요? 당신의 숨겨진 재능과 황금기, 미래 배우자까지 확인하세요.",
-    life_input_btn: "인생 치트키 확인 (-250 Coin)",
+    life_input_btn: "인생 치트키 확인 (-150 Coin)",
     life_guide: "당신의 생시를 알려주세요.",
     downloading: "초고속 저장 중...",
     time_label: "태어난 시간",
@@ -141,11 +141,11 @@ const TRANSLATIONS = {
     reward_popup: "Monthly Reward!",
     face_reading_title: "Physiognomy",
     face_reading_desc: "Stop wasting time guessing. Check if they are the one.",
-    face_upload_btn: "Analyze Face (-100 Coin)",
+    face_upload_btn: "Analyze Face (-150 Coin)",
     face_guide: "Upload a clear photo of the face.",
     life_reading_title: "Life Path",
     life_reading_desc: "When will you make a fortune? Hidden talents, golden age, future spouse.",
-    life_input_btn: "Reveal Cheat Codes (-200 Coin)",
+    life_input_btn: "Reveal Cheat Codes (-150 Coin)",
     life_guide: "Enter your birth time.",
     downloading: "Saving Fast...",
     time_label: "Birth Time",
@@ -553,25 +553,23 @@ const ResultView: React.FC<{
   user: User;
   spendCoins: (amount: number) => boolean;
   onLogin: () => void;
-}> = ({ question, selectedCards, onRetry, lang, readingPromise, onReadingComplete, user, spendCoins, onLogin }) => {
-  const [fullText, setFullText] = useState('');
+  initialText?: string; 
+}> = ({ question, selectedCards, onRetry, lang, readingPromise, onReadingComplete, user, spendCoins, onLogin, initialText }) => {
+  const [fullText, setFullText] = useState(initialText || '');
   const [analysisText, setAnalysisText] = useState('');
   const [solutionText, setSolutionText] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialText);
   const [revealed, setRevealed] = useState<boolean[]>([false,false,false]);
   const [isSolutionUnlocked, setIsSolutionUnlocked] = useState(user.email === 'Guest' || user.history.length === 0);
   const captureRef = useRef<HTMLDivElement>(null);
   const cardImages = selectedCards.map(c => c.generatedImage || c.imagePlaceholder);
 
-  // Background Logic
   const activeBgId = user.resultBackground || 'default';
   const systemBg = RESULT_BACKGROUNDS.find(b => b.id === activeBgId);
-  // Check if it's a custom uploaded background URL (not starting with 'default', 'midnight', etc.) or assume system
   const bgStyle = systemBg 
     ? { background: systemBg.css } 
     : { backgroundImage: `url(${activeBgId})`, backgroundSize: 'cover', backgroundPosition: 'center' };
 
-  // Frame Logic
   const activeFrameId = user.resultFrame || 'default';
   const systemFrame = RESULT_FRAMES.find(f => f.id === activeFrameId);
   const customFrame = user.customFrames?.find(f => f.id === activeFrameId);
@@ -580,11 +578,25 @@ const ResultView: React.FC<{
     ? { border: '20px solid transparent', borderImage: `url(${customFrame.imageUrl}) 30 round` }
     : (systemFrame && systemFrame.id !== 'default' ? { cssText: systemFrame.css } : {});
 
-  // Immediate Result Fallback Timer
+  // Parse Text Helper
+  const parseText = (t: string) => {
+      const parts = t.split('[실질적인 해결책]');
+      setAnalysisText(parts[0]);
+      if(parts.length > 1) setSolutionText('[실질적인 해결책]' + parts[1]);
+      else setSolutionText(""); 
+  };
+
+  useEffect(() => {
+      if (initialText) {
+          parseText(initialText);
+      }
+  }, [initialText]);
+
   useEffect(() => {
     let isMounted = true;
     if(readingPromise) {
-      // Optimized 30s safety timeout to prevent "Silent" message from appearing too early on slower networks/models
+      if (initialText && !loading) return;
+
       const timer = setTimeout(() => {
          if(isMounted && loading) {
              setAnalysisText("The cards are silent... (Network Timeout)\nBut your destiny is clear.");
@@ -597,10 +609,7 @@ const ResultView: React.FC<{
         if(!isMounted) return;
         clearTimeout(timer);
         setFullText(t);
-        const parts = t.split('[실질적인 해결책]');
-        setAnalysisText(parts[0]);
-        if(parts.length > 1) setSolutionText('[실질적인 해결책]' + parts[1]);
-        else setSolutionText(""); 
+        parseText(t);
         setLoading(false);
         onReadingComplete(t);
       }).catch(e => {
@@ -894,6 +903,30 @@ const App: React.FC = () => {
   const navigateTo = (newState: AppState) => { setAppState(newState); saveUserState(user, newState); };
   const updateUser = (updater: (prev: User) => User) => { setUser(prev => { const newUser = updater(prev); saveUserState(newUser, appState); return newUser; }); };
 
+  // --- SESSION PERSISTENCE LOGIC ---
+  // Save current active session data whenever it changes
+  useEffect(() => {
+      // Debounce saving session data
+      const timeoutId = setTimeout(() => {
+          updateUser(prev => ({
+              ...prev,
+              currentSession: {
+                  appState: appState,
+                  selectedCategoryId: selectedCategory?.id,
+                  selectedQuestion: selectedQuestion,
+                  customQuestion: customQuestion,
+                  selectedCards: selectedCards,
+                  readingResult: undefined, // Will be filled by onReadingComplete if needed, or we rely on history
+                  faceImage: faceImage || undefined,
+                  birthTime: birthTime,
+                  partnerBirth: partnerBirth
+              }
+          }));
+      }, 1000); // 1 second debounce
+
+      return () => clearTimeout(timeoutId);
+  }, [appState, selectedCategory, selectedQuestion, customQuestion, selectedCards, faceImage, birthTime, partnerBirth]);
+
   const checkUser = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
     let localUser: User | null = null;
@@ -965,10 +998,6 @@ const App: React.FC = () => {
         const drops = Math.floor(diffDays / 15);
         const newIdx = Math.max(0, currentIdx - drops);
         newTier = tiers[newIdx];
-        // If tier changed due to inactivity
-        if (newTier !== oldTier) {
-             // Will be handled below in unified tier change check
-        }
     }
 
     let newLoginDates = [...(currentUser.loginDates || [])]; if (!newLoginDates.includes(today)) newLoginDates.push(today);
@@ -976,11 +1005,8 @@ const App: React.FC = () => {
     let newMonthlyCoinsSpent = currentUser.monthlyCoinsSpent || 0;
     const currentMonth = today.substring(0, 7);
 
-    // Monthly Reset logic - this forces tier recalculation based on spend 
-    // BUT we also need to respect tiers earned through accumulated spend if that logic existed.
-    // Assuming simple monthly spend -> tier logic for now based on prompt context.
+    // Monthly Reset logic 
     if (currentMonthlyReward !== currentMonth) {
-        // Reset month logic
         if (newTier !== UserTier.BRONZE) {
             if (currentUser.email !== 'Guest') {
                 if (newTier === UserTier.GOLD) { newCoins = Math.floor(newCoins * 1.5); alert(TRANSLATIONS[lang].reward_popup + " (1.5x)"); }
@@ -988,9 +1014,7 @@ const App: React.FC = () => {
             }
         }
         newMonthlyCoinsSpent = 0; 
-        newTier = UserTier.BRONZE; // Reset to Bronze on new month start? Or maintain based on something else? 
-        // Typically apps maintain tier based on PREVIOUS month, but here let's assume strict reset or recalculate. 
-        // Based on "calculateTier(newMonthlyCoinsSpent)", it resets.
+        newTier = UserTier.BRONZE; 
         currentMonthlyReward = currentMonth;
     } else {
         newTier = calculateTier(newMonthlyCoinsSpent);
@@ -1032,8 +1056,27 @@ const App: React.FC = () => {
     const readingsToday = currentUser.lastReadingDate === today ? currentUser.readingsToday : 0;
 
     const updatedUser = { ...currentUser, tier: newTier, coins: newCoins, lastLoginDate: today, loginDates: newLoginDates, readingsToday: readingsToday, lastReadingDate: today, lastMonthlyReward: currentMonthlyReward, attendanceDay: newAttendanceDay, lastAttendance: newLastAttendance, monthlyCoinsSpent: newMonthlyCoinsSpent };
+    
+    // --- STATE RESTORATION ---
+    // Restore session state from persisted data
+    if (updatedUser.currentSession) {
+        const session = updatedUser.currentSession;
+        if (session.appState) setAppState(session.appState);
+        if (session.selectedCategoryId) setSelectedCategory(CATEGORIES.find(c => c.id === session.selectedCategoryId) || null);
+        if (session.selectedQuestion) setSelectedQuestion(session.selectedQuestion);
+        if (session.customQuestion) setCustomQuestion(session.customQuestion);
+        if (session.selectedCards) setSelectedCards(session.selectedCards);
+        if (session.faceImage) setFaceImage(session.faceImage);
+        if (session.birthTime) setBirthTime(session.birthTime);
+        if (session.partnerBirth) setPartnerBirth(session.partnerBirth);
+        // Reading Result restoration is handled by ResultView taking persisted cards, but if needed we can pass text
+    } else if (updatedUser.lastAppState) {
+        // Fallback to basic state persistence
+        setAppState(updatedUser.lastAppState);
+    }
+
     setUser(updatedUser); 
-    saveUserState(updatedUser, appState);
+    saveUserState(updatedUser, updatedUser.lastAppState || AppState.WELCOME);
 
   }, []);
 
@@ -1080,8 +1123,7 @@ const App: React.FC = () => {
 
       const oldInfo = user.userInfo;
       const newInfo = { ...editProfileData };
-      let updatedUser = { ...user };
-
+      
       // Validate & Update Counts
       // Name
       if (newInfo.name !== oldInfo.name) {
@@ -1110,29 +1152,37 @@ const App: React.FC = () => {
           newInfo.countryChanged = true;
       }
 
-      // Update Local State
-      updatedUser.userInfo = newInfo;
+      // 1. Update State Immutable Way - Ensure merged correctly
+      let updatedUser = { 
+          ...user, 
+          userInfo: newInfo // Simply replace userInfo with the edited version (which contains the new image if uploaded)
+      };
+      
+      // Update React state
       setUser(updatedUser);
-      saveUserState(updatedUser, appState);
+      
+      // 2. Force save to LocalStorage immediately
+      try {
+          localStorage.setItem('black_tarot_user', JSON.stringify({ ...updatedUser, lastAppState: appState }));
+      } catch (e) {
+          console.warn("Local storage quota exceeded or error", e);
+          alert("저장 공간이 부족하여 일부 데이터(이미지 등)가 로컬에 저장되지 않았습니다.");
+      }
 
-      // Update Supabase
+      // 3. Attempt Supabase Cloud Sync
       if (isSupabaseConfigured) {
           const { error } = await supabase.from('profiles').upsert({ 
               email: user.email, 
-              data: updatedUser, // Save entire user object for simplicity as per current schema structure
+              data: updatedUser, 
               updated_at: new Date().toISOString() 
           }, { onConflict: 'email' });
           
           if (error) { 
-              alert("저장 실패 (클라우드): " + error.message); 
-              // Revert local state if cloud save fails? For now, we trust local storage as fallback.
-          } else {
-              alert("프로필이 성공적으로 저장되었습니다.");
+              console.warn("Cloud save failed, but local save succeeded.", error.message); 
           }
-      } else {
-          alert("프로필이 저장되었습니다. (로컬 모드)");
       }
       
+      alert("프로필이 저장되었습니다.");
       setShowProfile(false); 
   };
 
@@ -1189,32 +1239,51 @@ const App: React.FC = () => {
       updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
   };
 
-  const startLifeReading = () => { 
-      if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } 
+  const startLifeReading = () => {
+      if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; }
       if (!checkTierLimit()) return;
-      if (!spendCoins(250)) return; 
-      navigateTo(AppState.RESULT); 
-      setSelectedQuestion(TRANSLATIONS[lang].life_reading_title); 
-      setSelectedCards([]); 
-      setReadingPromise(getLifeReading({...user.userInfo!, birthTime: `${birthTime.h}:${birthTime.m}`}, lang)); 
+      if (!spendCoins(150)) return; // Cost changed to 150
+      
+      // Merge birthTime into userInfo for the prompt
+      const finalUserInfo: UserInfo = {
+          ...(user.userInfo as UserInfo),
+          birthTime: `${birthTime.h}:${birthTime.m}`
+      };
+
+      navigateTo(AppState.RESULT);
+      setSelectedQuestion(TRANSLATIONS[lang].life_reading_title);
+      setSelectedCards([]);
+      setReadingPromise(getLifeReading(finalUserInfo, lang));
       updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
   };
 
-  const startPartnerReading = () => { 
-      if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } 
+  const startPartnerReading = () => {
+      if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; }
       if (!checkTierLimit()) return;
-      if (!selectedCategory) return; 
-      const cost = selectedCategory.cost || 0; 
-      if (!spendCoins(cost)) return; 
-      if (!partnerBirth || partnerBirth.length < 8) return alert("Please enter a valid birthdate (YYYYMMDD)."); 
-      navigateTo(AppState.RESULT); 
-      setSelectedQuestion(selectedCategory.label); 
-      setSelectedCards([]); 
-      if (selectedCategory.id === 'SECRET_COMPAT') setReadingPromise(getCompatibilityReading(user.userInfo!, partnerBirth, lang)); 
-      else setReadingPromise(getPartnerLifeReading(partnerBirth, lang)); 
+      if (!partnerBirth || partnerBirth.length < 8) return alert("올바른 생년월일을 입력해주세요. (YYYYMMDD)");
+
+      const isSecret = selectedCategory?.id === 'SECRET_COMPAT';
+      const cost = isSecret ? 200 : 250;
+
+      if (!spendCoins(cost)) return;
+
+      navigateTo(AppState.RESULT);
+      setSelectedQuestion(selectedCategory?.label || "Partner Reading");
+      setSelectedCards([]);
+
+      if (isSecret) {
+          if (!user.userInfo) {
+             // Should not happen if flow is correct, but safe fallback
+             alert("User info missing");
+             return;
+          }
+          setReadingPromise(getCompatibilityReading(user.userInfo, partnerBirth, lang));
+      } else {
+          setReadingPromise(getPartnerLifeReading(partnerBirth, lang));
+      }
       updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
   };
-  
+
   const handleCardSelect = (indices: number[]) => { 
       if (user.email === 'Guest') { 
           const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0'); 
@@ -1293,35 +1362,6 @@ const App: React.FC = () => {
               <div className="z-50 pointer-events-auto"><Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }} onLogin={() => setAuthMode("LOGIN")} openProfile={handleOpenProfile} /></div>
           )}
           {showGuestBlock && ( <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in p-6"><div className="bg-gray-900 border border-purple-500 p-8 rounded text-center max-w-sm w-full shadow-[0_0_50px_rgba(168,85,247,0.5)]"><h2 className="text-2xl font-bold text-white mb-4">STOP</h2><p className="text-gray-300 mb-8 leading-relaxed">{TRANSLATIONS[lang].guest_lock_msg}</p><button onClick={() => { setShowGuestBlock(false); setAuthMode('LOGIN'); }} className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded shadow-[0_0_20px_rgba(147,51,234,0.5)] transition-all hover:scale-105">{TRANSLATIONS[lang].guest_lock_btn}</button></div></div> )}
-          {showAttendancePopup && ( <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-lg animate-fade-in p-4"><div className="relative bg-gradient-to-br from-[#2e1065] via-[#4c1d95] to-[#2e1065] p-1 rounded-2xl shadow-[0_0_80px_rgba(250,204,21,0.4)] max-w-sm w-full scale-100 animate-[bounce_1s_infinite]"><div className="relative bg-[#1a103c] rounded-xl p-8 text-center border border-yellow-500/50 overflow-hidden"><h2 className="text-3xl font-occult text-shine mb-4 relative z-10 font-bold uppercase tracking-widest">{TRANSLATIONS[lang].attendance_popup}</h2><div className="text-7xl mb-6 relative z-10 animate-bounce">🎁</div><p className="text-yellow-200 text-lg mb-2 font-bold relative z-10">Day {user.attendanceDay} Reached!</p><p className="text-gray-300 mb-8 relative z-10">You received <span className="text-yellow-400 font-bold text-xl">{attendanceReward} Coins</span></p><button onClick={() => setShowAttendancePopup(false)} className="relative z-10 w-full py-3 bg-gradient-to-r from-yellow-600 to-yellow-400 text-black font-extrabold rounded-lg shadow-lg">Claim Reward</button></div></div></div> )}
-          {showProfile && user.email !== 'Guest' && (
-              <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
-                  <div className="bg-gray-900 border border-purple-500 rounded-lg max-w-md w-full p-6 relative overflow-y-auto max-h-[90vh]">
-                      <button onClick={() => setShowProfile(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">✕</button>
-                      <h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{TRANSLATIONS[lang].profile_edit}</h2>
-                      <div className="flex justify-center mb-6"><div className="w-24 h-24 rounded-full bg-gray-800 border-2 border-purple-500 flex items-center justify-center overflow-hidden relative group cursor-pointer">{editProfileData.profileImage ? <img src={editProfileData.profileImage} className="w-full h-full object-cover" /> : <span className="text-4xl">👤</span>}<div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-xs text-white">Change</div><input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{ const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onload=()=>setEditProfileData(prev => ({...prev, profileImage: r.result as string})); r.readAsDataURL(f); } }}/></div></div>
-                      <div className="space-y-4">
-                          <div><label className="text-xs text-gray-500 block mb-1">Name (Changed: {user.userInfo?.nameChangeCount || 0}/5)</label><input value={editProfileData.name} onChange={(e) => setEditProfileData(prev => ({...prev, name: e.target.value}))} className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.nameChangeCount && user.userInfo.nameChangeCount >= 5 ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={!!(user.userInfo?.nameChangeCount && user.userInfo.nameChangeCount >= 5)} /></div>
-                          <div><label className="text-xs text-gray-500 block mb-1">Birthdate (Changeable Once)</label><input value={editProfileData.birthDate} onChange={(e) => setEditProfileData(prev => ({...prev, birthDate: e.target.value}))} placeholder="YYYYMMDD" className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.birthDateChanged ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={user.userInfo?.birthDateChanged} /></div>
-                          <div><label className="text-xs text-gray-500 block mb-1">Country (Changeable Once)</label><select value={COUNTRIES.find(c => c.nameEn === editProfileData.country)?.code || ''} onChange={(e) => { const c = COUNTRIES.find(cnt => cnt.code === e.target.value); if(c) setEditProfileData(prev => ({...prev, country: c.nameEn})); }} className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.countryChanged ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={user.userInfo?.countryChanged} >{COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.nameKo}</option>)}</select></div>
-                          <div><label className="text-xs text-gray-500 block mb-1">Bio (Public Description)</label><textarea value={editProfileData.bio || ''} onChange={(e) => setEditProfileData(prev => ({...prev, bio: e.target.value}))} className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white h-20 resize-none" placeholder="Introduce yourself..." /></div>
-                      </div>
-                      <div className="mt-6 flex gap-2"><button onClick={() => setShowProfile(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 font-bold">Cancel</button><button onClick={handleSaveProfile} className="flex-1 py-2 bg-purple-700 hover:bg-purple-600 rounded text-white font-bold">Save Changes</button></div>
-                      <div className="mt-8 pt-6 border-t border-gray-800"><button onClick={handleDeleteAccount} className="w-full py-3 bg-red-900/50 text-red-400 font-bold rounded border border-red-900 hover:bg-red-900 hover:text-white transition-colors">{TRANSLATIONS[lang].delete_account}</button></div>
-                  </div>
-              </div>
-          )}
-          {appState === AppState.WELCOME && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center animate-fade-in relative z-10"><Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }} onLogin={() => setAuthMode("LOGIN")} openProfile={handleOpenProfile} /><Logo size="large" /><p className="font-serif-en text-sm md:text-base italic mb-12 text-gold-gradient font-bold tracking-widest uppercase drop-shadow-sm opacity-90">{TRANSLATIONS[lang].welcome_sub}</p><button onClick={handleStart} className="btn-gold-3d mb-8">{TRANSLATIONS[lang].enter}</button></div> )}
-          {appState === AppState.INPUT_INFO && ( <div className="flex flex-col items-center justify-center min-h-screen p-6 relative z-10 animate-fade-in"><Logo size="small" /><div className="w-full max-w-md bg-black/60 border-wine-gradient p-8 rounded-lg backdrop-blur-sm"><h2 className="text-2xl font-occult text-purple-200 mb-2 text-center">{TRANSLATIONS[lang].info_title}</h2><p className="text-gray-400 text-sm mb-8 text-center">{TRANSLATIONS[lang].info_desc}</p><UserInfoForm onSubmit={handleUserInfoSubmit} lang={lang} /></div></div> )}
-          {appState === AppState.CATEGORY_SELECT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10"><h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center">{TRANSLATIONS[lang].select_cat_title}</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full relative">{(<button onClick={handleEnterChat} className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group"><span className="text-2xl mb-1 group-hover:animate-bounce">💬</span><span className="text-[8px] text-white font-bold">{isGuest ? 'Free' : TRANSLATIONS[lang].chat_entry_fee}</span></button>)}{CATEGORIES.map((cat) => { return (<button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]`}><span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span><span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{lang === 'en' ? cat.id : cat.label}</span>{!isGuest && cat.cost && <span className="absolute top-2 right-2 text-[10px] text-yellow-500 bg-black/80 px-1 rounded border border-yellow-700">-{cat.cost}</span>}</button>); })}</div></div> )}
-          {appState === AppState.CHAT_ROOM && ( <ChatView user={user} lang={lang} onLeave={() => navigateTo(AppState.CATEGORY_SELECT)} /> )}
-          {appState === AppState.FACE_UPLOAD && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-4">{TRANSLATIONS[lang].face_reading_title}</h2><p className="text-gray-300 mb-6 text-sm md:text-base leading-relaxed break-keep">{TRANSLATIONS[lang].face_reading_desc}</p><div className="mb-6 border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative"><input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onloadend=()=>setFaceImage(r.result as string); r.readAsDataURL(f); } }} className="absolute inset-0 opacity-0 cursor-pointer" />{faceImage ? <img src={faceImage} className="max-h-48 mx-auto rounded" /> : <span className="text-gray-500">{TRANSLATIONS[lang].face_guide}</span>}</div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startFaceReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].face_upload_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-150 Coin)')}</button></div></div></div> )}
-          {appState === AppState.LIFE_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{TRANSLATIONS[lang].life_reading_title}</h2><p className="text-gray-300 text-sm mb-6 leading-relaxed break-keep whitespace-pre-wrap">당신이 언제, 무엇으로 떼돈을 벌까요? 당신도 몰랐던 당신만의 천재적인 재능은 무엇일까요? 모두를 거느리는 내 인생의 황금기는 언제일까요? 미래의 배우자는 어떤 키, 외모, 분위기, 직업을 가지고 있을까요? 지금 당신의 숨겨진 인생 치트키를 알아보세요.</p><div className="flex gap-4 justify-center mb-6"><select value={birthTime.h} onChange={e=>setBirthTime({...birthTime, h:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:24}).map((_,i) => <option key={i} value={i.toString()}>{i}시</option>)}</select><select value={birthTime.m} onChange={e=>setBirthTime({...birthTime, m:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:60}).map((_,i) => <option key={i} value={i.toString()}>{i}분</option>)}</select></div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startLifeReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].life_input_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-250 Coin)')}</button></div></div></div> )}
-          {appState === AppState.PARTNER_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{selectedCategory?.label}</h2><p className="text-gray-400 mb-6">{selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_desc : TRANSLATIONS[lang].partner_life_desc}</p><input value={partnerBirth} onChange={e=>setPartnerBirth(e.target.value)} placeholder={TRANSLATIONS[lang].partner_birth_ph} className="w-full p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 mb-6 outline-none"/><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startPartnerReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{(selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_btn : TRANSLATIONS[lang].partner_life_btn).replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : selectedCategory?.id === 'SECRET_COMPAT' ? '(-200 Coin)' : '(-250 Coin)')}</button></div></div></div> )}
-          {appState === AppState.QUESTION_SELECT && selectedCategory && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20"><h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{selectedCategory.label}</h2><div className="w-full max-w-xl space-y-3">{selectedCategory.questions.map((q, i) => (<button key={i} onClick={() => handleQuestionSelect(q)} className="w-full p-4 text-left bg-black/60 border border-purple-900/50 rounded hover:bg-purple-900/30 hover:border-purple-500 transition-all text-gray-200 text-sm md:text-base">{q}</button>))}<div className="relative mt-6 pt-4 border-t border-gray-800"><input className="w-full p-4 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 focus:outline-none" placeholder={TRANSLATIONS[lang].custom_q_ph} value={customQuestion} onChange={(e) => setCustomQuestion(e.target.value)} /><button onClick={() => handleQuestionSelect(customQuestion)} className="absolute right-2 top-6 bottom-2 px-4 bg-purple-900 rounded text-xs font-bold hover:bg-purple-700 mt-4 mb-2">OK</button></div><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="w-full mt-6 py-3 bg-gray-800 text-gray-400 hover:text-white rounded border border-gray-700">{TRANSLATIONS[lang].back}</button></div></div> )}
-          {appState === AppState.SHUFFLING && ( <ShufflingAnimation onComplete={() => navigateTo(AppState.CARD_SELECT)} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} rugColor={user.rugColor} /> )}
-          {appState === AppState.CARD_SELECT && ( <CardSelection onSelectCards={handleCardSelect} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} /> )}
-          {appState === AppState.RESULT && ( <ResultView question={selectedQuestion} selectedCards={selectedCards} onRetry={() => navigateTo(AppState.CATEGORY_SELECT)} lang={lang} readingPromise={readingPromise} onReadingComplete={(text) => { const result: ReadingResult = { date: new Date().toISOString(), question: selectedQuestion, cards: selectedCards, interpretation: text }; updateUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] })); }} user={user} spendCoins={spendCoins} onLogin={() => setAuthMode("LOGIN")} /> )}
           
           {/* TIER CHANGE POPUP */}
           {showTierChangePopup && (
@@ -1369,6 +1409,35 @@ const App: React.FC = () => {
           )}
 
           {showAttendancePopup && ( <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-lg animate-fade-in p-4"><div className="relative bg-gradient-to-br from-[#2e1065] via-[#4c1d95] to-[#2e1065] p-1 rounded-2xl shadow-[0_0_80px_rgba(250,204,21,0.4)] max-w-sm w-full scale-100 animate-[bounce_1s_infinite]"><div className="relative bg-[#1a103c] rounded-xl p-8 text-center border border-yellow-500/50 overflow-hidden"><h2 className="text-3xl font-occult text-shine mb-4 relative z-10 font-bold uppercase tracking-widest">{TRANSLATIONS[lang].attendance_popup}</h2><div className="text-7xl mb-6 relative z-10 animate-bounce">🎁</div><p className="text-yellow-200 text-lg mb-2 font-bold relative z-10">Day {user.attendanceDay} Reached!</p><p className="text-gray-300 mb-8 relative z-10">You received <span className="text-yellow-400 font-bold text-xl">{attendanceReward} Coins</span></p><button onClick={() => setShowAttendancePopup(false)} className="relative z-10 w-full py-3 bg-gradient-to-r from-yellow-600 to-yellow-400 text-black font-extrabold rounded-lg shadow-lg">Claim Reward</button></div></div></div> )}
+          
+          {showProfile && user.email !== 'Guest' && (
+              <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
+                  <div className="bg-gray-900 border border-purple-500 rounded-lg max-w-md w-full p-6 relative overflow-y-auto max-h-[90vh]">
+                      <button onClick={() => setShowProfile(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">✕</button>
+                      <h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{TRANSLATIONS[lang].profile_edit}</h2>
+                      <div className="flex justify-center mb-6"><div className="w-24 h-24 rounded-full bg-gray-800 border-2 border-purple-500 flex items-center justify-center overflow-hidden relative group cursor-pointer">{editProfileData.profileImage ? <img src={editProfileData.profileImage} className="w-full h-full object-cover" /> : <span className="text-4xl">👤</span>}<div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-xs text-white">Change</div><input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{ const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onload=()=>setEditProfileData(prev => ({...prev, profileImage: r.result as string})); r.readAsDataURL(f); } }}/></div></div>
+                      <div className="space-y-4">
+                          <div><label className="text-xs text-gray-500 block mb-1">Name (Changed: {user.userInfo?.nameChangeCount || 0}/5)</label><input value={editProfileData.name} onChange={(e) => setEditProfileData(prev => ({...prev, name: e.target.value}))} className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.nameChangeCount && user.userInfo.nameChangeCount >= 5 ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={!!(user.userInfo?.nameChangeCount && user.userInfo.nameChangeCount >= 5)} /></div>
+                          <div><label className="text-xs text-gray-500 block mb-1">Birthdate (Changeable Once)</label><input value={editProfileData.birthDate} onChange={(e) => setEditProfileData(prev => ({...prev, birthDate: e.target.value}))} placeholder="YYYYMMDD" className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.birthDateChanged ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={user.userInfo?.birthDateChanged} /></div>
+                          <div><label className="text-xs text-gray-500 block mb-1">Country (Changeable Once)</label><select value={COUNTRIES.find(c => c.nameEn === editProfileData.country)?.code || ''} onChange={(e) => { const c = COUNTRIES.find(cnt => cnt.code === e.target.value); if(c) setEditProfileData(prev => ({...prev, country: c.nameEn})); }} className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.countryChanged ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={user.userInfo?.countryChanged} >{COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.nameKo}</option>)}</select></div>
+                          <div><label className="text-xs text-gray-500 block mb-1">Bio (Public Description)</label><textarea value={editProfileData.bio || ''} onChange={(e) => setEditProfileData(prev => ({...prev, bio: e.target.value}))} className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white h-20 resize-none" placeholder="Introduce yourself..." /></div>
+                      </div>
+                      <div className="mt-6 flex gap-2"><button onClick={() => setShowProfile(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 font-bold">Cancel</button><button onClick={handleSaveProfile} className="flex-1 py-2 bg-purple-700 hover:bg-purple-600 rounded text-white font-bold">Save Changes</button></div>
+                      <div className="mt-8 pt-6 border-t border-gray-800"><button onClick={handleDeleteAccount} className="w-full py-3 bg-red-900/50 text-red-400 font-bold rounded border border-red-900 hover:bg-red-900 hover:text-white transition-colors">{TRANSLATIONS[lang].delete_account}</button></div>
+                  </div>
+              </div>
+          )}
+          {appState === AppState.WELCOME && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center animate-fade-in relative z-10"><Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }} onLogin={() => setAuthMode("LOGIN")} openProfile={handleOpenProfile} /><Logo size="large" /><p className="font-serif-en text-sm md:text-base italic mb-12 text-gold-gradient font-bold tracking-widest uppercase drop-shadow-sm opacity-90">{TRANSLATIONS[lang].welcome_sub}</p><button onClick={handleStart} className="btn-gold-3d mb-8">{TRANSLATIONS[lang].enter}</button></div> )}
+          {appState === AppState.INPUT_INFO && ( <div className="flex flex-col items-center justify-center min-h-screen p-6 relative z-10 animate-fade-in"><Logo size="small" /><div className="w-full max-w-md bg-black/60 border-wine-gradient p-8 rounded-lg backdrop-blur-sm"><h2 className="text-2xl font-occult text-purple-200 mb-2 text-center">{TRANSLATIONS[lang].info_title}</h2><p className="text-gray-400 text-sm mb-8 text-center">{TRANSLATIONS[lang].info_desc}</p><UserInfoForm onSubmit={handleUserInfoSubmit} lang={lang} /></div></div> )}
+          {appState === AppState.CATEGORY_SELECT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10"><h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center">{TRANSLATIONS[lang].select_cat_title}</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full relative">{(<button onClick={handleEnterChat} className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group"><span className="text-2xl mb-1 group-hover:animate-bounce">💬</span><span className="text-[8px] text-white font-bold">{isGuest ? 'Free' : TRANSLATIONS[lang].chat_entry_fee}</span></button>)}{CATEGORIES.map((cat) => { return (<button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]`}><span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span><span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{lang === 'en' ? cat.id : cat.label}</span>{!isGuest && cat.cost && <span className="absolute top-2 right-2 text-[10px] text-yellow-500 bg-black/80 px-1 rounded border border-yellow-700">-{cat.cost}</span>}</button>); })}</div></div> )}
+          {appState === AppState.CHAT_ROOM && ( <ChatView user={user} lang={lang} onLeave={() => navigateTo(AppState.CATEGORY_SELECT)} /> )}
+          {appState === AppState.FACE_UPLOAD && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-4">{TRANSLATIONS[lang].face_reading_title}</h2><p className="text-gray-300 mb-6 text-sm md:text-base leading-relaxed break-keep">{TRANSLATIONS[lang].face_reading_desc}</p><div className="mb-6 border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative"><input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onloadend=()=>setFaceImage(r.result as string); r.readAsDataURL(f); } }} className="absolute inset-0 opacity-0 cursor-pointer" />{faceImage ? <img src={faceImage} className="max-h-48 mx-auto rounded" /> : <span className="text-gray-500">{TRANSLATIONS[lang].face_guide}</span>}</div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startFaceReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].face_upload_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-150 Coin)')}</button></div></div></div> )}
+          {appState === AppState.LIFE_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{TRANSLATIONS[lang].life_reading_title}</h2><p className="text-gray-300 text-sm mb-6 leading-relaxed break-keep whitespace-pre-wrap">당신이 언제, 무엇으로 떼돈을 벌까요? 당신도 몰랐던 당신만의 천재적인 재능은 무엇일까요? 모두를 거느리는 내 인생의 황금기는 언제일까요? 미래의 배우자는 어떤 키, 외모, 분위기, 직업을 가지고 있을까요? 지금 당신의 숨겨진 인생 치트키를 알아보세요.</p><div className="flex gap-4 justify-center mb-6"><select value={birthTime.h} onChange={e=>setBirthTime({...birthTime, h:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:24}).map((_,i) => <option key={i} value={i.toString()}>{i}시</option>)}</select><select value={birthTime.m} onChange={e=>setBirthTime({...birthTime, m:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:60}).map((_,i) => <option key={i} value={i.toString()}>{i}분</option>)}</select></div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startLifeReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].life_input_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-150 Coin)')}</button></div></div></div> )}
+          {appState === AppState.PARTNER_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{selectedCategory?.label}</h2><p className="text-gray-400 mb-6">{selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_desc : TRANSLATIONS[lang].partner_life_desc}</p><input value={partnerBirth} onChange={e=>setPartnerBirth(e.target.value)} placeholder={TRANSLATIONS[lang].partner_birth_ph} className="w-full p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 mb-6 outline-none"/><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startPartnerReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{(selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_btn : TRANSLATIONS[lang].partner_life_btn).replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : selectedCategory?.id === 'SECRET_COMPAT' ? '(-200 Coin)' : '(-250 Coin)')}</button></div></div></div> )}
+          {appState === AppState.QUESTION_SELECT && selectedCategory && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20"><h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{selectedCategory.label}</h2><div className="w-full max-w-xl space-y-3">{selectedCategory.questions.map((q, i) => (<button key={i} onClick={() => handleQuestionSelect(q)} className="w-full p-4 text-left bg-black/60 border border-purple-900/50 rounded hover:bg-purple-900/30 hover:border-purple-500 transition-all text-gray-200 text-sm md:text-base">{q}</button>))}<div className="relative mt-6 pt-4 border-t border-gray-800"><input className="w-full p-4 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 focus:outline-none" placeholder={TRANSLATIONS[lang].custom_q_ph} value={customQuestion} onChange={(e) => setCustomQuestion(e.target.value)} /><button onClick={() => handleQuestionSelect(customQuestion)} className="absolute right-2 top-6 bottom-2 px-4 bg-purple-900 rounded text-xs font-bold hover:bg-purple-700 mt-4 mb-2">OK</button></div><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="w-full mt-6 py-3 bg-gray-800 text-gray-400 hover:text-white rounded border border-gray-700">{TRANSLATIONS[lang].back}</button></div></div> )}
+          {appState === AppState.SHUFFLING && ( <ShufflingAnimation onComplete={() => navigateTo(AppState.CARD_SELECT)} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} rugColor={user.rugColor} /> )}
+          {appState === AppState.CARD_SELECT && ( <CardSelection onSelectCards={handleCardSelect} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} /> )}
+          {appState === AppState.RESULT && ( <ResultView question={selectedQuestion} selectedCards={selectedCards} onRetry={() => navigateTo(AppState.CATEGORY_SELECT)} lang={lang} readingPromise={readingPromise} onReadingComplete={(text) => { const result: ReadingResult = { date: new Date().toISOString(), question: selectedQuestion, cards: selectedCards, interpretation: text }; updateUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] })); }} user={user} spendCoins={spendCoins} onLogin={() => setAuthMode("LOGIN")} /> )}
           
           {showShop && (
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4">

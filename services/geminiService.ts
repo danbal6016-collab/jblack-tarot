@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 
@@ -39,13 +40,13 @@ FORMAT:
 (1 punchy sentence)
 
 [실질적인 해결책]
-1. [가장 현실적인 해결책]
+1. (Write the most realistic, grounded solution here. Do NOT use brackets like [현실적인 해결책]. Just start with content.)
 (Write AT LEAST 6 sentences. Be grounded, practical, and realistic. Focus on what can actually be done in the real world right now.)
 
-2. [가장 효과적인 해결책]
+2. (Write the most effective, fast solution here. Do NOT use brackets like [가장 효과적인 해결책]. Just start with content.)
 (Write AT LEAST 6 sentences. Provide the most efficient, fastest, and direct way to solve the problem, even if it's hard.)
 
-3. [웃기는 해결책]
+3. (Write a witty/funny but logical solution here. Do NOT use brackets like [웃기는 해결책]. Just start with content.)
 (Write AT LEAST 6 sentences. Give a witty, sarcastic, or humorous solution that actually makes sense but is funny.)
 
 ${specialSection}
@@ -62,14 +63,11 @@ const EMERGENCY_FALLBACK_RESPONSE = `
 시스템 오류도 운명, 잠시 후 다시 시도하세요.
 
 [실질적인 해결책]
-1. [가장 현실적인 해결책]
-현재 서버 연결 상태가 불안정하여 응답을 가져오지 못했습니다. 가장 현실적인 방법은 잠시 후 새로고침을 하거나 1분 정도 기다렸다가 다시 시도하는 것입니다. 와이파이나 데이터 연결 상태를 확인해보세요. 기술적인 문제는 시간이 해결해 줄 때가 많습니다. 조급해하지 말고 차 한 잔 마시며 기다려보세요. 지금은 잠시 쉬어가는 타이밍입니다.
+1. 현재 서버 연결 상태가 불안정하여 응답을 가져오지 못했습니다. 가장 현실적인 방법은 잠시 후 새로고침을 하거나 1분 정도 기다렸다가 다시 시도하는 것입니다. 와이파이나 데이터 연결 상태를 확인해보세요. 기술적인 문제는 시간이 해결해 줄 때가 많습니다. 조급해하지 말고 차 한 잔 마시며 기다려보세요. 지금은 잠시 쉬어가는 타이밍입니다.
 
-2. [가장 효과적인 해결책]
-가장 빠른 방법은 브라우저를 완전히 닫았다가 다시 여는 것입니다. 캐시가 꼬였을 수도 있으니 강력 새로고침을 시도해보세요. 다른 기기로 접속해보는 것도 하나의 방법입니다. 네트워크 환경이 좋은 곳으로 이동하여 다시 시도하면 해결될 확률이 높습니다. 오류가 계속된다면 잠시 폰을 꺼두는 것도 방법입니다.
+2. 가장 빠른 방법은 브라우저를 완전히 닫았다가 다시 여는 것입니다. 캐시가 꼬였을 수도 있으니 강력 새로고침을 시도해보세요. 다른 기기로 접속해보는 것도 하나의 방법입니다. 네트워크 환경이 좋은 곳으로 이동하여 다시 시도하면 해결될 확률이 높습니다. 오류가 계속된다면 잠시 폰을 꺼두는 것도 방법입니다.
 
-3. [웃기는 해결책]
-개발자가 지금쯤 식은땀을 흘리며 서버를 고치고 있을 겁니다. 그에게 힘내라고 텔레파시를 보내보세요. 아니면 모니터 앞에서 '열려라 참깨'를 외쳐보는 건 어떨까요? 운명이 당신의 인내심을 테스트하고 있는 중입니다. 이 오류 화면마저도 당신의 특별한 운명 중 하나라고 생각하고 웃어넘기세요. 화내면 주름만 늘어납니다.
+3. 개발자가 지금쯤 식은땀을 흘리며 서버를 고치고 있을 겁니다. 그에게 힘내라고 텔레파시를 보내보세요. 아니면 모니터 앞에서 '열려라 참깨'를 외쳐보는 건 어떨까요? 운명이 당신의 인내심을 테스트하고 있는 중입니다. 이 오류 화면마저도 당신의 특별한 운명 중 하나라고 생각하고 웃어넘기세요. 화내면 주름만 늘어납니다.
 `;
 
 // --- SAFETY SETTINGS ---
@@ -271,25 +269,28 @@ export const getCompatibilityReading = async (
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
     
     // 19+ Logic: Spicy Compatibility
+    // Roleplay: Best friend chatting about boyfriend.
     const prompt = `
       ${randomSeed}
       Analyze 'INTENSE 19+ PHYSICAL & SAJU COMPATIBILITY' between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
-      This is for ENTERTAINMENT PURPOSES.
-      Tone: Spicy, Arousing, Cynical, Bold.
-      Language: Korean (Adult style).
+      
+      ROLEPLAY: You are the user's best friend (a girl who is very open and a bit dirty-minded). You are gossiping in a private room.
+      TONE: High-rated (19+), very spicy, arousing, explicit but friendly. Use slang like '얘기해줄게', '미쳤어', '완전 쩔어'.
+      Make it feel "delicious" and exciting to read. Describe the chemistry vividly.
+      
       STRICTLY NO ASTERISKS (*).
       
       MINIMUM 30 SENTENCES.
       
       Structure:
       [속궁합 분석]
-      (Analyze physical chemistry, specific compatibility, energy fit. Be bold but safe.)
+      (Talk about their physical fit, energy, and bedroom chemistry explicitly and provocatively. How good is he/she?)
       
       [숨겨진 욕망]
-      (What they secretly want from each other.)
+      (What does he secretly want to do to you? What is his fetish? Be bold.)
       
       [결론 및 조언]
-      (Final verdict on their nights together.)
+      (Final verdict. Should you sleep with him tonight? Best position?)
     `;
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-1.5-flash', undefined, lang);
@@ -327,24 +328,26 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
     
-    // Face Reading Logic: Expert level, 20 lines, Constructive
+    // Face Reading Logic: Updated for "Korean Gwansang" + Tasty text
     const prompt = `
         ${randomSeed}
-        Perform an 'EXPERT PHYSIOGNOMY (Face Reading)' analysis on this image.
-        Role: Master Face Reader.
-        Tone: Professional, Insightful, Slightly Cynical but Constructive (Do not be overly mean).
-        MINIMUM 20 SENTENCES.
+        Perform an 'EXPERT KOREAN PHYSIOGNOMY (Gwansang/관상)' analysis on this image.
+        Role: A famous, witty Korean fortune teller who speaks "deliciously" and funnily.
+        Task: Analyze the Eyes, Nose, Mouth, and Face Shape specifically according to traditional Gwansang principles.
+        
+        TONE: Very engaging, slightly cynical but fun ("Tasty text"), practical. 
+        Output must be around 20 SENTENCES long.
         STRICTLY NO ASTERISKS (*).
 
         Structure:
         [관상 분석]
-        (Analyze eyes, nose, mouth, face shape details. Connect features to personality and fortune.)
+        (Analyze specific features: Eyes (wealth/wisdom), Nose (money flow), Mouth (love/speech). Connect them to personality.)
 
         [운세 총평]
-        (Overall destiny regarding wealth, success, and love based on the face.)
+        (Final verdict on their life destiny - Wealth, Success, and Love based on the face.)
     `;
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 8192 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-1.5-flash', [imagePart], lang);
 };
 

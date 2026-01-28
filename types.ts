@@ -83,6 +83,19 @@ export interface CustomFrame {
   name: string;
 }
 
+// New Interface for session persistence
+export interface CurrentSession {
+  appState: AppState;
+  selectedCategoryId?: CategoryKey; // Store ID to restore object
+  selectedQuestion?: string;
+  customQuestion?: string;
+  selectedCards?: TarotCard[];
+  readingResult?: string;
+  faceImage?: string;
+  birthTime?: { h: string, m: string };
+  partnerBirth?: string;
+}
+
 export interface User {
   email: string;
   coins: number;
@@ -126,6 +139,9 @@ export interface User {
   
   // Persistence
   lastAppState?: AppState; // Saved state to resume
+  
+  // Active Session Restoration
+  currentSession?: CurrentSession; 
 }
 
 export interface ChatMessage {
