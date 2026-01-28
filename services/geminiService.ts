@@ -130,7 +130,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             console.log(`Attempting generation with model: ${model}`);
             
             const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-            if (!config.maxOutputTokens) config.maxOutputTokens = 800; 
+            if (!config.maxOutputTokens) config.maxOutputTokens = 4000; 
             if (config.thinkingConfig) delete config.thinkingConfig;
 
             let responseText = "";
@@ -253,7 +253,7 @@ export const getTarotReading = async (
   const config = {
     systemInstruction: getBaseInstruction(lang),
     temperature: 0.9, 
-    maxOutputTokens: 800, 
+    maxOutputTokens: 4000, 
   };
 
   return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
@@ -273,7 +273,7 @@ export const getCompatibilityReading = async (
       [감춰진 욕망]
       [결론]
     `;
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 800 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 4000 };
     return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
 };
 
@@ -284,7 +284,7 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
       LIFE PATH for ${partnerBirth}.
       Sections: [초년], [중년], [노년]. Tone: Mysterious, Fast.
     `;
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 800 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 4000 };
     return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
 };
 
@@ -293,14 +293,14 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
     const prompt = `${randomSeed} Physiognomy Analysis. Tone: Cynical, Fast. Result: Personality & Fortune.`;
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 800 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 4000 };
     return await callGenAI(prompt, config, 'gemini-flash-latest', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
     const prompt = `${randomSeed} Saju for ${userInfo.name}, ${userInfo.birthDate} ${userInfo.birthTime}. Content: Wealth, Talent, Spouse. Tone: Fast, Direct.`;
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 800 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 4000 };
     return await callGenAI(prompt, config, 'gemini-flash-latest', undefined, lang);
 };
 
