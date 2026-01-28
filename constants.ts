@@ -203,7 +203,7 @@ export const CATEGORIES: QuestionCategory[] = [
     label: '관상',
     icon: '👁️',
     questions: [], 
-    cost: 100 
+    cost: 150 
   },
   {
     id: 'LIFE',

@@ -33,7 +33,7 @@ const getTarotStructure = (lang: Language, tier: string = 'BRONZE') => {
     return `
 FORMAT:
 [내용 분석]
-(10 sentences. Analyze the situation deeply.)
+(5 sentences. Analyze the situation deeply.)
 
 [조언 한마디]
 (1 punchy sentence)
@@ -279,7 +279,7 @@ export const getCompatibilityReading = async (
       Language: Korean (Adult style).
       STRICTLY NO ASTERISKS (*).
       
-      Generate roughly 30 lines of analysis.
+      MINIMUM 30 SENTENCES.
       
       Structure:
       [속궁합 분석]
@@ -304,6 +304,7 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
       Analyze 'COMPLETE LIFE PATH SAJU' for birthdate: ${partnerBirth}.
       Tone: Mysterious, Insightful, Cynical.
       STRICTLY NO ASTERISKS (*).
+      MINIMUM 30 SENTENCES.
 
       Structure:
       [초년운 (Early Life)]
@@ -332,7 +333,7 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
         Perform an 'EXPERT PHYSIOGNOMY (Face Reading)' analysis on this image.
         Role: Master Face Reader.
         Tone: Professional, Insightful, Slightly Cynical but Constructive (Do not be overly mean).
-        Length: Approximately 20 lines.
+        MINIMUM 20 SENTENCES.
         STRICTLY NO ASTERISKS (*).
 
         Structure:
@@ -356,7 +357,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
         Analyze 'DETAILED SAJU (Korean Astrology)' for ${userInfo.name}, Born: ${userInfo.birthDate}, Time: ${userInfo.birthTime}.
         Focus on: Wealth Timing, Hidden Talents, Golden Age, Future Spouse Details.
         Tone: Fast, Direct, Cynical, Extremely Detailed.
-        Length: Approximately 50 lines.
+        MINIMUM 20 SENTENCES.
         STRICTLY NO ASTERISKS (*).
 
         Structure:
