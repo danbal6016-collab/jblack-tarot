@@ -867,28 +867,30 @@ const App: React.FC = () => {
   const [pendingPackage, setPendingPackage] = useState<{amount: number, coins: number} | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'TOSS' | 'PAYPAL' | 'APPLE' | 'KAKAO'>('TOSS');
 
-  const saveUserState = useCallback((u: User, state: AppState) => {
-      try {
-          localStorage.setItem('black_tarot_user', JSON.stringify({ ...u, lastAppState: state }));
-      } catch (e) {
-          console.error("Local storage error (Quota exceeded?):", e);
-      }
-     if (u.email !== 'Guest' && isSupabaseConfigured) {
-  supabase.auth.getUser().then(({ data }) => {
-    const uid = data.user?.id;
-    if (!uid) return;
+const saveUserState = useCallback((u: User, state: AppState) => {
+  try {
+    localStorage.setItem('black_tarot_user', JSON.stringify({ ...u, lastAppState: state }));
+  } catch (e) {
+    console.error("Local storage error (Quota exceeded?):", e);
+  }
 
-    supabase
-      .from('profiles')
-      .upsert(
-        { id: uid, email: u.email, data: { ...u, lastAppState: state }, updated_at: new Date().toISOString() },
-        { onConflict: 'id' }
-      )
-      .then(({ error }) => {
-        if (error) console.warn("Cloud save failed:", error.message);
-      });
-  });
-}
+  if (u.email !== 'Guest' && isSupabaseConfigured) {
+    supabase.auth.getUser().then(({ data }) => {
+      const uid = data.user?.id;
+      if (!uid) return;
+
+      supabase
+        .from('profiles')
+        .upsert(
+          { id: uid, email: u.email, data: { ...u, lastAppState: state }, updated_at: new Date().toISOString() },
+          { onConflict: 'id' }
+        )
+        .then(({ error }) => {
+          if (error) console.warn("Cloud save failed:", error.message);
+        });
+    });
+  }
+}, [appState]); // <- 이 줄이 핵심 (deps는 최소 appState)
 
 
   const navigateTo = (newState: AppState) => { setAppState(newState); saveUserState(user, newState); };
