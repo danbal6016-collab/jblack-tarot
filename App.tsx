@@ -586,9 +586,9 @@ const ResultView: React.FC<{
          if(isMounted && loading) {
              setAnalysisText("The cards are silent... (Network Timeout)\nBut your destiny is clear.");
              setSolutionText("Try again later.");
-          
+             setLoading(false);
          }
-      }, 90000); 
+      }, 30000); 
 
       readingPromise.then(t => {
         if(!isMounted) return;
@@ -1042,7 +1042,28 @@ const App: React.FC = () => {
   const handleDeleteAccount = async () => { if (confirm(TRANSLATIONS[lang].delete_confirm)) { if (isSupabaseConfigured) await supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); localStorage.removeItem('tarot_device_id'); const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME }; setUser(cleanUser); setAppState(AppState.WELCOME); setShowProfile(false); } };
   const initiatePayment = (amount: number, coins: number) => { if (user.email === 'Guest') { alert("Please login to purchase coins."); return; } setPendingPackage({ amount, coins }); setShopStep('METHOD'); };
   const processPayment = () => { if (!pendingPackage) return; setTimeout(() => { alert(`Payment Successful via ${selectedPaymentMethod}!`); updateUser(prev => ({ ...prev, coins: prev.coins + pendingPackage.coins, totalSpent: prev.totalSpent + pendingPackage.amount, })); setPendingPackage(null); setShopStep('AMOUNT'); setShowShop(false); }, 1500); };
-  const handleCategorySelect = (category: QuestionCategory) => { if (category.minTier) { const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM]; if (tiers.indexOf(user.tier) < tiers.indexOf(category.minTier)) { alert(`This category requires ${category.minTier} tier or higher.`); return; } } setSelectedCategory(category); if (category.id === 'FACE') navigateTo(AppState.FACE_UPLOAD); else if (category.id === 'LIFE') navigateTo(AppState.LIFE_INPUT); else if (category.id === 'SECRET_COMPAT' || category.id === 'PARTNER_LIFE') navigateTo(AppState.PARTNER_INPUT); else navigateTo(AppState.QUESTION_SELECT); };
+  
+  const handleCategorySelect = (category: QuestionCategory) => { 
+      // STRICT GUEST CHECK for specific categories
+      if (user.email === 'Guest' && ['FACE', 'LIFE', 'SECRET_COMPAT', 'PARTNER_LIFE'].includes(category.id)) {
+          setAuthMode('LOGIN');
+          return;
+      }
+
+      if (category.minTier) { 
+          const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM]; 
+          if (tiers.indexOf(user.tier) < tiers.indexOf(category.minTier)) { 
+              alert(`This category requires ${category.minTier} tier or higher.`); 
+              return; 
+          } 
+      } 
+      setSelectedCategory(category); 
+      if (category.id === 'FACE') navigateTo(AppState.FACE_UPLOAD); 
+      else if (category.id === 'LIFE') navigateTo(AppState.LIFE_INPUT); 
+      else if (category.id === 'SECRET_COMPAT' || category.id === 'PARTNER_LIFE') navigateTo(AppState.PARTNER_INPUT); 
+      else navigateTo(AppState.QUESTION_SELECT); 
+  };
+
   const handleEnterChat = async () => { if (!spendCoins(20)) return; navigateTo(AppState.CHAT_ROOM); };
   const handleQuestionSelect = (q: string) => { setSelectedQuestion(q); navigateTo(AppState.SHUFFLING); };
   const startFaceReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!faceImage) return alert("Please upload a photo first."); if (!spendCoins(100)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].face_reading_title); setSelectedCards([]); setReadingPromise(getFaceReading(faceImage, user.userInfo, lang)); };

@@ -15,8 +15,8 @@ Use Korean Honorifics (존댓말) with internet slang.
 STRICT RULES:
 1. NO EMOJIS in main text.
 2. NO INTROS/OUTROS.
-3. MAX 3 LINES PER SECTION.
-4. BE SAVAGE & WITTY.
+3. BE SAVAGE & WITTY.
+4. ABSOLUTELY NO ASTERISKS (*) OR MARKDOWN BOLDING. Do not use * ever.
 `;
 };
 
@@ -32,15 +32,21 @@ const getTarotStructure = (lang: Language, tier: string = 'BRONZE') => {
     return `
 FORMAT:
 [내용 분석]
-(2 short sentences)
+(10 sentences)
 
 [조언 한마디]
 (1 punchy sentence)
 
 [실질적인 해결책]
-1. (Short solution)
-2. (Short solution)
-3. (Witty solution)
+1. [가장 현실적인 해결책]
+(Write at least 6 sentences. Be extremely grounded, practical, and realistic about the situation.)
+
+2. [가장 효과적인 해결책]
+(Write at least 6 sentences. Provide the most efficient and fastest way to solve the problem.)
+
+3. [웃기는 해결책]
+(Write at least 6 sentences. Give a witty, sarcastic, or humorous solution that actually makes sense but is funny.)
+
 ${specialSection}
 ${platinumNote}
 `;
@@ -49,15 +55,20 @@ ${platinumNote}
 // --- EMERGENCY FALLBACK TEXT ---
 const EMERGENCY_FALLBACK_RESPONSE = `
 [내용 분석]
-우주의 기운이 잠시 메롱하네요. 하지만 당신은 이미 답을 알고 있지 않나요?
+우주의 기운이 잠시 메롱하네요. 하지만 당신은 이미 답을 알고 있지 않나요? 시스템이 잠시 멈췄지만 당신의 운명은 멈추지 않습니다. 잠시 여유를 가지라는 신호일지도 모릅니다.
 
 [조언 한마디]
 시스템 오류도 운명, 잠시 후 다시 시도하세요.
 
 [실질적인 해결책]
-1. 잠시 숨을 고르고 1분 뒤에 다시 시도.
-2. 폰을 껐다 켜보세요.
-3. 개발자에게 맛있는 거 사주라고 기도하기.
+1. [가장 현실적인 해결책]
+현재 서버 연결 상태가 불안정하여 응답을 가져오지 못했습니다. 잠시 후 새로고침을 하거나 1분 정도 기다렸다가 다시 시도하는 것이 가장 좋습니다. 와이파이나 데이터 연결 상태를 확인해보세요. 기술적인 문제는 시간이 해결해 줄 때가 많습니다. 조급해하지 말고 차 한 잔 마시며 기다려보세요. 지금은 잠시 쉬어가는 타이밍입니다.
+
+2. [가장 효과적인 해결책]
+가장 빠른 방법은 브라우저를 완전히 닫았다가 다시 여는 것입니다. 캐시가 꼬였을 수도 있으니 강력 새로고침을 시도해보세요. 다른 기기로 접속해보는 것도 하나의 방법입니다. 네트워크 환경이 좋은 곳으로 이동하여 다시 시도하면 해결될 확률이 높습니다. 오류가 계속된다면 잠시 폰을 꺼두는 것도 방법입니다.
+
+3. [웃기는 해결책]
+개발자가 지금쯤 식은땀을 흘리며 서버를 고치고 있을 겁니다. 그에게 힘내라고 텔레파시를 보내보세요. 아니면 모니터 앞에서 '열려라 참깨'를 외쳐보는 건 어떨까요? 운명이 당신의 인내심을 테스트하고 있는 중입니다. 이 오류 화면마저도 당신의 특별한 운명 중 하나라고 생각하고 웃어넘기세요.
 `;
 
 // --- SAFETY SETTINGS ---
