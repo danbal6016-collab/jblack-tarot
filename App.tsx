@@ -80,7 +80,7 @@ const TRANSLATIONS = {
     guest_lock_msg: "계속하려면 로그인이 필요합니다.",
     guest_lock_btn: "로그인 / 회원가입",
     secret_compat_title: "은밀한 궁합",
-    secret_compat_desc: "당신과 그 사람의 속궁합, 그리고 숨겨진 욕망.",
+    secret_compat_desc: "아기들은 나가라.",
     secret_compat_btn: "궁합 확인 (-200 Coin)",
     partner_life_title: "그 사람의 인생",
     partner_life_desc: "그 사람의 타고난 인생 팔자를 비밀리에 들춰 보세요.",
