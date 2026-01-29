@@ -555,53 +555,48 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
             style={rugStyle}
         >
             <style>{`
-                @keyframes smooth-riffle-left {
-                    0% { transform: translateX(-180px) translateY(20px) rotate(-15deg) scale(0.9); opacity: 0; }
-                    20% { opacity: 1; }
-                    50% { transform: translateX(0px) translateY(0px) rotate(0deg) scale(1); z-index: 10; }
-                    100% { transform: translateX(0px) translateY(0px) rotate(0deg) scale(1); z-index: 1; }
+                @keyframes cosmic-shuffle {
+                    0% { transform: translateX(0) scale(1); z-index: 1; filter: brightness(1); }
+                    25% { transform: translateX(-120px) translateY(-20px) rotate(-10deg) scale(1.05); z-index: 10; filter: brightness(1.2); }
+                    50% { transform: translateX(0) translateY(-40px) rotate(0deg) scale(1.1); z-index: 20; filter: brightness(1.5) drop-shadow(0 0 15px gold); }
+                    75% { transform: translateX(120px) translateY(-20px) rotate(10deg) scale(1.05); z-index: 10; filter: brightness(1.2); }
+                    100% { transform: translateX(0) scale(1); z-index: 1; filter: brightness(1); }
                 }
-                @keyframes smooth-riffle-right {
-                    0% { transform: translateX(180px) translateY(20px) rotate(15deg) scale(0.9); opacity: 0; }
-                    20% { opacity: 1; }
-                    50% { transform: translateX(0px) translateY(0px) rotate(0deg) scale(1); z-index: 10; }
-                    100% { transform: translateX(0px) translateY(0px) rotate(0deg) scale(1); z-index: 1; }
-                }
-                @keyframes deck-pulse {
-                    0%, 100% { transform: scale(1); filter: brightness(1); }
-                    50% { transform: scale(1.02); filter: brightness(1.2); }
+                @keyframes deck-pulse-fancy {
+                    0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(168,85,247,0.3); }
+                    50% { transform: scale(1.02); box-shadow: 0 0 40px rgba(168,85,247,0.6); }
                 }
             `}</style>
 
-            <div className="relative w-40 h-64 z-20" style={{ animation: 'deck-pulse 2s infinite ease-in-out' }}>
+            <div className="relative w-40 h-64 z-20" style={{ animation: 'deck-pulse-fancy 3s infinite ease-in-out' }}>
                 {/* Center Static Base */}
                  <div className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-500/30 shadow-[0_0_20px_rgba(0,0,0,0.8)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}></div>
 
-                {/* Left Deck Flow - Increased Count & Fluid Motion */}
-                {[...Array(15)].map((_, i) => (
+                {/* Left Orbit - Fluid & Flashy */}
+                {[...Array(8)].map((_, i) => (
                     <div key={`left-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
                          style={{ 
-                             animation: `smooth-riffle-left 1.2s cubic-bezier(0.25, 1, 0.5, 1) infinite`,
-                             animationDelay: `${i * 0.06}s`,
+                             animation: `cosmic-shuffle 2s cubic-bezier(0.45, 0, 0.55, 1) infinite`,
+                             animationDelay: `${i * 0.15}s`,
                              boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
                          }}>
                     </div>
                 ))}
 
-                {/* Right Deck Flow - Increased Count & Fluid Motion */}
-                {[...Array(15)].map((_, i) => (
+                {/* Right Orbit - Fluid & Flashy (Offset) */}
+                {[...Array(8)].map((_, i) => (
                     <div key={`right-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}
                         style={{
-                            animation: `smooth-riffle-right 1.2s cubic-bezier(0.25, 1, 0.5, 1) infinite`,
-                            animationDelay: `${i * 0.06}s`,
+                            animation: `cosmic-shuffle 2s cubic-bezier(0.45, 0, 0.55, 1) infinite reverse`,
+                            animationDelay: `${i * 0.15}s`,
                             boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
                         }}>
                     </div>
                 ))}
                 
-                {/* Central Magic Dust */}
+                {/* Central Magic Core */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-24 h-24 bg-purple-500/20 blur-2xl rounded-full animate-pulse"></div>
+                    <div className="w-24 h-24 bg-purple-500/30 blur-3xl rounded-full animate-pulse"></div>
                 </div>
             </div>
             
@@ -645,7 +640,7 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
                                 // Added improved transition-all with custom bezier for fluid feel, active scaling, and touch-manipulation
                                 className={`aspect-[2/3] rounded-sm border border-purple-500/30 shadow-md cursor-pointer 
                                 transition-all duration-500 ease-[cubic-bezier(0.25,0.8,0.25,1)] card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
-                                touch-manipulation active:scale-90
+                                touch-manipulation active:scale-95
                                 ${isSelected 
                                     ? 'scale-110 shadow-[0_0_20px_#d946ef] border-purple-200 z-50 brightness-125 -translate-y-2' 
                                     : 'hover:-translate-y-1 hover:scale-105 hover:shadow-[0_0_10px_rgba(168,85,247,0.4)] z-0 hover:z-10'}`}
@@ -1038,7 +1033,7 @@ const App: React.FC = () => {
                     try { 
                         const { data: profileData } = await supabase.from('profiles').select('data').eq('email', email).single(); 
                         if (profileData && profileData.data) {
-                            // PRIORITIZE CLOUD DATA for logged-in users to prevent overwriting with stale local data
+                            // PRIORITIZE CLOUD DATA for logged-in users
                             currentUser = profileData.data; 
                         } else if (!localUser || localUser.email !== email) {
                             currentUser = { ...user, email };
@@ -1174,6 +1169,46 @@ const App: React.FC = () => {
           checkUser(); 
       }
   }, [checkUser]);
+
+  // LOGOUT HANDLER - Resets state directly without reload to prevent re-triggering logic
+  const handleLogout = async () => {
+      try {
+          if (isSupabaseConfigured) {
+              await supabase.auth.signOut();
+          }
+      } catch (e) {
+          console.error("Sign out error:", e);
+      }
+      
+      localStorage.removeItem('black_tarot_user');
+      
+      const cleanGuestUser: User = { 
+          email: 'Guest', 
+          coins: 0, 
+          history: [], 
+          totalSpent: 0, 
+          tier: UserTier.BRONZE, 
+          attendanceDay: 0, 
+          ownedSkins: ['default'], 
+          currentSkin: 'default', 
+          readingsToday: 0, 
+          loginDates: [], 
+          monthlyCoinsSpent: 0, 
+          lastAppState: AppState.WELCOME,
+          // Reset custom fields to ensure clean slate
+          customSkins: [],
+          activeCustomSkin: null,
+          resultFrame: 'default',
+          customFrames: [],
+          resultBackground: 'default',
+          customStickers: []
+      };
+      
+      setUser(cleanGuestUser);
+      setAppState(AppState.WELCOME);
+      setShowSettings(false);
+      setShowProfile(false);
+  };
 
   const handleStart = () => { initSounds(); setBgmStopped(false); if (user.userInfo?.name && user.userInfo?.birthDate) navigateTo(AppState.CATEGORY_SELECT); else navigateTo(AppState.INPUT_INFO); };
   const handleUserInfoSubmit = (info: UserInfo) => { updateUser((prev) => ({ ...prev, userInfo: info })); navigateTo(AppState.CATEGORY_SELECT); };
@@ -1678,7 +1713,7 @@ const App: React.FC = () => {
                              
                              {user.email !== 'Guest' && (
                                 <div className="pt-6 border-t border-purple-500/20 text-center">
-                                    <button onClick={() => { supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); window.location.reload(); }} className="text-xs text-red-400/70 hover:text-red-400 font-serif tracking-widest transition-colors">{TRANSLATIONS[lang].logout}</button>
+                                    <button onClick={handleLogout} className="text-xs text-red-400/70 hover:text-red-400 font-serif tracking-widest transition-colors">{TRANSLATIONS[lang].logout}</button>
                                 </div>
                              )}
                          </div>
