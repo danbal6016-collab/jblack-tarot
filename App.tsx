@@ -555,56 +555,53 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
             style={rugStyle}
         >
             <style>{`
-                @keyframes riffle-left {
-                    0% { transform: translateX(-150px) rotate(-15deg); }
-                    50% { transform: translateX(0px) rotate(0deg); z-index: 10; }
-                    100% { transform: translateX(0px) rotate(0deg); z-index: 1; }
+                @keyframes smooth-riffle-left {
+                    0% { transform: translateX(-180px) translateY(20px) rotate(-15deg) scale(0.9); opacity: 0; }
+                    20% { opacity: 1; }
+                    50% { transform: translateX(0px) translateY(0px) rotate(0deg) scale(1); z-index: 10; }
+                    100% { transform: translateX(0px) translateY(0px) rotate(0deg) scale(1); z-index: 1; }
                 }
-                @keyframes riffle-right {
-                    0% { transform: translateX(150px) rotate(15deg); }
-                    50% { transform: translateX(0px) rotate(0deg); z-index: 10; }
-                    100% { transform: translateX(0px) rotate(0deg); z-index: 1; }
+                @keyframes smooth-riffle-right {
+                    0% { transform: translateX(180px) translateY(20px) rotate(15deg) scale(0.9); opacity: 0; }
+                    20% { opacity: 1; }
+                    50% { transform: translateX(0px) translateY(0px) rotate(0deg) scale(1); z-index: 10; }
+                    100% { transform: translateX(0px) translateY(0px) rotate(0deg) scale(1); z-index: 1; }
                 }
-                @keyframes bridge-arc {
-                    0% { transform: translateY(0) scale(1); }
-                    50% { transform: translateY(-30px) scale(1.1); filter: brightness(1.3); }
-                    100% { transform: translateY(0) scale(1); }
-                }
-                @keyframes card-sparkle {
-                    0% { opacity: 0; transform: scale(0.5); }
-                    50% { opacity: 1; transform: scale(1.5); }
-                    100% { opacity: 0; transform: scale(0.5); }
+                @keyframes deck-pulse {
+                    0%, 100% { transform: scale(1); filter: brightness(1); }
+                    50% { transform: scale(1.02); filter: brightness(1.2); }
                 }
             `}</style>
 
-            <div className="relative w-40 h-64 z-20" style={{ animation: 'bridge-arc 2.5s infinite ease-in-out' }}>
-                {/* Left Deck Flow */}
-                {[...Array(6)].map((_, i) => (
-                    <div key={`left-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/50 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
+            <div className="relative w-40 h-64 z-20" style={{ animation: 'deck-pulse 2s infinite ease-in-out' }}>
+                {/* Center Static Base */}
+                 <div className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-500/30 shadow-[0_0_20px_rgba(0,0,0,0.8)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}></div>
+
+                {/* Left Deck Flow - Increased Count & Fluid Motion */}
+                {[...Array(15)].map((_, i) => (
+                    <div key={`left-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
                          style={{ 
-                             animation: `riffle-left 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite`,
-                             animationDelay: `${i * 0.15}s`,
-                             opacity: 0.9,
-                             boxShadow: '0 0 10px rgba(168, 85, 247, 0.5)'
+                             animation: `smooth-riffle-left 1.2s cubic-bezier(0.25, 1, 0.5, 1) infinite`,
+                             animationDelay: `${i * 0.06}s`,
+                             boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
                          }}>
                     </div>
                 ))}
 
-                {/* Right Deck Flow */}
-                {[...Array(6)].map((_, i) => (
-                    <div key={`right-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/50 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}
+                {/* Right Deck Flow - Increased Count & Fluid Motion */}
+                {[...Array(15)].map((_, i) => (
+                    <div key={`right-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}
                         style={{
-                            animation: `riffle-right 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite`,
-                            animationDelay: `${i * 0.15}s`,
-                            opacity: 0.9,
-                            boxShadow: '0 0 10px rgba(168, 85, 247, 0.5)'
+                            animation: `smooth-riffle-right 1.2s cubic-bezier(0.25, 1, 0.5, 1) infinite`,
+                            animationDelay: `${i * 0.06}s`,
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
                         }}>
                     </div>
                 ))}
                 
                 {/* Central Magic Dust */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-20 h-20 bg-purple-500/20 blur-xl rounded-full animate-pulse"></div>
+                    <div className="w-24 h-24 bg-purple-500/20 blur-2xl rounded-full animate-pulse"></div>
                 </div>
             </div>
             
