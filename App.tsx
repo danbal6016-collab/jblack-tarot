@@ -1258,58 +1258,77 @@ const App: React.FC = () => {
   const handleOpenProfile = () => { if (user.userInfo) setEditProfileData({ ...user.userInfo }); setShowProfile(true); };
   
   const handleSaveProfile = async () => { 
+      // 1. Check existence
       if (!user.userInfo) return;
       if (checkGuestAction()) return;
 
-      const oldInfo = user.userInfo;
-      const newInfo = { ...editProfileData };
+      // 2. Prepare data
+      const currentInfo = user.userInfo; // Source of truth for counters
+      const nextInfo = { ...editProfileData }; // User's input
       
-      if (newInfo.name !== oldInfo.name) {
-          if (oldInfo.nameChangeCount >= 5) {
+      // 3. Check Limits & Update Counters
+      // Name
+      if (nextInfo.name !== currentInfo.name) {
+          const currentCount = currentInfo.nameChangeCount || 0;
+          if (currentCount >= 5) {
               alert("이름 변경 횟수(5회)를 초과했습니다.");
               return;
           }
-          newInfo.nameChangeCount = (oldInfo.nameChangeCount || 0) + 1;
+          nextInfo.nameChangeCount = currentCount + 1;
+      } else {
+          // Ensure counter is preserved from source if name didn't change (just in case editData had stale counter)
+          nextInfo.nameChangeCount = currentInfo.nameChangeCount;
       }
 
-      if (newInfo.birthDate !== oldInfo.birthDate) {
-          if (oldInfo.birthDateChanged) {
+      // Birthdate
+      if (nextInfo.birthDate !== currentInfo.birthDate) {
+          if (currentInfo.birthDateChanged) {
               alert("생년월일은 한 번만 변경할 수 있습니다.");
               return;
           }
-          newInfo.birthDateChanged = true;
+          nextInfo.birthDateChanged = true;
+      } else {
+          nextInfo.birthDateChanged = currentInfo.birthDateChanged;
       }
 
-      if (newInfo.country !== oldInfo.country) {
-          if (oldInfo.countryChanged) {
+      // Country
+      if (nextInfo.country !== currentInfo.country) {
+          if (currentInfo.countryChanged) {
               alert("국가는 한 번만 변경할 수 있습니다.");
               return;
           }
-          newInfo.countryChanged = true;
+          nextInfo.countryChanged = true;
+      } else {
+          nextInfo.countryChanged = currentInfo.countryChanged;
       }
 
-      let updatedUser = { ...user, userInfo: newInfo };
+      // 4. Construct updated user object
+      const updatedUser = { ...user, userInfo: nextInfo };
       
+      // 5. Apply State Immediately
       setUser(updatedUser);
       
+      // 6. Persist to LocalStorage Immediately
       try {
           localStorage.setItem('black_tarot_user', JSON.stringify({ ...updatedUser, lastAppState: appState }));
       } catch (e) {
           console.warn("Local storage quota exceeded or error", e);
-          alert("저장 공간이 부족하여 일부 데이터(이미지 등)가 로컬에 저장되지 않았습니다.");
+          alert("저장 공간이 부족하여 일부 데이터가 저장되지 않았습니다.");
       }
 
+      // 7. Persist to Cloud (Supabase)
       if (isSupabaseConfigured) {
-          const { error } = await supabase.from('profiles').upsert({ 
+          await supabase.from('profiles').upsert({ 
               email: user.email, 
               data: updatedUser, 
               updated_at: new Date().toISOString() 
-          }, { onConflict: 'email' });
-          
-          if (error) console.warn("Cloud save failed, but local save succeeded.", error.message); 
+          }, { onConflict: 'email' }).then(({ error }) => {
+              if (error) console.warn("Cloud save warning:", error.message);
+          });
       }
       
-      alert("프로필이 저장되었습니다.");
+      // 8. Feedback
+      alert(TRANSLATIONS[lang].save_changes);
       setShowProfile(false); 
   };
 
