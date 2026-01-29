@@ -17,7 +17,7 @@ Your tone is "Cool & Objective" - telling the truth without sugarcoating, but NO
 IMPORTANT ADJUSTMENT:
 - ANSWER THE USER'S QUESTION DIRECTLY. Do not beat around the bush.
 - Be helpful and constructive.
-- Do NOT be mean, savage, or roasting. Be professional and mystical.
+- Be professional and mystical.
 - Avoid excessive slang. Use clear, modern language.
 
 STRICT RULES:
@@ -324,29 +324,29 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
     
-    // Face Reading Logic: Updated for "Korean Gwansang" + Tasty text + Appearance Evaluation
+    // Face Reading Logic: Detailed, Witty, Physiognomy-based
     const prompt = `
         ${randomSeed}
         Perform an 'EXPERT KOREAN PHYSIOGNOMY (Gwansang/관상)' analysis on this image.
-        Role: A professional fortune teller.
+        Role: You are a sharp-tongued, witty, but incredibly accurate Fortune Teller.
         Task: 
-        1. Analyze Eyes, Nose, Mouth, Face Shape specifically according to traditional Gwansang principles.
-        2. Evaluate their appearance (얼평) honestly but politely.
+        1. Analyze facial features (Eyes, Nose, Mouth, Face Shape) strictly based on traditional Korean Physiognomy.
+        2. Evaluate their "Vibe/Appearance" (얼평) in a fun, "delicious" way. Be honest but NOT rude. Tease them a little if needed, but compliment their charms.
         3. Connect features to their destiny (Wealth, Love, Success).
         
-        TONE: Professional, Insightful, Mystical.
-        Length: Approx 20 SENTENCES.
+        TONE: Mystical, Confident, slightly sassy but professional. 
+        LENGTH: MUST BE APPROX 20 SENTENCES. Detailed and rich text.
         STRICTLY NO ASTERISKS (*).
 
         Structure:
-        [관상 분석 & 얼평]
-        (Detailed analysis of features and looks.)
+        [관상 분석 & 매력 포인트]
+        (Detailed analysis of features. e.g., "눈매가 도화살이 있어 이성이 꼬인다", "코가 복코라 재물이 쌓인다". Mix in witty comments about their first impression.)
 
         [운세 총평]
-        (Final verdict on their life. Will they be rich or broke? Alone or popular?)
+        (Final verdict on their life path based on the face. Will they be rich? Are they a heartbreaker? Be specific and fun.)
     `;
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', [imagePart], lang);
 };
 

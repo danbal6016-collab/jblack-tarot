@@ -536,31 +536,75 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
         };
     }, [onComplete]);
 
-    // Dazzling, Flashy Shuffling on Rug (Rug fully visible under cards)
+    // SVG Noise Data for Rug Texture
+    const noiseSvg = "data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.3'/%3E%3C/svg%3E";
+
+    // Dynamic Style for Rug
+    const rugStyle = {
+        background: `radial-gradient(circle at center, ${rugColor || '#2e0b49'} 0%, #000000 100%), url("${noiseSvg}")`,
+        backgroundBlendMode: 'multiply'
+    };
+
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in rug-texture" style={{ backgroundColor: rugColor || 'transparent' }}>
-            {/* Removed ALL overlay to make rug vivid and directly under cards */}
-            <div className="relative w-40 h-64 z-20">
-                {/* Core Cards - Faster orbits */}
-                {[...Array(9)].map((_, i) => (
-                    <div key={i} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.5)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
+        <div 
+            className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in rug-texture !border-0 !outline-none !shadow-none" 
+            style={rugStyle}
+        >
+            <style>{`
+                @keyframes riffle-left {
+                    0% { transform: translateX(-150px) rotate(-15deg); }
+                    50% { transform: translateX(0px) rotate(0deg); z-index: 10; }
+                    100% { transform: translateX(0px) rotate(0deg); z-index: 1; }
+                }
+                @keyframes riffle-right {
+                    0% { transform: translateX(150px) rotate(15deg); }
+                    50% { transform: translateX(0px) rotate(0deg); z-index: 10; }
+                    100% { transform: translateX(0px) rotate(0deg); z-index: 1; }
+                }
+                @keyframes bridge-arc {
+                    0% { transform: translateY(0) scale(1); }
+                    50% { transform: translateY(-30px) scale(1.1); filter: brightness(1.3); }
+                    100% { transform: translateY(0) scale(1); }
+                }
+                @keyframes card-sparkle {
+                    0% { opacity: 0; transform: scale(0.5); }
+                    50% { opacity: 1; transform: scale(1.5); }
+                    100% { opacity: 0; transform: scale(0.5); }
+                }
+            `}</style>
+
+            <div className="relative w-40 h-64 z-20" style={{ animation: 'bridge-arc 1s infinite ease-in-out' }}>
+                {/* Left Deck Flow */}
+                {[...Array(6)].map((_, i) => (
+                    <div key={`left-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/50 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
                          style={{ 
-                             animation: i % 2 === 0 ? `orbit-cw ${0.5 + i * 0.05}s linear infinite` : `orbit-ccw ${0.6 + i * 0.05}s linear infinite`,
-                             opacity: 0.9
+                             animation: `riffle-left 0.8s ease-in-out infinite`,
+                             animationDelay: `${i * 0.1}s`,
+                             opacity: 0.9,
+                             boxShadow: '0 0 10px rgba(168, 85, 247, 0.5)'
                          }}>
                     </div>
                 ))}
-                {/* Floating Particles/Flashy Cards - Increased count and speed */}
-                {[...Array(8)].map((_, i) => (
-                    <div key={`fly-${i}`} className={`absolute w-full h-full bg-purple-900 rounded-lg border border-yellow-400/30 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}
+
+                {/* Right Deck Flow */}
+                {[...Array(6)].map((_, i) => (
+                    <div key={`right-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/50 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}
                         style={{
-                            animation: `chaotic-fly ${0.8 + i * 0.15}s ease-in-out infinite alternate`,
-                            opacity: 0.6
+                            animation: `riffle-right 0.8s ease-in-out infinite`,
+                            animationDelay: `${i * 0.1}s`,
+                            opacity: 0.9,
+                            boxShadow: '0 0 10px rgba(168, 85, 247, 0.5)'
                         }}>
                     </div>
                 ))}
+                
+                {/* Central Magic Dust */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-20 h-20 bg-purple-500/20 blur-xl rounded-full animate-pulse"></div>
+                </div>
             </div>
-            <p className="mt-16 text-purple-200 font-occult animate-pulse text-2xl z-20 shadow-black drop-shadow-md">
+            
+            <p className="mt-32 text-purple-200 font-occult animate-pulse text-2xl z-20 shadow-black drop-shadow-md">
                 {lang === 'ko' ? "운명을 섞는 중..." : "Shuffling Fate..."}
             </p>
         </div>
@@ -588,15 +632,19 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
                 {lang === 'ko' ? "3장의 카드를 선택하세요" : "Select 3 Cards"}
             </h2>
             {/* Extremely Dense Grid Layout for Mobile: 8 cols on mobile, 12 on desktop */}
-            <div className="w-full max-w-5xl h-[70vh] overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-purple-700 scrollbar-track-transparent">
-                <div className="grid grid-cols-8 md:grid-cols-12 gap-1 pb-20">
+            {/* Added touch-action-manipulation and pb-32 for better mobile scroll/touch */}
+            <div className="w-full max-w-5xl h-[70vh] overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-purple-700 scrollbar-track-transparent touch-pan-y">
+                <div className="grid grid-cols-8 md:grid-cols-12 gap-1 pb-32">
                     {TAROT_DECK.map((cardName, i) => {
                         const isSelected = selected.includes(i);
                         return (
                             <div 
                                 key={i}
                                 onClick={() => handleCardClick(i)}
-                                className={`aspect-[2/3] rounded-sm border border-purple-500/30 shadow-md cursor-pointer transition-all duration-300 card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
+                                // Added improved transition-all with custom bezier for fluid feel, active scaling, and touch-manipulation
+                                className={`aspect-[2/3] rounded-sm border border-purple-500/30 shadow-md cursor-pointer 
+                                transition-all duration-500 ease-[cubic-bezier(0.25,0.8,0.25,1)] card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
+                                touch-manipulation active:scale-90
                                 ${isSelected 
                                     ? 'scale-110 shadow-[0_0_20px_#d946ef] border-purple-200 z-50 brightness-125 -translate-y-2' 
                                     : 'hover:-translate-y-1 hover:scale-105 hover:shadow-[0_0_10px_rgba(168,85,247,0.4)] z-0 hover:z-10'}`}
@@ -610,7 +658,7 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
                     })}
                 </div>
             </div>
-            <div className="absolute bottom-10 flex gap-3 z-20">
+            <div className="absolute bottom-10 flex gap-3 z-20 pointer-events-none">
                 {[...Array(3)].map((_, i) => (
                     <div key={i} className={`w-4 h-4 rounded-full border-2 border-purple-500 transition-all duration-300 ${selected.length > i ? 'bg-purple-500 shadow-[0_0_15px_#d946ef] scale-125' : 'bg-transparent'}`}></div>
                 ))}
@@ -702,19 +750,19 @@ const ResultView: React.FC<{
                 <h2 className="text-xl md:text-2xl font-bold text-center text-purple-200 mb-2">{question}</h2>
                 <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-purple-500 to-transparent mx-auto mb-8"></div>
                 
-                {/* Cards Display */}
-                <div className="flex justify-center gap-4 mb-8 flex-wrap">
+                {/* Cards Display - Forces Single Row on Mobile (flex-nowrap) */}
+                <div className="flex justify-center items-center gap-2 md:gap-4 mb-8 flex-nowrap w-full overflow-hidden px-1">
                     {selectedCards.map((card, idx) => (
-                        <div key={idx} className="flex flex-col items-center animate-fade-in" style={{ animationDelay: `${idx * 0.2}s` }}>
-                            <div className="w-24 h-40 md:w-32 md:h-52 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden relative shadow-lg group">
+                        <div key={idx} className="flex flex-col items-center animate-fade-in flex-shrink-0" style={{ animationDelay: `${idx * 0.2}s` }}>
+                            <div className="w-[28vw] h-[42vw] max-w-[120px] max-h-[180px] md:w-32 md:h-52 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden relative shadow-lg group">
                                 <img 
                                     src={card.generatedImage || card.imagePlaceholder} 
                                     alt={card.name} 
                                     className={`w-full h-full object-cover transition-transform duration-700 ${card.isReversed ? 'rotate-180' : ''} group-hover:scale-110`} 
                                 />
-                                {card.isReversed && <div className="absolute inset-0 bg-red-900/20 pointer-events-none flex items-center justify-center"><span className="text-xs font-bold bg-black/50 px-1 rounded text-red-300">Reversed</span></div>}
+                                {card.isReversed && <div className="absolute inset-0 bg-red-900/20 pointer-events-none flex items-center justify-center"><span className="text-[10px] md:text-xs font-bold bg-black/50 px-1 rounded text-red-300">Rev</span></div>}
                             </div>
-                            <span className="text-xs text-gray-400 mt-2 font-serif">{card.name}</span>
+                            <span className="text-[10px] md:text-xs text-gray-400 mt-2 font-serif truncate w-full text-center px-1">{card.name}</span>
                         </div>
                     ))}
                 </div>
