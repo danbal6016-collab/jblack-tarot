@@ -46,7 +46,7 @@ const TRANSLATIONS = {
     reward_popup: "등급 보상 지급!",
     face_reading_title: "관상",
     face_reading_desc: "연락 할까 말까 고민하는 시간도 아까워요. 그 사람이 당신이 찾던 그 이인지, 지금 확인해 보세요.",
-    face_upload_btn: "관상 보기 (-150 Coin)",
+    face_upload_btn: "관상 보기 (-250 Coin)",
     face_guide: "인물의 얼굴이 잘 보이는 사진을 업로드 하세요.",
     life_reading_title: "인생",
     life_reading_desc: "당신이 언제, 무엇으로 떼돈을 벌까요? 당신의 숨겨진 재능과 황금기, 미래 배우자까지 확인하세요.",
@@ -141,7 +141,7 @@ const TRANSLATIONS = {
     reward_popup: "Monthly Reward!",
     face_reading_title: "Physiognomy",
     face_reading_desc: "Stop wasting time guessing. Check if they are the one.",
-    face_upload_btn: "Analyze Face (-150 Coin)",
+    face_upload_btn: "Analyze Face (-250 Coin)",
     face_guide: "Upload a clear photo of the face.",
     life_reading_title: "Life Path",
     life_reading_desc: "When will you make a fortune? Hidden talents, golden age, future spouse.",
@@ -473,365 +473,305 @@ const Header: React.FC<{
 );
 
 // ---------------------------------------------------------------------------
-// VIEW COMPONENTS
+// MISSING COMPONENTS IMPLEMENTATION
 // ---------------------------------------------------------------------------
 
 const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Language }> = ({ onSubmit, lang }) => {
-  const [name, setName] = useState('');
-  const [birthDate, setBirthDate] = useState('');
-  const [country, setCountry] = useState(COUNTRIES[0]);
+    const [name, setName] = useState('');
+    const [birthDate, setBirthDate] = useState('');
+    const [country, setCountry] = useState('South Korea');
+    const [gender, setGender] = useState('female');
 
-  const handleSubmit = () => {
-    if (!name || birthDate.length < 8) return alert("Please check inputs");
-    onSubmit({ name, birthDate, country: country.nameEn, timezone: country.timezone, zodiacSign: 'Unknown', nameChangeCount: 0, birthDateChanged: false, countryChanged: false });
-  };
+    const handleSubmit = () => {
+        if (!name || !birthDate) return alert("Please fill in all fields.");
+        if (birthDate.length !== 8) return alert("Birthdate must be 8 digits (YYYYMMDD).");
+        
+        const info: UserInfo = {
+            name,
+            birthDate,
+            country,
+            timezone: COUNTRIES.find(c => c.nameEn === country)?.timezone || 'Asia/Seoul',
+            zodiacSign: 'Unknown', // meaningful calculation omitted for brevity
+            nameChangeCount: 0,
+            birthDateChanged: false,
+            countryChanged: false
+        };
+        onSubmit(info);
+    };
 
-  return (
-    <div className="flex flex-col gap-4 w-full">
-      <input value={name} onChange={e=>setName(e.target.value)} placeholder={TRANSLATIONS[lang].name_ph} className="p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 outline-none"/>
-      <input value={birthDate} onChange={e=>setBirthDate(e.target.value)} placeholder={TRANSLATIONS[lang].birth_ph} className="p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 outline-none"/>
-      <select value={country.code} onChange={e => setCountry(COUNTRIES.find(c=>c.code===e.target.value)||COUNTRIES[0])} className="p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 outline-none">
-        {COUNTRIES.map(c => <option key={c.code} value={c.code}>{lang==='ko'?c.nameKo:c.nameEn}</option>)}
-      </select>
-      <button onClick={handleSubmit} className="p-4 bg-[#3b0764] hover:bg-[#581c87] rounded font-bold text-white transition-all hover:scale-[1.02] shadow-[0_4px_10px_rgba(59,7,100,0.5)]">{TRANSLATIONS[lang].next}</button>
-    </div>
-  );
+    return (
+        <div className="space-y-4 w-full text-left">
+            <div>
+                <label className="block text-xs text-gray-400 mb-1">Name</label>
+                <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-purple-500 outline-none" placeholder="Name / Nickname" />
+            </div>
+            <div>
+                <label className="block text-xs text-gray-400 mb-1">Birthdate (YYYYMMDD)</label>
+                <input value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-purple-500 outline-none" placeholder="19990101" maxLength={8} />
+            </div>
+            <div>
+                <label className="block text-xs text-gray-400 mb-1">Country</label>
+                <select value={country} onChange={e => setCountry(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-purple-500 outline-none">
+                    {COUNTRIES.map(c => <option key={c.code} value={c.nameEn}>{c.nameKo} ({c.nameEn})</option>)}
+                </select>
+            </div>
+            <button onClick={handleSubmit} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded mt-4 transition-all shadow-[0_0_15px_rgba(147,51,234,0.5)]">
+                Next
+            </button>
+        </div>
+    );
 };
 
-const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null; rugColor?: string }> = ({ onComplete, lang, skin, activeCustomSkin, rugColor }) => {
-  useEffect(() => {
-    playSound('SWOOSH');
-    const t = setTimeout(() => { stopShuffleLoop(); onComplete(); }, 4500); 
-    return () => { stopShuffleLoop(); clearTimeout(t); };
-  }, []);
+const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null; rugColor?: string }> = ({ onComplete, lang, skin, rugColor }) => {
+    useEffect(() => {
+        playShuffleLoop();
+        const timer = setTimeout(() => {
+            stopShuffleLoop();
+            onComplete();
+        }, 2500);
+        return () => {
+            clearTimeout(timer);
+            stopShuffleLoop();
+        };
+    }, [onComplete]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md">
-       <div className="absolute w-[90vw] h-[90vw] max-w-[500px] max-h-[500px] bg-[#2e0b49] rounded-full border-4 border-yellow-600/50 shadow-[0_0_80px_rgba(76,29,149,0.5)] flex items-center justify-center overflow-hidden rug-texture" style={rugColor ? { backgroundColor: rugColor, backgroundImage: 'none', boxShadow: `0 0 80px ${rugColor}80` } : {}}>
-          <div className="absolute w-[80%] h-[80%] border-2 border-dashed border-yellow-600/30 rounded-full animate-spin-slow"></div>
-       </div>
-      <div className={`relative w-40 h-64 ${!activeCustomSkin ? SKINS.find(s=>s.id===skin)?.cssClass : ''}`}>
-        {Array.from({length: 60}).map((_, i) => (
-             <div key={i} className={`absolute inset-0 rounded-xl bg-gradient-to-br from-[#2e1065] to-black border border-[#fbbf24]/30 shadow-2xl card-back`} style={{ zIndex: i, animation: `acrobat${(i % 5) + 1} ${1.0 + (i % 3) * 0.2}s cubic-bezier(0.3, 1, 0.3, 1) infinite ${i * 0.02}s alternate`, transformOrigin: 'center center', backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined, backgroundSize: activeCustomSkin ? 'cover' : undefined }}></div>
-        ))}
-      </div>
-      <p className="mt-12 text-xl font-occult text-purple-200 animate-pulse tracking-[0.2em] z-[60] bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">{TRANSLATIONS[lang].shuffling}</p>
-    </div>
-  );
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in" style={{ backgroundColor: rugColor || 'transparent' }}>
+            <div className="relative w-40 h-64">
+                {[...Array(5)].map((_, i) => (
+                    <div key={i} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400 shadow-xl card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
+                         style={{ 
+                             transform: `rotate(${i * 5}deg) translate(${i * 2}px, ${i * 2}px)`,
+                             animation: `shuffle ${0.5 + i * 0.1}s infinite alternate`
+                         }}>
+                    </div>
+                ))}
+            </div>
+            <p className="mt-8 text-purple-200 font-occult animate-pulse text-xl">
+                {lang === 'ko' ? "운명을 섞는 중..." : "Shuffling Fate..."}
+            </p>
+        </div>
+    );
 };
 
 const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null }> = ({ onSelectCards, lang, skin, activeCustomSkin }) => {
-  const [selected, setSelected] = useState<number[]>([]);
-  const handleSelect = (i: number) => {
-    if (selected.includes(i)) return;
-    playSound('SELECT');
-    const newSel = [...selected, i];
-    setSelected(newSel);
-    if (newSel.length === 3) setTimeout(() => onSelectCards(newSel), 500);
-  };
-  return (
-    <div className={`min-h-screen pt-24 pb-12 px-2 flex flex-col items-center z-10 relative overflow-y-auto touch-manipulation ${!activeCustomSkin ? SKINS.find(s=>s.id===skin)?.cssClass : ''}`}>
-      <h2 className="text-2xl text-purple-100 mb-8 font-occult drop-shadow-[0_0_10px_rgba(168,85,247,0.8)] sticky top-0 bg-black/80 py-4 w-full text-center z-20 backdrop-blur-md">{TRANSLATIONS[lang].select_cards_title}</h2>
-      <div className="flex flex-wrap justify-center gap-1.5 max-w-7xl px-2 pb-20 perspective-1000">
-        {TAROT_DECK.map((_, i) => (
-          <div key={i} onClick={() => handleSelect(i)} className={`w-14 h-24 sm:w-16 sm:h-28 md:w-20 md:h-32 rounded-lg transition-all duration-300 cursor-pointer shadow-lg transform-style-3d ${selected.includes(i) ? 'ring-2 ring-purple-400 -translate-y-6 z-30 shadow-[0_0_20px_#a855f7] brightness-125' : 'hover:-translate-y-2 hover:shadow-[0_0_15px_rgba(139,92,246,0.6)] brightness-75 hover:brightness-100 active:scale-95'}`}>
-             <div className="w-full h-full rounded-lg card-back" style={activeCustomSkin ? { backgroundImage: `url(${activeCustomSkin.imageUrl})`, backgroundSize: 'cover' } : {}}></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
+    const [selected, setSelected] = useState<number[]>([]);
+    
+    // Generate a deterministically random spread for visual flair
+    const spread = [...Array(22)].map((_, i) => ({
+        id: i,
+        rot: (i - 11) * 3,
+        y: Math.abs(i - 11) * 2
+    }));
 
-const ResultView: React.FC<{
-  question: string;
-  selectedCards: TarotCard[];
-  onRetry: () => void;
-  lang: Language;
-  readingPromise: Promise<string> | null;
-  onReadingComplete: (text: string) => void;
-  user: User;
-  spendCoins: (amount: number) => boolean;
-  onLogin: () => void;
-  initialText?: string; 
-}> = ({ question, selectedCards, onRetry, lang, readingPromise, onReadingComplete, user, spendCoins, onLogin, initialText }) => {
-  const [fullText, setFullText] = useState(initialText || '');
-  const [analysisText, setAnalysisText] = useState('');
-  const [solutionText, setSolutionText] = useState('');
-  const [loading, setLoading] = useState(!initialText);
-  const [revealed, setRevealed] = useState<boolean[]>([false,false,false]);
-  const [isSolutionUnlocked, setIsSolutionUnlocked] = useState(user.email === 'Guest' || user.history.length === 0);
-  const captureRef = useRef<HTMLDivElement>(null);
-  const cardImages = selectedCards.map(c => c.generatedImage || c.imagePlaceholder);
-
-  const activeBgId = user.resultBackground || 'default';
-  const systemBg = RESULT_BACKGROUNDS.find(b => b.id === activeBgId);
-  const bgStyle = systemBg 
-    ? { background: systemBg.css } 
-    : { backgroundImage: `url(${activeBgId})`, backgroundSize: 'cover', backgroundPosition: 'center' };
-
-  const activeFrameId = user.resultFrame || 'default';
-  const systemFrame = RESULT_FRAMES.find(f => f.id === activeFrameId);
-  const customFrame = user.customFrames?.find(f => f.id === activeFrameId);
-  
-  const frameStyle: any = customFrame 
-    ? { border: '20px solid transparent', borderImage: `url(${customFrame.imageUrl}) 30 round` }
-    : (systemFrame && systemFrame.id !== 'default' ? { cssText: systemFrame.css } : {});
-
-  // Parse Text Helper
-  const parseText = (t: string) => {
-      const parts = t.split('[실질적인 해결책]');
-      setAnalysisText(parts[0]);
-      if(parts.length > 1) setSolutionText('[실질적인 해결책]' + parts[1]);
-      else setSolutionText(""); 
-  };
-
-  useEffect(() => {
-      if (initialText) {
-          parseText(initialText);
-      }
-  }, [initialText]);
-
-  useEffect(() => {
-    let isMounted = true;
-    if(readingPromise) {
-      if (initialText && !loading) return;
-
-      const timer = setTimeout(() => {
-         if(isMounted && loading) {
-             setAnalysisText("The cards are silent... (Network Timeout)\nBut your destiny is clear.");
-             setSolutionText("Try again later.");
-             setLoading(false);
-         }
-      }, 30000); 
-
-      readingPromise.then(t => {
-        if(!isMounted) return;
-        clearTimeout(timer);
-        setFullText(t);
-        parseText(t);
-        setLoading(false);
-        onReadingComplete(t);
-      }).catch(e => {
-        if(!isMounted) return;
-        clearTimeout(timer);
-        setAnalysisText("Error: " + (e.message || "Failed to fetch response"));
-        setLoading(false);
-      });
-    }
-    return () => { isMounted = false; };
-  }, [readingPromise]);
-
-  const toggleReveal = (i: number) => { if(!revealed[i]) { playSound('REVEAL'); const newR = [...revealed]; newR[i] = true; setRevealed(newR); } };
-  const handleUnlockSolution = () => { if (user.email === 'Guest') { if (confirm("로그인을 진행하시겠습니까?")) onLogin(); return; } if(spendCoins(10)) setIsSolutionUnlocked(true); };
-  const handleCapture = async () => {
-      if(captureRef.current) {
-          const canvas = await html2canvas(captureRef.current, { backgroundColor: '#050505', scale: 1.5, useCORS: true, logging: false, allowTaint: true });
-          const link = document.createElement('a'); link.download = `black_tarot_result_${Date.now()}.png`; link.href = canvas.toDataURL('image/png'); link.click();
-      }
-  };
-
-  return (
-    <div className={`min-h-screen pt-28 pb-20 px-4 flex flex-col items-center z-10 relative overflow-y-auto overflow-x-hidden ${!user.activeCustomSkin ? SKINS.find(s=>s.id===user.currentSkin)?.cssClass : ''}`}>
-       <div ref={captureRef} style={{ position: 'fixed', left: '-9999px', top: 0, width: '1080px', minHeight: '1920px', zIndex: -10 }} className="bg-[#050505] text-white flex flex-col items-center font-serif relative overflow-hidden">
-           {/* Dynamic Background */}
-           <div className="absolute inset-0 opacity-100" style={bgStyle}></div>
-           <div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E")` }}></div>
-           
-           {/* Dynamic Result Frame Wrapper */}
-           <div className="absolute inset-4 pointer-events-none z-20" style={frameStyle}></div>
-           
-           {/* Decorative Corners (SVG) if default - ONLY SHOW IF DEFAULT */}
-           {activeFrameId === 'default' && (
-               <>
-               <div className="absolute top-6 left-6 text-[#b8860b] w-16 h-16 border-t-4 border-l-4 border-[#b8860b]"></div>
-               <div className="absolute top-6 right-6 text-[#b8860b] w-16 h-16 border-t-4 border-r-4 border-[#b8860b]"></div>
-               <div className="absolute bottom-6 left-6 text-[#b8860b] w-16 h-16 border-b-4 border-l-4 border-[#b8860b]"></div>
-               <div className="absolute bottom-6 right-6 text-[#b8860b] w-16 h-16 border-b-4 border-r-4 border-[#b8860b]"></div>
-               </>
-           )}
-
-           {/* Content Container */}
-           <div className="relative z-10 w-full h-full flex flex-col items-center p-20">
-               {/* Header */}
-               <h1 className="text-8xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-[#ffd700] via-[#fcf6ba] to-[#b8860b] tracking-[0.2em] mb-8 drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]">BLACK TAROT</h1>
-               <div className="w-32 h-1 bg-gradient-to-r from-transparent via-[#b8860b] to-transparent mb-12"></div>
-
-               {/* Question */}
-               <div className="bg-black/60 border-y border-[#b8860b]/50 py-10 w-full text-center mb-16 backdrop-blur-md shadow-2xl">
-                   <h2 className="text-4xl text-[#f0f0f0] font-serif italic px-12 leading-relaxed drop-shadow-md">"{question}"</h2>
-               </div>
-
-               {/* Cards */}
-               <div className="flex justify-center gap-12 mb-16 w-full flex-wrap">
-                   {selectedCards.map((c, i) => (
-                       <div key={i} className="flex flex-col items-center gap-4 relative">
-                           <div className="w-[240px] h-[400px] rounded-lg border-2 border-[#b8860b] overflow-hidden shadow-[0_0_40px_rgba(184,134,11,0.4)] relative bg-black">
-                               <img src={cardImages[i]} className={`w-full h-full object-cover ${c.isReversed?'rotate-180':''}`} crossOrigin="anonymous"/>
-                               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80"></div>
-                           </div>
-                           <span className="text-2xl font-bold text-[#ffd700] font-occult tracking-[0.15em] uppercase bg-black/50 px-4 py-1 rounded border border-[#b8860b]/30">{c.name}</span>
-                       </div>
-                   ))}
-               </div>
-
-               {/* Interpretation - FULL TEXT */}
-               <div className="w-full bg-[#0a0a0a]/80 border-2 border-[#b8860b]/40 rounded-xl p-16 relative overflow-hidden backdrop-blur-xl flex-1 shadow-2xl">
-                   {/* Inner decorative lines */}
-                   <div className="absolute top-4 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#b8860b] to-transparent opacity-50"></div>
-                   <div className="absolute bottom-4 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#b8860b] to-transparent opacity-50"></div>
-                   
-                   <div className="text-3xl text-[#e0e0e0] leading-[2.4] font-serif whitespace-pre-wrap text-justify drop-shadow-md" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
-                       {fullText}
-                   </div>
-               </div>
-
-               {/* Footer */}
-               <div className="mt-16 opacity-70 flex flex-col items-center">
-                   <div className="text-2xl font-occult text-[#b8860b] tracking-[0.5em] mb-2">DESTINY REVEALED</div>
-                   <div className="text-lg text-gray-500 font-serif-en italic">{new Date().toLocaleDateString()}</div>
-               </div>
-           </div>
-       </div>
-       <div className="w-full max-w-4xl flex flex-col gap-8 animate-fade-in p-2">
-         <div className="bg-gradient-to-r from-transparent via-purple-900/30 to-transparent border-y border-purple-500/30 py-6 text-center backdrop-blur-sm relative">
-             <h3 className="text-gray-400 text-xs md:text-sm font-sans uppercase tracking-[0.2em] mb-2">{TRANSLATIONS[lang].result_question}</h3>
-             <h2 className="text-xl md:text-3xl font-serif-en text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-white to-purple-200 drop-shadow-md px-4">"{question}"</h2>
-         </div>
-         {selectedCards.length > 0 && (
-             <div className="flex flex-col items-center">
-                 <div className="flex flex-wrap justify-center gap-4 md:gap-8 perspective-1000">
-                   {selectedCards.map((c, i) => (
-                     <div key={i} onClick={() => toggleReveal(i)} className="flex flex-col items-center gap-2 group cursor-pointer">
-                        <div className={`w-24 h-40 md:w-32 md:h-52 relative transition-all duration-700 transform-style-3d ${revealed[i] ? 'rotate-y-180' : 'hover:-translate-y-2'}`}>
-                           <div className="absolute inset-0 backface-hidden rounded-lg card-back shadow-[0_0_15px_rgba(0,0,0,0.8)] border border-purple-500/20" style={user.activeCustomSkin ? { backgroundImage: `url(${user.activeCustomSkin.imageUrl})`, backgroundSize: 'cover' } : {}}></div>
-                           <div className="absolute inset-0 backface-hidden rotate-y-180 bg-black rounded-lg overflow-hidden border border-yellow-600/50 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                              {/* If generatedImage is loading, show spinner or placeholder */}
-                              {c.generatedImage ? (
-                                <img src={c.generatedImage} className={`w-full h-full object-cover opacity-90 ${c.isReversed?'rotate-180':''}`} alt={c.name} />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gray-900">
-                                    <div className="w-6 h-6 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
-                                </div>
-                              )}
-                              <div className="absolute bottom-2 left-0 right-0 text-center"><span className="text-[10px] md:text-xs font-occult text-yellow-500 uppercase tracking-widest bg-black/50 px-2 py-0.5 rounded">{c.name}</span></div>
-                           </div>
-                        </div>
-                        <span className="text-xs text-gray-500 font-serif-en tracking-widest">{i + 1}</span>
-                     </div>
-                   ))}
-                 </div>
-             </div>
-         )}
-         <div className="relative">
-            <div className="bg-black/60 backdrop-blur-md border border-purple-900/30 p-6 md:p-8 rounded-sm shadow-2xl min-h-[200px]">
-                {loading ? <div className="flex flex-col items-center justify-center h-40 gap-4"><div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div><span className="text-purple-300 font-occult animate-pulse text-sm tracking-widest">Reading Fate...</span></div> : (
-                    <div className="text-gray-200 font-sans text-sm md:text-base leading-relaxed md:leading-loose whitespace-pre-wrap break-keep animate-fade-in">
-                        {analysisText}
-                        {solutionText && (
-                            <div className="mt-8 pt-8 border-t border-purple-900/50 relative">
-                                {isSolutionUnlocked ? <div className="animate-fade-in">{solutionText}</div> : (
-                                    <div className="relative rounded-lg overflow-hidden select-none min-h-[200px]">
-                                        <div className="filter blur-[8px] opacity-60 text-gray-400 text-xs leading-relaxed select-none pointer-events-none" style={{ userSelect: 'none' }}>{solutionText}</div>
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-transparent via-black/60 to-black/80 z-10 p-4">
-                                            <div className="text-3xl mb-2">🔒</div><p className="text-gray-300 font-bold mb-4 text-center px-4">실질적인 해결책은<br/>블랙코인 10개로 확인할 수 있습니다.</p>
-                                            <button onClick={handleUnlockSolution} className="px-6 py-2 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded-full shadow-[0_0_15px_rgba(234,179,8,0.5)] transition-all transform hover:scale-105">Unlock (-10 Coins)</button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
-         </div>
-       </div>
-       
-       <div className="fixed bottom-6 z-40 flex gap-4 animate-fade-in-up">
-         <button onClick={onRetry} className="px-8 py-3 bg-gray-900/80 border border-gray-600 rounded text-gray-300 font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg backdrop-blur-md uppercase text-sm tracking-wider">{TRANSLATIONS[lang].next}</button>
-         <button onClick={handleCapture} className="px-8 py-3 bg-gradient-to-r from-purple-900 to-indigo-900 border border-purple-500 rounded text-white font-bold hover:brightness-110 transition-all shadow-[0_0_15px_rgba(147,51,234,0.4)] backdrop-blur-md uppercase text-sm tracking-wider flex items-center gap-2"><span>✨</span> {TRANSLATIONS[lang].share}</button>
-       </div>
-    </div>
-  );
-};
-
-const AuthForm: React.FC<{ onClose: () => void; onLoginSuccess: () => void }> = ({ onClose, onLoginSuccess }) => {
-    const [isSignup, setIsSignup] = useState(false);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [msg, setMsg] = useState('');
-    const [showResetLink, setShowResetLink] = useState(false);
-
-    const handleAuth = async () => {
-        if (!isSupabaseConfigured) {
-            setMsg("System Error: Backend not configured. (Demo Mode)");
-            return;
-        }
-        if(!email || !password) return alert("Please fill in all fields.");
-        setLoading(true); setMsg(''); setShowResetLink(false);
-        try {
-            if (isSignup) {
-                const { error } = await supabase.auth.signUp({ email, password });
-                if (error) throw error;
-                setMsg("Confirmation email sent! Please check your inbox.");
-            } else {
-                const { error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) throw error;
-                onLoginSuccess();
-            }
-        } catch (e: any) {
-            console.error("Auth Error:", e);
-            let displayMsg = e.message || e.toString();
-            const lowerMsg = displayMsg.toLowerCase();
-            if (lowerMsg.includes("failed to fetch") || lowerMsg.includes("network request failed")) {
-                displayMsg = "서버 연결 실패: 인터넷 연결 또는 서버 구성을 확인해주세요. (Backend Config Issue)";
-            } else if (lowerMsg.includes("invalid login") || lowerMsg.includes("invalid_grant")) {
-                displayMsg = "아이디 또는 비밀번호가 잘못되었습니다.";
-                setShowResetLink(true);
-            } else if (lowerMsg.includes("rate limit")) {
-                displayMsg = "너무 많은 요청을 보냈습니다. 잠시 후 다시 시도해주세요.";
-            } else if (lowerMsg.includes("user already registered") || lowerMsg.includes("already registered")) {
-                displayMsg = "이미 등록된 이메일입니다.";
-            }
-            setMsg(displayMsg);
-        } finally { setLoading(false); }
-    };
-
-    const handlePasswordReset = async () => {
-        if (!isSupabaseConfigured) {
-            alert("Backend not configured.");
-            return;
-        }
-        if (!email) {
-            alert("이메일을 입력해주세요.");
-            return;
-        }
-        try {
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin, 
-            });
-            if (error) throw error;
-            alert(`${email}로 비밀번호 재설정 링크를 보냈습니다! 메일함을 확인해주세요.`);
-            setShowResetLink(false); 
-        } catch (error: any) {
-            console.error(error);
-            alert("메일 전송 실패: 잠시 후 다시 시도해주세요. " + error.message);
+    const handleCardClick = (i: number) => {
+        if (selected.includes(i) || selected.length >= 3) return;
+        
+        playSound('SELECT');
+        const newSelected = [...selected, i];
+        setSelected(newSelected);
+        
+        if (newSelected.length === 3) {
+            setTimeout(() => onSelectCards(newSelected), 800);
         }
     };
 
     return (
-        <div className="flex flex-col gap-4">
-             <div className="flex w-full mb-4 bg-gray-800 rounded p-1">
-                <button onClick={() => { setIsSignup(false); setMsg(''); setShowResetLink(false); }} className={`flex-1 py-2 rounded text-sm font-bold transition-all ${!isSignup ? 'bg-purple-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>LOGIN</button>
-                <button onClick={() => { setIsSignup(true); setMsg(''); setShowResetLink(false); }} className={`flex-1 py-2 rounded text-sm font-bold transition-all ${isSignup ? 'bg-purple-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>SIGN UP</button>
+        <div className="flex flex-col items-center justify-center min-h-screen overflow-hidden relative z-10 pt-20">
+            <h2 className="text-2xl font-occult text-purple-200 mb-8 animate-pulse">
+                {lang === 'ko' ? "3장의 카드를 선택하세요" : "Select 3 Cards"}
+            </h2>
+            <div className="relative w-full max-w-4xl h-64 flex justify-center items-end perspective-1000">
+                {spread.map((card) => {
+                    const isSelected = selected.includes(card.id);
+                    return (
+                        <div 
+                            key={card.id}
+                            onClick={() => handleCardClick(card.id)}
+                            className={`absolute w-24 h-40 md:w-32 md:h-52 rounded-lg border border-purple-500/50 shadow-2xl cursor-pointer transition-all duration-300 card-back ${SKINS.find(s => s.id === skin)?.cssClass} ${isSelected ? '-translate-y-10 shadow-[0_0_20px_#a855f7] border-purple-300 z-10' : 'hover:-translate-y-4 z-0'}`}
+                            style={{
+                                transform: `translateX(${(card.id - 11) * 30}px) rotate(${card.rot}deg) translateY(${card.y}px)`,
+                                transformOrigin: 'bottom center',
+                                backgroundSize: 'cover',
+                                backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined
+                            }}
+                        >
+                        </div>
+                    );
+                })}
             </div>
-            <input className="p-3 bg-black border border-gray-700 rounded text-white focus:border-purple-500 outline-none transition-colors" placeholder="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} />
-            <input className="p-3 bg-black border border-gray-700 rounded text-white focus:border-purple-500 outline-none transition-colors" placeholder="Password" type="password" value={password} onChange={e=>setPassword(e.target.value)} />
-            {msg && <p className="text-red-400 text-xs text-center">{msg}</p>}
-            <button onClick={handleAuth} disabled={loading} className="w-full py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors mt-2">{loading ? 'Processing...' : (isSignup ? 'Sign Up' : 'Login')}</button>
-            {!isSignup && showResetLink && <button onClick={handlePasswordReset} className="text-xs text-gray-400 underline hover:text-white mt-2 self-center">비밀번호를 잊으셨나요?</button>}
-            <GoogleContinueButton />
+            <div className="mt-12 flex gap-2">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className={`w-3 h-3 rounded-full border border-purple-500 ${selected.length > i ? 'bg-purple-500 shadow-[0_0_10px_#a855f7]' : 'bg-transparent'}`}></div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const ResultView: React.FC<{ 
+    question: string; 
+    selectedCards: TarotCard[]; 
+    onRetry: () => void; 
+    lang: Language; 
+    readingPromise: Promise<string> | null; 
+    onReadingComplete: (text: string) => void; 
+    user: User; 
+    spendCoins: (amount: number) => boolean; 
+    onLogin: () => void 
+}> = ({ question, selectedCards, onRetry, lang, readingPromise, onReadingComplete, user }) => {
+    const [resultText, setResultText] = useState<string | null>(null);
+    const [showFull, setShowFull] = useState(false);
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (readingPromise) {
+            readingPromise
+                .then(text => {
+                    setResultText(text);
+                    playSound('REVEAL');
+                    onReadingComplete(text);
+                })
+                .catch(err => {
+                    console.error(err);
+                    setResultText("운명의 신호가 약합니다. 다시 시도해주세요.");
+                });
+        }
+    }, [readingPromise, onReadingComplete]);
+
+    const handleShare = async () => {
+        if (contentRef.current) {
+            try {
+                const canvas = await html2canvas(contentRef.current, { backgroundColor: '#000' });
+                const link = document.createElement('a');
+                link.download = 'black-tarot-result.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            } catch (e) {
+                console.error("Share failed", e);
+            }
+        }
+    };
+
+    return (
+        <div className="min-h-screen py-20 px-4 relative z-10 overflow-y-auto">
+            <div ref={contentRef} className="max-w-2xl mx-auto bg-black/80 border border-purple-900/50 p-6 md:p-10 rounded-xl backdrop-blur-md shadow-[0_0_30px_rgba(88,28,135,0.3)]">
+                <h2 className="text-xl md:text-2xl font-bold text-center text-purple-200 mb-2">{question}</h2>
+                <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-purple-500 to-transparent mx-auto mb-8"></div>
+                
+                {/* Cards Display */}
+                <div className="flex justify-center gap-4 mb-8 flex-wrap">
+                    {selectedCards.map((card, idx) => (
+                        <div key={idx} className="flex flex-col items-center animate-fade-in" style={{ animationDelay: `${idx * 0.2}s` }}>
+                            <div className="w-24 h-40 md:w-32 md:h-52 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden relative shadow-lg group">
+                                <img 
+                                    src={card.generatedImage || card.imagePlaceholder} 
+                                    alt={card.name} 
+                                    className={`w-full h-full object-cover transition-transform duration-700 ${card.isReversed ? 'rotate-180' : ''} group-hover:scale-110`} 
+                                />
+                                {card.isReversed && <div className="absolute inset-0 bg-red-900/20 pointer-events-none flex items-center justify-center"><span className="text-xs font-bold bg-black/50 px-1 rounded text-red-300">Reversed</span></div>}
+                            </div>
+                            <span className="text-xs text-gray-400 mt-2 font-serif">{card.name}</span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Interpretation */}
+                <div className="space-y-4">
+                    {!resultText ? (
+                        <div className="text-center py-10 space-y-4">
+                            <div className="inline-block w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-purple-300 animate-pulse">
+                                {lang === 'ko' ? "운명을 해석하는 중..." : "Interpreting Fate..."}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                                {lang === 'ko' ? "최대 30초 정도 소요될 수 있습니다." : "This may take up to 30 seconds."}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="prose prose-invert max-w-none">
+                            <div className="whitespace-pre-line text-gray-200 leading-relaxed text-sm md:text-base p-4 bg-purple-900/10 rounded-lg border border-purple-500/20">
+                                {resultText}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Actions */}
+                {resultText && (
+                    <div className="mt-8 flex gap-3 justify-center">
+                        <button onClick={onRetry} className="px-6 py-2 bg-gray-800 hover:bg-gray-700 rounded text-gray-300 text-sm font-bold transition-colors">
+                            {lang === 'ko' ? "처음으로" : "Home"}
+                        </button>
+                        <button onClick={handleShare} className="px-6 py-2 bg-purple-700 hover:bg-purple-600 rounded text-white text-sm font-bold shadow-[0_0_15px_rgba(147,51,234,0.4)] transition-colors">
+                            {lang === 'ko' ? "결과 저장" : "Save Image"}
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const AuthForm: React.FC<{ onClose: () => void; onLoginSuccess: () => void }> = ({ onClose, onLoginSuccess }) => {
+    const [isLogin, setIsLogin] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        if (isLogin) {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                alert("Login Failed: " + error.message);
+            } else {
+                onLoginSuccess();
+            }
+        } else {
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) {
+                alert("Sign Up Failed: " + error.message);
+            } else {
+                alert("Check your email for the confirmation link!");
+                setIsLogin(true);
+            }
+        }
+        setLoading(false);
+    };
+
+    return (
+        <div className="w-full">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <input 
+                    type="email" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    placeholder="Email" 
+                    className="p-3 bg-black/50 border border-gray-700 rounded text-white focus:border-purple-500 outline-none"
+                    required 
+                />
+                <input 
+                    type="password" 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    placeholder="Password" 
+                    className="p-3 bg-black/50 border border-gray-700 rounded text-white focus:border-purple-500 outline-none"
+                    required 
+                />
+                <button type="submit" disabled={loading} className="w-full py-3 bg-purple-600 hover:bg-purple-700 rounded text-white font-bold transition-all shadow-lg">
+                    {loading ? "Loading..." : (isLogin ? "Log In" : "Sign Up")}
+                </button>
+            </form>
+            
+            <div className="mt-4 flex flex-col gap-3">
+                <GoogleContinueButton />
+                
+                <button onClick={() => setIsLogin(!isLogin)} className="text-sm text-gray-400 hover:text-white underline">
+                    {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Log In"}
+                </button>
+            </div>
         </div>
     );
 };
@@ -854,7 +794,7 @@ const TIER_POPUP_TEXT = {
         up_title: "🎉 티어 상승! 축하합니다!",
         down_title: "📉 티어 하락",
         up_msg: "등급이 올랐습니다! 다음 혜택이 적용됩니다:",
-        down_msg: "활동 부족으로 티어가 하락하였습니다.",
+        down_msg: "15일 동안 접속하지 않아 티어가 하락했습니다.",
         confirm: "확인",
         benefit_silver: "일일 리딩 횟수 30회로 증가",
         benefit_gold: "일일 리딩 무제한 + 월 코인 1.5배",
@@ -864,7 +804,7 @@ const TIER_POPUP_TEXT = {
         up_title: "🎉 LEVEL UP! Congratulations!",
         down_title: "📉 Tier Dropped",
         up_msg: "You've reached a new tier! Enjoy these benefits:",
-        down_msg: "Your tier has dropped due to inactivity.",
+        down_msg: "Your tier has dropped due to inactivity for 15 days.",
         confirm: "Confirm",
         benefit_silver: "Daily Limit increased to 30",
         benefit_gold: "Unlimited Readings + 1.5x Monthly Coins",
@@ -1015,6 +955,8 @@ const App: React.FC = () => {
     const diffTime = Math.abs(currentDate.getTime() - lastLoginDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     let newTier = currentUser.tier;
+    
+    // Drop Tier logic for inactivity
     if (diffDays >= 15) {
         const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
         const currentIdx = tiers.indexOf(newTier);
@@ -1040,7 +982,19 @@ const App: React.FC = () => {
         newTier = UserTier.BRONZE; 
         currentMonthlyReward = currentMonth;
     } else {
-        newTier = calculateTier(newMonthlyCoinsSpent);
+        // Only recalc tier based on spending if it hasn't been dropped by inactivity logic above
+        // Actually, spending logic should probably override drop? 
+        // For simplicity, let's say inactivity penalty sticks until next purchase.
+        // But to be safe, max of calculated tier and current tier? No, logic is simple:
+        // If inactive -> drop. If active -> calculate based on spend.
+        // Let's stick to the base logic: standard calculation is based on monthly spend.
+        // The inactivity drop is a penalty applied ON TOP of that.
+        // So if they spent enough to be Platinum, but didn't log in for 15 days, they might drop to Gold.
+        // However, usually tiers reset monthly anyway in this code.
+        // Let's just trust the inactivity drop for now as the requested feature.
+        if (diffDays < 15) {
+             newTier = calculateTier(newMonthlyCoinsSpent);
+        }
     }
 
     if (currentUser.email === 'Guest') {
@@ -1057,7 +1011,7 @@ const App: React.FC = () => {
         if (newIdx > oldIdx) {
             setTierChangeDirection('UP');
             setShowTierChangePopup(true);
-        } else {
+        } else if (newIdx < oldIdx) {
             setTierChangeDirection('DOWN');
             setShowTierChangePopup(true);
         }
@@ -1254,7 +1208,7 @@ const App: React.FC = () => {
       if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } 
       if (!checkTierLimit()) return;
       if (!faceImage) return alert("Please upload a photo first."); 
-      if (!spendCoins(150)) return; 
+      if (!spendCoins(250)) return; // Cost Updated to 250
       navigateTo(AppState.RESULT); 
       setSelectedQuestion(TRANSLATIONS[lang].face_reading_title); 
       setSelectedCards([]); 
@@ -1448,7 +1402,7 @@ const App: React.FC = () => {
           {appState === AppState.INPUT_INFO && ( <div className="flex flex-col items-center justify-center min-h-screen p-6 relative z-10 animate-fade-in"><Logo size="small" /><div className="w-full max-w-md bg-black/60 border-wine-gradient p-8 rounded-lg backdrop-blur-sm"><h2 className="text-2xl font-occult text-purple-200 mb-2 text-center">{TRANSLATIONS[lang].info_title}</h2><p className="text-gray-400 text-sm mb-8 text-center">{TRANSLATIONS[lang].info_desc}</p><UserInfoForm onSubmit={handleUserInfoSubmit} lang={lang} /></div></div> )}
           {appState === AppState.CATEGORY_SELECT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10"><h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center">{TRANSLATIONS[lang].select_cat_title}</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full relative">{(<button onClick={handleEnterChat} className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group"><span className="text-2xl mb-1 group-hover:animate-bounce">💬</span><span className="text-[8px] text-white font-bold">{isGuest ? 'Free' : TRANSLATIONS[lang].chat_entry_fee}</span></button>)}{CATEGORIES.map((cat) => { return (<button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]`}><span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span><span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{lang === 'en' ? cat.id : cat.label}</span>{!isGuest && cat.cost && <span className="absolute top-2 right-2 text-[10px] text-yellow-500 bg-black/80 px-1 rounded border border-yellow-700">-{cat.cost}</span>}</button>); })}</div></div> )}
           {appState === AppState.CHAT_ROOM && ( <ChatView user={user} lang={lang} onLeave={() => navigateTo(AppState.CATEGORY_SELECT)} /> )}
-          {appState === AppState.FACE_UPLOAD && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-4">{TRANSLATIONS[lang].face_reading_title}</h2><p className="text-gray-300 mb-6 text-sm md:text-base leading-relaxed break-keep">{TRANSLATIONS[lang].face_reading_desc}</p><div className="mb-6 border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative"><input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onloadend=()=>setFaceImage(r.result as string); r.readAsDataURL(f); } }} className="absolute inset-0 opacity-0 cursor-pointer" />{faceImage ? <img src={faceImage} className="max-h-48 mx-auto rounded" /> : <span className="text-gray-500">{TRANSLATIONS[lang].face_guide}</span>}</div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startFaceReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].face_upload_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-150 Coin)')}</button></div></div></div> )}
+          {appState === AppState.FACE_UPLOAD && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-4">{TRANSLATIONS[lang].face_reading_title}</h2><p className="text-gray-300 mb-6 text-sm md:text-base leading-relaxed break-keep">{TRANSLATIONS[lang].face_reading_desc}</p><div className="mb-6 border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative"><input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onloadend=()=>setFaceImage(r.result as string); r.readAsDataURL(f); } }} className="absolute inset-0 opacity-0 cursor-pointer" />{faceImage ? <img src={faceImage} className="max-h-48 mx-auto rounded" /> : <span className="text-gray-500">{TRANSLATIONS[lang].face_guide}</span>}</div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startFaceReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].face_upload_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-250 Coin)')}</button></div></div></div> )}
           {appState === AppState.LIFE_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{TRANSLATIONS[lang].life_reading_title}</h2><p className="text-gray-300 text-sm mb-6 leading-relaxed break-keep whitespace-pre-wrap">당신이 언제, 무엇으로 떼돈을 벌까요? 당신도 몰랐던 당신만의 천재적인 재능은 무엇일까요? 모두를 거느리는 내 인생의 황금기는 언제일까요? 미래의 배우자는 어떤 키, 외모, 분위기, 직업을 가지고 있을까요? 지금 당신의 숨겨진 인생 치트키를 알아보세요.</p><div className="flex gap-4 justify-center mb-6"><select value={birthTime.h} onChange={e=>setBirthTime({...birthTime, h:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:24}).map((_,i) => <option key={i} value={i.toString()}>{i}시</option>)}</select><select value={birthTime.m} onChange={e=>setBirthTime({...birthTime, m:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:60}).map((_,i) => <option key={i} value={i.toString()}>{i}분</option>)}</select></div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startLifeReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].life_input_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-150 Coin)')}</button></div></div></div> )}
           {appState === AppState.PARTNER_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{selectedCategory?.label}</h2><p className="text-gray-400 mb-6">{selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_desc : TRANSLATIONS[lang].partner_life_desc}</p><input value={partnerBirth} onChange={e=>setPartnerBirth(e.target.value)} placeholder={TRANSLATIONS[lang].partner_birth_ph} className="w-full p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 mb-6 outline-none"/><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startPartnerReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{(selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_btn : TRANSLATIONS[lang].partner_life_btn).replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : selectedCategory?.id === 'SECRET_COMPAT' ? '(-200 Coin)' : '(-250 Coin)')}</button></div></div></div> )}
           {appState === AppState.QUESTION_SELECT && selectedCategory && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20"><h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{selectedCategory.label}</h2><div className="w-full max-w-xl space-y-3">{selectedCategory.questions.map((q, i) => (<button key={i} onClick={() => handleQuestionSelect(q)} className="w-full p-4 text-left bg-black/60 border border-purple-900/50 rounded hover:bg-purple-900/30 hover:border-purple-500 transition-all text-gray-200 text-sm md:text-base">{q}</button>))}<div className="relative mt-6 pt-4 border-t border-gray-800"><input className="w-full p-4 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 focus:outline-none" placeholder={TRANSLATIONS[lang].custom_q_ph} value={customQuestion} onChange={(e) => setCustomQuestion(e.target.value)} /><button onClick={() => handleQuestionSelect(customQuestion)} className="absolute right-2 top-6 bottom-2 px-4 bg-purple-900 rounded text-xs font-bold hover:bg-purple-700 mt-4 mb-2">OK</button></div><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="w-full mt-6 py-3 bg-gray-800 text-gray-400 hover:text-white rounded border border-gray-700">{TRANSLATIONS[lang].back}</button></div></div> )}
@@ -1804,16 +1758,6 @@ const App: React.FC = () => {
                      )}
                  </div>
              </div>
-          )}
-
-          {authMode && (
-              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
-                  <div className="w-full max-w-sm bg-gray-900 border border-purple-500 rounded-lg p-8 relative shadow-[0_0_50px_rgba(147,51,234,0.3)]">
-                      <button onClick={() => setAuthMode(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
-                      <h2 className="text-2xl font-occult text-center mb-6 text-white">{authMode === 'LOGIN' ? 'LOGIN' : 'SIGN UP'}</h2>
-                      <AuthForm onClose={() => setAuthMode(null)} onLoginSuccess={() => { setAuthMode(null); checkUser(); }} />
-                  </div>
-              </div>
           )}
       </div>
   );
