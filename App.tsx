@@ -557,11 +557,11 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
         >
             <style>{`
                 @keyframes cosmic-shuffle {
-                    0% { transform: translateX(0) scale(1); z-index: 1; filter: brightness(1); }
+                    0% { transform: translateX(0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); }
                     25% { transform: translateX(-120px) translateY(-20px) rotate(-10deg) scale(1.05); z-index: 10; filter: brightness(1.2); }
                     50% { transform: translateX(0) translateY(-40px) rotate(0deg) scale(1.1); z-index: 20; filter: brightness(1.5) drop-shadow(0 0 15px #a855f7); }
                     75% { transform: translateX(120px) translateY(-20px) rotate(10deg) scale(1.05); z-index: 10; filter: brightness(1.2); }
-                    100% { transform: translateX(0) scale(1); z-index: 1; filter: brightness(1); }
+                    100% { transform: translateX(0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); }
                 }
                 @keyframes deck-pulse-fancy {
                     0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(168,85,247,0.3); }
@@ -577,7 +577,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
                 {[...Array(8)].map((_, i) => (
                     <div key={`left-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
                          style={{ 
-                             animation: `cosmic-shuffle 2s cubic-bezier(0.45, 0, 0.55, 1) infinite`,
+                             animation: `cosmic-shuffle 2.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite`,
                              animationDelay: `${i * 0.15}s`,
                              boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
                          }}>
@@ -588,7 +588,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
                 {[...Array(8)].map((_, i) => (
                     <div key={`right-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}
                         style={{
-                            animation: `cosmic-shuffle 2s cubic-bezier(0.45, 0, 0.55, 1) infinite reverse`,
+                            animation: `cosmic-shuffle 2.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite reverse`,
                             animationDelay: `${i * 0.15}s`,
                             boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
                         }}>
@@ -638,12 +638,12 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
                             <div 
                                 key={i}
                                 onClick={() => handleCardClick(i)}
-                                // Added improved transition-all with custom bezier for fluid feel, active scaling, and touch-manipulation
+                                // Updated transition for a much smoother, fluid, spring-like feel (duration increased, custom bezier)
                                 className={`aspect-[2/3] rounded-sm border border-purple-500/30 shadow-md cursor-pointer 
-                                transition-all duration-500 ease-[cubic-bezier(0.25,0.8,0.25,1)] card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
+                                transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
                                 touch-manipulation active:scale-95
                                 ${isSelected 
-                                    ? 'scale-110 shadow-[0_0_20px_#d946ef] border-purple-200 z-50 brightness-125 -translate-y-2' 
+                                    ? 'scale-110 shadow-[0_0_20px_#d946ef] border-purple-200 z-50 brightness-125 -translate-y-4' 
                                     : 'hover:-translate-y-1 hover:scale-105 hover:shadow-[0_0_10px_rgba(168,85,247,0.4)] z-0 hover:z-10'}`}
                                 style={{
                                     backgroundSize: 'cover',
@@ -747,8 +747,12 @@ const ResultView: React.FC<{
                 <h2 className="text-xl md:text-2xl font-bold text-center text-purple-200 mb-2">{question}</h2>
                 <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-purple-500 to-transparent mx-auto mb-8"></div>
                 
-                {/* Cards Display - Forces Single Row on Mobile (flex-nowrap) */}
-                <div className="flex justify-center items-center gap-2 md:gap-4 mb-8 flex-nowrap w-full overflow-hidden px-1">
+                {/* Cards Display - Forces Single Row on Mobile (flex-nowrap). 
+                    IMPORTANT FIX: Changed overflow-hidden to overflow-visible to prevent cutting off shadows/cards. 
+                    Added overflow-x-auto to allow horizontal scrolling if screen is too small, ensuring NO CUT OFF. 
+                    Added pb-4 for shadow space. 
+                */}
+                <div className="flex justify-center items-center gap-2 md:gap-4 mb-8 flex-nowrap w-full overflow-x-auto overflow-y-visible px-2 pb-4 scrollbar-hide">
                     {selectedCards.map((card, idx) => (
                         <div key={idx} className="flex flex-col items-center animate-fade-in flex-shrink-0" style={{ animationDelay: `${idx * 0.2}s` }}>
                             <div className="w-[28vw] h-[42vw] max-w-[120px] max-h-[180px] md:w-32 md:h-52 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden relative shadow-lg group">
