@@ -515,7 +515,8 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
                     {COUNTRIES.map(c => <option key={c.code} value={c.nameEn}>{c.nameKo} ({c.nameEn})</option>)}
                 </select>
             </div>
-            <button onClick={handleSubmit} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded mt-4 transition-all shadow-[0_0_15px_rgba(147,51,234,0.5)]">
+            {/* Updated Darker Purple Next Button */}
+            <button onClick={handleSubmit} className="w-full bg-[#1a052a] hover:bg-[#3b0764] text-white font-bold py-3 rounded mt-4 transition-all shadow-[0_0_15px_rgba(76,29,149,0.5)] border border-purple-900/50">
                 Next
             </button>
         </div>
@@ -528,26 +529,38 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
         const timer = setTimeout(() => {
             stopShuffleLoop();
             onComplete();
-        }, 2500);
+        }, 3000); // Extended shuffle duration slightly
         return () => {
             clearTimeout(timer);
             stopShuffleLoop();
         };
     }, [onComplete]);
 
+    // Dazzling, Flashy Shuffling on Rug
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in" style={{ backgroundColor: rugColor || 'transparent' }}>
-            <div className="relative w-40 h-64">
-                {[...Array(5)].map((_, i) => (
-                    <div key={i} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400 shadow-xl card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
+        <div className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in rug-texture" style={{ backgroundColor: rugColor || 'transparent' }}>
+            <div className="absolute inset-0 bg-black/30 pointer-events-none"></div>
+            <div className="relative w-40 h-64 z-20">
+                {/* Core Cards */}
+                {[...Array(7)].map((_, i) => (
+                    <div key={i} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.5)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
                          style={{ 
-                             transform: `rotate(${i * 5}deg) translate(${i * 2}px, ${i * 2}px)`,
-                             animation: `shuffle ${0.5 + i * 0.1}s infinite alternate`
+                             animation: i % 2 === 0 ? `orbit-cw ${2 + i * 0.1}s linear infinite` : `orbit-ccw ${2.5 + i * 0.1}s linear infinite`,
+                             opacity: 0.9
                          }}>
                     </div>
                 ))}
+                {/* Floating Particles/Flashy Cards */}
+                {[...Array(5)].map((_, i) => (
+                    <div key={`fly-${i}`} className={`absolute w-full h-full bg-purple-900 rounded-lg border border-yellow-400/30 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}
+                        style={{
+                            animation: `chaotic-fly ${3 + i * 0.5}s ease-in-out infinite alternate`,
+                            opacity: 0.6
+                        }}>
+                    </div>
+                ))}
             </div>
-            <p className="mt-8 text-purple-200 font-occult animate-pulse text-xl">
+            <p className="mt-16 text-purple-200 font-occult animate-pulse text-2xl z-20 shadow-black drop-shadow-md">
                 {lang === 'ko' ? "운명을 섞는 중..." : "Shuffling Fate..."}
             </p>
         </div>
@@ -557,11 +570,12 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
 const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null }> = ({ onSelectCards, lang, skin, activeCustomSkin }) => {
     const [selected, setSelected] = useState<number[]>([]);
     
-    // Generate a deterministically random spread for visual flair
+    // Fan/Spread Layout
     const spread = [...Array(22)].map((_, i) => ({
         id: i,
-        rot: (i - 11) * 3,
-        y: Math.abs(i - 11) * 2
+        rot: (i - 11) * 5, // Wider spread
+        y: Math.abs(i - 11) * 3, 
+        x: (i - 11) * 20
     }));
 
     const handleCardClick = (i: number) => {
@@ -572,7 +586,7 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
         setSelected(newSelected);
         
         if (newSelected.length === 3) {
-            setTimeout(() => onSelectCards(newSelected), 800);
+            setTimeout(() => onSelectCards(newSelected), 1200); // Slower transition to enjoy selection effect
         }
     };
 
@@ -581,16 +595,21 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
             <h2 className="text-2xl font-occult text-purple-200 mb-8 animate-pulse">
                 {lang === 'ko' ? "3장의 카드를 선택하세요" : "Select 3 Cards"}
             </h2>
-            <div className="relative w-full max-w-4xl h-64 flex justify-center items-end perspective-1000">
+            <div className="relative w-full max-w-5xl h-80 flex justify-center items-end perspective-1000">
                 {spread.map((card) => {
                     const isSelected = selected.includes(card.id);
                     return (
                         <div 
                             key={card.id}
                             onClick={() => handleCardClick(card.id)}
-                            className={`absolute w-24 h-40 md:w-32 md:h-52 rounded-lg border border-purple-500/50 shadow-2xl cursor-pointer transition-all duration-300 card-back ${SKINS.find(s => s.id === skin)?.cssClass} ${isSelected ? '-translate-y-10 shadow-[0_0_20px_#a855f7] border-purple-300 z-10' : 'hover:-translate-y-4 z-0'}`}
+                            className={`absolute w-24 h-40 md:w-32 md:h-52 rounded-lg border border-purple-500/30 shadow-2xl cursor-pointer transition-all duration-500 cubic-bezier(0.25, 0.46, 0.45, 0.94) card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
+                            ${isSelected 
+                                ? '-translate-y-24 scale-110 shadow-[0_0_30px_#d946ef] border-purple-200 z-50 brightness-125' 
+                                : 'hover:-translate-y-6 hover:scale-110 hover:shadow-[0_0_20px_rgba(168,85,247,0.6)] z-0 hover:z-10'}`}
                             style={{
-                                transform: `translateX(${(card.id - 11) * 30}px) rotate(${card.rot}deg) translateY(${card.y}px)`,
+                                transform: isSelected 
+                                    ? `translateX(${card.x}px) rotate(0deg) translateY(-60px)` 
+                                    : `translateX(${card.x}px) rotate(${card.rot}deg) translateY(${card.y}px)`,
                                 transformOrigin: 'bottom center',
                                 backgroundSize: 'cover',
                                 backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined
@@ -600,9 +619,9 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
                     );
                 })}
             </div>
-            <div className="mt-12 flex gap-2">
+            <div className="mt-16 flex gap-3">
                 {[...Array(3)].map((_, i) => (
-                    <div key={i} className={`w-3 h-3 rounded-full border border-purple-500 ${selected.length > i ? 'bg-purple-500 shadow-[0_0_10px_#a855f7]' : 'bg-transparent'}`}></div>
+                    <div key={i} className={`w-4 h-4 rounded-full border-2 border-purple-500 transition-all duration-300 ${selected.length > i ? 'bg-purple-500 shadow-[0_0_15px_#d946ef] scale-125' : 'bg-transparent'}`}></div>
                 ))}
             </div>
         </div>
@@ -619,25 +638,56 @@ const ResultView: React.FC<{
     user: User; 
     spendCoins: (amount: number) => boolean; 
     onLogin: () => void 
-}> = ({ question, selectedCards, onRetry, lang, readingPromise, onReadingComplete, user }) => {
-    const [resultText, setResultText] = useState<string | null>(null);
-    const [showFull, setShowFull] = useState(false);
+}> = ({ question, selectedCards, onRetry, lang, readingPromise, onReadingComplete, user, spendCoins }) => {
+    const [rawText, setRawText] = useState<string | null>(null);
+    const [interpretation, setInterpretation] = useState<string>("");
+    const [solution, setSolution] = useState<string>("");
+    const [isSolutionUnlocked, setIsSolutionUnlocked] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
+
+    // Initial Solution Unlock Check
+    useEffect(() => {
+        // If guest visiting for the very first time, unlock freely.
+        const hasVisited = localStorage.getItem('has_visited');
+        if (!hasVisited && user.email === 'Guest') {
+            setIsSolutionUnlocked(true);
+            localStorage.setItem('has_visited', 'true');
+        } else {
+            setIsSolutionUnlocked(false);
+        }
+    }, [user.email]);
 
     useEffect(() => {
         if (readingPromise) {
             readingPromise
                 .then(text => {
-                    setResultText(text);
+                    setRawText(text);
                     playSound('REVEAL');
                     onReadingComplete(text);
+                    
+                    // Parse Text
+                    const solutionHeader = "[실질적인 해결책]";
+                    if (text.includes(solutionHeader)) {
+                        const parts = text.split(solutionHeader);
+                        setInterpretation(parts[0].trim());
+                        setSolution(solutionHeader + "\n" + parts[1].trim());
+                    } else {
+                        setInterpretation(text);
+                        setSolution(""); // Should not happen with new prompt structure, but safe fallback
+                    }
                 })
                 .catch(err => {
                     console.error(err);
-                    setResultText("운명의 신호가 약합니다. 다시 시도해주세요.");
+                    setRawText("운명의 신호가 약합니다. 다시 시도해주세요.");
                 });
         }
     }, [readingPromise, onReadingComplete]);
+
+    const handleUnlockSolution = () => {
+        if (spendCoins(15)) {
+            setIsSolutionUnlocked(true);
+        }
+    };
 
     const handleShare = async () => {
         if (contentRef.current) {
@@ -677,8 +727,8 @@ const ResultView: React.FC<{
                 </div>
 
                 {/* Interpretation */}
-                <div className="space-y-4">
-                    {!resultText ? (
+                <div className="space-y-6">
+                    {!rawText ? (
                         <div className="text-center py-10 space-y-4">
                             <div className="inline-block w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
                             <p className="text-purple-300 animate-pulse">
@@ -689,16 +739,43 @@ const ResultView: React.FC<{
                             </p>
                         </div>
                     ) : (
-                        <div className="prose prose-invert max-w-none">
-                            <div className="whitespace-pre-line text-gray-200 leading-relaxed text-sm md:text-base p-4 bg-purple-900/10 rounded-lg border border-purple-500/20">
-                                {resultText}
+                        <>
+                            {/* Analysis & Advice */}
+                            <div className="prose prose-invert max-w-none">
+                                <div className="whitespace-pre-line text-gray-200 leading-relaxed text-sm md:text-base p-4 bg-purple-900/10 rounded-lg border border-purple-500/20">
+                                    {interpretation}
+                                </div>
                             </div>
-                        </div>
+
+                            {/* Practical Solution Section */}
+                            {solution && (
+                                <div className="relative mt-4">
+                                    <div className={`prose prose-invert max-w-none p-4 rounded-lg border transition-all duration-500 ${isSolutionUnlocked ? 'bg-purple-900/20 border-purple-500/40' : 'bg-black/50 border-gray-800 blur-sm select-none'}`}>
+                                        <div className="whitespace-pre-line text-gray-300 leading-relaxed text-sm md:text-base font-bold">
+                                            {isSolutionUnlocked ? solution : "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(10)}
+                                        </div>
+                                    </div>
+                                    
+                                    {!isSolutionUnlocked && (
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/10">
+                                            <div className="text-4xl mb-2">🔒</div>
+                                            <button 
+                                                onClick={handleUnlockSolution}
+                                                className="px-6 py-3 bg-gradient-to-r from-purple-700 to-indigo-600 hover:from-purple-600 hover:to-indigo-500 text-white font-bold rounded-full shadow-[0_0_20px_rgba(168,85,247,0.5)] transform hover:scale-105 transition-all flex items-center gap-2"
+                                            >
+                                                <span>{lang === 'ko' ? '실질적인 해결책 보기' : 'Unlock Practical Solution'}</span>
+                                                <span className="bg-black/30 px-2 py-0.5 rounded text-xs text-yellow-300">-15 Coin</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
 
                 {/* Actions */}
-                {resultText && (
+                {rawText && (
                     <div className="mt-8 flex gap-3 justify-center">
                         <button onClick={onRetry} className="px-6 py-2 bg-gray-800 hover:bg-gray-700 rounded text-gray-300 text-sm font-bold transition-colors">
                             {lang === 'ko' ? "처음으로" : "Home"}
@@ -867,9 +944,7 @@ const App: React.FC = () => {
   const updateUser = (updater: (prev: User) => User) => { setUser(prev => { const newUser = updater(prev); saveUserState(newUser, appState); return newUser; }); };
 
   // --- SESSION PERSISTENCE LOGIC ---
-  // Save current active session data whenever it changes
   useEffect(() => {
-      // Debounce saving session data
       const timeoutId = setTimeout(() => {
           updateUser(prev => ({
               ...prev,
@@ -879,13 +954,13 @@ const App: React.FC = () => {
                   selectedQuestion: selectedQuestion,
                   customQuestion: customQuestion,
                   selectedCards: selectedCards,
-                  readingResult: undefined, // Will be filled by onReadingComplete if needed, or we rely on history
+                  readingResult: undefined, 
                   faceImage: faceImage || undefined,
                   birthTime: birthTime,
                   partnerBirth: partnerBirth
               }
           }));
-      }, 1000); // 1 second debounce
+      }, 1000); 
 
       return () => clearTimeout(timeoutId);
   }, [appState, selectedCategory, selectedQuestion, customQuestion, selectedCards, faceImage, birthTime, partnerBirth]);
@@ -902,13 +977,11 @@ const App: React.FC = () => {
         } 
     } catch (e) {}
 
-    // Initial assumption
     let currentUser = localUser || { ...user, email: "Guest" };
 
     if (isSupabaseConfigured) {
         try {
             const { data, error } = await supabase.auth.getSession();
-            
             if (data.session?.user) {
                 const u = data.session.user; 
                 const email = u.email || "User";
@@ -929,7 +1002,6 @@ const App: React.FC = () => {
             }
         } catch (err: any) { 
             console.warn("Session check failed (network/config error), defaulting to Guest:", err);
-            
             if (!localUser || localUser.email !== 'Guest') {
                  currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
             }
@@ -946,17 +1018,13 @@ const App: React.FC = () => {
         }
     }
 
-    // Capture old tier for comparison
     const oldTier = currentUser.tier;
-
-    // Common Logic (Attendance, Tier Demotion)
     const lastLoginDate = new Date(currentUser.lastLoginDate || today);
     const currentDate = new Date();
     const diffTime = Math.abs(currentDate.getTime() - lastLoginDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     let newTier = currentUser.tier;
     
-    // Drop Tier logic for inactivity
     if (diffDays >= 15) {
         const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
         const currentIdx = tiers.indexOf(newTier);
@@ -970,7 +1038,6 @@ const App: React.FC = () => {
     let newMonthlyCoinsSpent = currentUser.monthlyCoinsSpent || 0;
     const currentMonth = today.substring(0, 7);
 
-    // Monthly Reset logic 
     if (currentMonthlyReward !== currentMonth) {
         if (newTier !== UserTier.BRONZE) {
             if (currentUser.email !== 'Guest') {
@@ -982,16 +1049,6 @@ const App: React.FC = () => {
         newTier = UserTier.BRONZE; 
         currentMonthlyReward = currentMonth;
     } else {
-        // Only recalc tier based on spending if it hasn't been dropped by inactivity logic above
-        // Actually, spending logic should probably override drop? 
-        // For simplicity, let's say inactivity penalty sticks until next purchase.
-        // But to be safe, max of calculated tier and current tier? No, logic is simple:
-        // If inactive -> drop. If active -> calculate based on spend.
-        // Let's stick to the base logic: standard calculation is based on monthly spend.
-        // The inactivity drop is a penalty applied ON TOP of that.
-        // So if they spent enough to be Platinum, but didn't log in for 15 days, they might drop to Gold.
-        // However, usually tiers reset monthly anyway in this code.
-        // Let's just trust the inactivity drop for now as the requested feature.
         if (diffDays < 15) {
              newTier = calculateTier(newMonthlyCoinsSpent);
         }
@@ -1001,7 +1058,6 @@ const App: React.FC = () => {
         newTier = UserTier.PLATINUM;
     }
 
-    // Tier Change Popup Logic
     if (currentUser.email !== 'Guest' && newTier !== oldTier) {
         const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
         const oldIdx = tiers.indexOf(oldTier);
@@ -1029,13 +1085,10 @@ const App: React.FC = () => {
         newLastAttendance = today; 
     }
     
-    // Reset daily readings if it's a new day
     const readingsToday = currentUser.lastReadingDate === today ? currentUser.readingsToday : 0;
 
     const updatedUser = { ...currentUser, tier: newTier, coins: newCoins, lastLoginDate: today, loginDates: newLoginDates, readingsToday: readingsToday, lastReadingDate: today, lastMonthlyReward: currentMonthlyReward, attendanceDay: newAttendanceDay, lastAttendance: newLastAttendance, monthlyCoinsSpent: newMonthlyCoinsSpent };
     
-    // --- STATE RESTORATION ---
-    // Restore session state from persisted data
     if (updatedUser.currentSession) {
         const session = updatedUser.currentSession;
         if (session.appState) setAppState(session.appState);
@@ -1046,9 +1099,7 @@ const App: React.FC = () => {
         if (session.faceImage) setFaceImage(session.faceImage);
         if (session.birthTime) setBirthTime(session.birthTime);
         if (session.partnerBirth) setPartnerBirth(session.partnerBirth);
-        // Reading Result restoration is handled by ResultView taking persisted cards, but if needed we can pass text
     } else if (updatedUser.lastAppState) {
-        // Fallback to basic state persistence
         setAppState(updatedUser.lastAppState);
     }
 
@@ -1063,7 +1114,6 @@ const App: React.FC = () => {
   const handleUserInfoSubmit = (info: UserInfo) => { updateUser((prev) => ({ ...prev, userInfo: info })); navigateTo(AppState.CATEGORY_SELECT); };
   const spendCoins = (amount: number): boolean => { if (user.email === 'Guest') return true; if (user.coins < amount) { if (confirm(TRANSLATIONS[lang].coin_shortage)) { setShowShop(true); setShopStep('AMOUNT'); } return false; } updateUser(prev => { const newSpent = (prev.monthlyCoinsSpent || 0) + amount; return { ...prev, coins: prev.coins - amount, monthlyCoinsSpent: newSpent, tier: calculateTier(newSpent) }; }); return true; };
   
-  // Replaced confirm dialog with Alert and strict return false for Guest
   const checkGuestAction = () => {
       if (user.email === 'Guest') {
           alert("로그인한 사용자만 이용 가능합니다.");
@@ -1101,8 +1151,6 @@ const App: React.FC = () => {
       const oldInfo = user.userInfo;
       const newInfo = { ...editProfileData };
       
-      // Validate & Update Counts
-      // Name
       if (newInfo.name !== oldInfo.name) {
           if (oldInfo.nameChangeCount >= 5) {
               alert("이름 변경 횟수(5회)를 초과했습니다.");
@@ -1111,7 +1159,6 @@ const App: React.FC = () => {
           newInfo.nameChangeCount = (oldInfo.nameChangeCount || 0) + 1;
       }
 
-      // Birthdate
       if (newInfo.birthDate !== oldInfo.birthDate) {
           if (oldInfo.birthDateChanged) {
               alert("생년월일은 한 번만 변경할 수 있습니다.");
@@ -1120,7 +1167,6 @@ const App: React.FC = () => {
           newInfo.birthDateChanged = true;
       }
 
-      // Country
       if (newInfo.country !== oldInfo.country) {
           if (oldInfo.countryChanged) {
               alert("국가는 한 번만 변경할 수 있습니다.");
@@ -1129,16 +1175,10 @@ const App: React.FC = () => {
           newInfo.countryChanged = true;
       }
 
-      // 1. Update State Immutable Way - Ensure merged correctly
-      let updatedUser = { 
-          ...user, 
-          userInfo: newInfo // Simply replace userInfo with the edited version (which contains the new image if uploaded)
-      };
+      let updatedUser = { ...user, userInfo: newInfo };
       
-      // Update React state
       setUser(updatedUser);
       
-      // 2. Force save to LocalStorage immediately
       try {
           localStorage.setItem('black_tarot_user', JSON.stringify({ ...updatedUser, lastAppState: appState }));
       } catch (e) {
@@ -1146,7 +1186,6 @@ const App: React.FC = () => {
           alert("저장 공간이 부족하여 일부 데이터(이미지 등)가 로컬에 저장되지 않았습니다.");
       }
 
-      // 3. Attempt Supabase Cloud Sync
       if (isSupabaseConfigured) {
           const { error } = await supabase.from('profiles').upsert({ 
               email: user.email, 
@@ -1154,9 +1193,7 @@ const App: React.FC = () => {
               updated_at: new Date().toISOString() 
           }, { onConflict: 'email' });
           
-          if (error) { 
-              console.warn("Cloud save failed, but local save succeeded.", error.message); 
-          }
+          if (error) console.warn("Cloud save failed, but local save succeeded.", error.message); 
       }
       
       alert("프로필이 저장되었습니다.");
@@ -1168,7 +1205,6 @@ const App: React.FC = () => {
   const processPayment = () => { if (!pendingPackage) return; setTimeout(() => { alert(`Payment Successful via ${selectedPaymentMethod}!`); updateUser(prev => ({ ...prev, coins: prev.coins + pendingPackage.coins, totalSpent: prev.totalSpent + pendingPackage.amount, })); setPendingPackage(null); setShopStep('AMOUNT'); setShowShop(false); }, 1500); };
   
   const handleCategorySelect = (category: QuestionCategory) => { 
-      // STRICT GUEST CHECK for specific categories
       if (user.email === 'Guest' && ['FACE', 'LIFE', 'SECRET_COMPAT', 'PARTNER_LIFE'].includes(category.id)) {
           setAuthMode('LOGIN');
           return;
@@ -1191,10 +1227,9 @@ const App: React.FC = () => {
   const handleEnterChat = async () => { if (!spendCoins(20)) return; navigateTo(AppState.CHAT_ROOM); };
   const handleQuestionSelect = (q: string) => { setSelectedQuestion(q); navigateTo(AppState.SHUFFLING); };
   
-  // TIER LIMITS HELPER
   const checkTierLimit = () => {
-      if (user.email === 'Guest') return true; // Handled separately
-      if (user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) return true; // Unlimited
+      if (user.email === 'Guest') return true;
+      if (user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) return true;
       
       const limit = user.tier === UserTier.SILVER ? 30 : 10;
       if (user.readingsToday >= limit) {
@@ -1208,7 +1243,7 @@ const App: React.FC = () => {
       if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } 
       if (!checkTierLimit()) return;
       if (!faceImage) return alert("Please upload a photo first."); 
-      if (!spendCoins(250)) return; // Cost Updated to 250
+      if (!spendCoins(250)) return;
       navigateTo(AppState.RESULT); 
       setSelectedQuestion(TRANSLATIONS[lang].face_reading_title); 
       setSelectedCards([]); 
@@ -1219,9 +1254,8 @@ const App: React.FC = () => {
   const startLifeReading = () => {
       if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; }
       if (!checkTierLimit()) return;
-      if (!spendCoins(150)) return; // Cost changed to 150
+      if (!spendCoins(150)) return;
       
-      // Merge birthTime into userInfo for the prompt
       const finalUserInfo: UserInfo = {
           ...(user.userInfo as UserInfo),
           birthTime: `${birthTime.h}:${birthTime.m}`
@@ -1250,7 +1284,6 @@ const App: React.FC = () => {
 
       if (isSecret) {
           if (!user.userInfo) {
-             // Should not happen if flow is correct, but safe fallback
              alert("User info missing");
              return;
           }
@@ -1288,14 +1321,12 @@ const App: React.FC = () => {
       navigateTo(AppState.RESULT); 
       setReadingPromise(getTarotReading(selectedQuestion, selected, user.userInfo, lang, user.history, user.tier)); 
 
-      // Trigger Async Image Generation for each card
       selected.forEach((card, idx) => {
           generateTarotCardImage(card.name)
             .then(base64 => {
                 const imageUrl = `data:image/png;base64,${base64}`;
                 setSelectedCards(prev => {
                     const newCards = [...prev];
-                    // Verify we're updating the correct card instance
                     if (newCards[idx] && newCards[idx].name === card.name) {
                         newCards[idx] = { ...newCards[idx], generatedImage: imageUrl };
                     }
@@ -1320,10 +1351,8 @@ const App: React.FC = () => {
   const isFirstPurchase = user.totalSpent === 0 && user.email !== 'Guest';
   const isGuest = user.email === 'Guest';
 
-  // Strict check for settings buttons
   const handleSettingsClick = (mode: 'SKIN' | 'FRAME' | 'RUG' | 'BGM' | 'HISTORY' | 'RESULT_BG' | 'STICKER') => {
       if (user.email === 'Guest') {
-          // Changed: Alert first, then directly open login popup
           alert("로그인이 필요한 기능입니다.");
           setAuthMode('LOGIN');
           return;
@@ -1344,19 +1373,10 @@ const App: React.FC = () => {
           {showTierChangePopup && (
               <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-xl animate-fade-in p-6" onClick={() => setShowTierChangePopup(false)}>
                   <div className="relative bg-[#1a103c] border-2 border-yellow-500 rounded-xl p-8 max-w-sm w-full text-center shadow-[0_0_80px_rgba(250,204,21,0.6)] overflow-hidden" onClick={e=>e.stopPropagation()}>
-                      {/* Rays */}
                       {tierChangeDirection === 'UP' && <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/20 to-transparent animate-pulse pointer-events-none"></div>}
-                      
-                      <div className="text-6xl mb-4 animate-bounce">
-                          {tierChangeDirection === 'UP' ? '🚀' : '📉'}
-                      </div>
-                      <h2 className="text-3xl font-occult text-white mb-2 uppercase font-bold tracking-wider">
-                          {tierChangeDirection === 'UP' ? TIER_POPUP_TEXT[lang].up_title : TIER_POPUP_TEXT[lang].down_title}
-                      </h2>
-                      <p className={`text-lg font-bold mb-6 ${tierChangeDirection === 'UP' ? 'text-yellow-400' : 'text-gray-400'}`}>
-                          Current Tier: <span className="text-2xl">{tierChangeNewTier}</span>
-                      </p>
-                      
+                      <div className="text-6xl mb-4 animate-bounce">{tierChangeDirection === 'UP' ? '🚀' : '📉'}</div>
+                      <h2 className="text-3xl font-occult text-white mb-2 uppercase font-bold tracking-wider">{tierChangeDirection === 'UP' ? TIER_POPUP_TEXT[lang].up_title : TIER_POPUP_TEXT[lang].down_title}</h2>
+                      <p className={`text-lg font-bold mb-6 ${tierChangeDirection === 'UP' ? 'text-yellow-400' : 'text-gray-400'}`}>Current Tier: <span className="text-2xl">{tierChangeNewTier}</span></p>
                       {tierChangeDirection === 'UP' ? (
                           <div className="bg-black/40 p-4 rounded-lg border border-white/10 mb-6 text-sm text-gray-300 text-left">
                               <p className="mb-2 font-bold text-white">{TIER_POPUP_TEXT[lang].up_msg}</p>
@@ -1367,19 +1387,26 @@ const App: React.FC = () => {
                               </ul>
                           </div>
                       ) : (
-                          <div className="bg-black/40 p-4 rounded-lg border border-white/10 mb-6 text-sm text-gray-300">
-                              <p>{TIER_POPUP_TEXT[lang].down_msg}</p>
-                          </div>
+                          <div className="bg-black/40 p-4 rounded-lg border border-white/10 mb-6 text-sm text-gray-300"><p>{TIER_POPUP_TEXT[lang].down_msg}</p></div>
                       )}
-                      
-                      <button onClick={() => setShowTierChangePopup(false)} className="w-full py-3 bg-gradient-to-r from-purple-700 to-indigo-600 text-white font-bold rounded hover:brightness-110 transition-all shadow-lg">
-                          {TIER_POPUP_TEXT[lang].confirm}
-                      </button>
+                      <button onClick={() => setShowTierChangePopup(false)} className="w-full py-3 bg-gradient-to-r from-purple-700 to-indigo-600 text-white font-bold rounded hover:brightness-110 transition-all shadow-lg">{TIER_POPUP_TEXT[lang].confirm}</button>
                   </div>
               </div>
           )}
 
-          {showAttendancePopup && ( <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-lg animate-fade-in p-4"><div className="relative bg-gradient-to-br from-[#2e1065] via-[#4c1d95] to-[#2e1065] p-1 rounded-2xl shadow-[0_0_80px_rgba(250,204,21,0.4)] max-w-sm w-full scale-100 animate-[bounce_1s_infinite]"><div className="relative bg-[#1a103c] rounded-xl p-8 text-center border border-yellow-500/50 overflow-hidden"><h2 className="text-3xl font-occult text-shine mb-4 relative z-10 font-bold uppercase tracking-widest">{TRANSLATIONS[lang].attendance_popup}</h2><div className="text-7xl mb-6 relative z-10 animate-bounce">🎁</div><p className="text-yellow-200 text-lg mb-2 font-bold relative z-10">Day {user.attendanceDay} Reached!</p><p className="text-gray-300 mb-8 relative z-10">You received <span className="text-yellow-400 font-bold text-xl">{attendanceReward} Coins</span></p><button onClick={() => setShowAttendancePopup(false)} className="relative z-10 w-full py-3 bg-gradient-to-r from-yellow-600 to-yellow-400 text-black font-extrabold rounded-lg shadow-lg">Claim Reward</button></div></div></div> )}
+          {showAttendancePopup && ( 
+            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-lg animate-fade-in p-4">
+                <div className="relative bg-gradient-to-br from-[#2e1065] via-[#4c1d95] to-[#2e1065] p-1 rounded-2xl shadow-[0_0_80px_rgba(250,204,21,0.4)] max-w-sm w-full scale-100 animate-[bounce_1s_infinite]">
+                    <div className="relative bg-[#1a103c] rounded-xl p-8 text-center border border-yellow-500/50 overflow-hidden">
+                        <h2 className="text-3xl font-occult text-shine mb-4 relative z-10 font-bold uppercase tracking-widest">{TRANSLATIONS[lang].attendance_popup}</h2>
+                        <div className="text-7xl mb-6 relative z-10 animate-bounce">🎁</div>
+                        <p className="text-yellow-200 text-lg mb-2 font-bold relative z-10">Day {user.attendanceDay} Reached!</p>
+                        <p className="text-gray-300 mb-8 relative z-10">You received <span className="text-yellow-400 font-bold text-xl">{attendanceReward} Coins</span></p>
+                        <button onClick={() => setShowAttendancePopup(false)} className="relative z-10 w-full py-3 bg-gradient-to-r from-yellow-600 to-yellow-400 text-black font-extrabold rounded-lg shadow-lg">Claim Reward</button>
+                    </div>
+                </div>
+            </div> 
+          )}
           
           {showProfile && user.email !== 'Guest' && (
               <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
@@ -1395,6 +1422,19 @@ const App: React.FC = () => {
                       </div>
                       <div className="mt-6 flex gap-2"><button onClick={() => setShowProfile(false)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 font-bold">Cancel</button><button onClick={handleSaveProfile} className="flex-1 py-2 bg-purple-700 hover:bg-purple-600 rounded text-white font-bold">Save Changes</button></div>
                       <div className="mt-8 pt-6 border-t border-gray-800"><button onClick={handleDeleteAccount} className="w-full py-3 bg-red-900/50 text-red-400 font-bold rounded border border-red-900 hover:bg-red-900 hover:text-white transition-colors">{TRANSLATIONS[lang].delete_account}</button></div>
+                  </div>
+              </div>
+          )}
+          {authMode && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in p-6">
+                  <div className="bg-gray-900 border border-purple-500 p-8 rounded text-center max-w-sm w-full shadow-[0_0_50px_rgba(168,85,247,0.5)] relative">
+                      <button onClick={() => setAuthMode(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">✕</button>
+                      <h2 className="text-2xl font-bold text-white mb-6">Login / Sign Up</h2>
+                      {authMode === 'LOGIN' ? (
+                          <AuthForm onClose={() => setAuthMode(null)} onLoginSuccess={() => { setAuthMode(null); checkUser(); }} />
+                      ) : (
+                          <div className="text-white">Sign Up Logic Here</div> 
+                      )}
                   </div>
               </div>
           )}
