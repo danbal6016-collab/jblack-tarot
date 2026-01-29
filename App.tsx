@@ -277,7 +277,11 @@ const ChatView: React.FC<{
 
         channel
             .on('broadcast', { event: 'chat' }, ({ payload }) => {
-                setMessages(prev => [...prev, payload]);
+                setMessages(prev => {
+                    // Optimized: Keep only the last 50 messages to prevent lag
+                    const newMessages = [...prev, payload];
+                    return newMessages.slice(-50);
+                });
             })
             .on('presence', { event: 'sync' }, () => {
                 const state = channel.presenceState();
@@ -309,14 +313,14 @@ const ChatView: React.FC<{
             userId: chatUserId,
             nickname: user.userInfo?.name || 'Anonymous',
             avatarUrl: user.userInfo?.profileImage,
-            bio: user.userInfo?.bio || '', // Send Bio with message for visibility
+            bio: user.userInfo?.bio || '', // Ensure bio is passed
             text: inputText,
             timestamp: Date.now(),
             tier: user.tier
         };
 
         // Optimistic UI update
-        setMessages(prev => [...prev, msg]); 
+        setMessages(prev => [...prev, msg].slice(-50)); 
 
         if (isSupabaseConfigured) {
             await channelRef.current?.send({
@@ -400,20 +404,20 @@ const ChatView: React.FC<{
                 </button>
             </div>
 
-            {/* Profile Popup Overlay */}
+            {/* Profile Popup Overlay - Shows All User Data */}
             {viewingUser && (
                 <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm animate-fade-in" onClick={() => setViewingUser(null)}>
-                    <div className="bg-[#1a103c] border-2 border-purple-500 p-6 rounded-xl max-w-xs w-full text-center relative shadow-[0_0_50px_rgba(147,51,234,0.5)]" onClick={e => e.stopPropagation()}>
+                    <div className="bg-[#1a103c] border-2 border-purple-500 p-6 rounded-xl max-w-xs w-full text-center relative shadow-[0_0_50px_rgba(147,51,234,0.5)] transform transition-transform scale-100" onClick={e => e.stopPropagation()}>
                         <button className="absolute top-2 right-2 text-gray-400 hover:text-white" onClick={() => setViewingUser(null)}>✕</button>
-                        <div className="w-24 h-24 rounded-full border-2 border-yellow-500 mx-auto mb-4 overflow-hidden shadow-lg">
-                             {viewingUser.avatarUrl ? <img src={viewingUser.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-700 flex items-center justify-center text-2xl">?</div>}
+                        <div className="w-24 h-24 rounded-full border-2 border-yellow-500 mx-auto mb-4 overflow-hidden shadow-lg bg-gray-800">
+                             {viewingUser.avatarUrl ? <img src={viewingUser.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-3xl">👤</div>}
                         </div>
                         <h3 className="text-xl font-bold text-white mb-1">{viewingUser.nickname}</h3>
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-4 ${viewingUser.tier === UserTier.PLATINUM ? 'bg-cyan-900 text-cyan-200' : viewingUser.tier === UserTier.GOLD ? 'bg-yellow-900 text-yellow-200' : 'bg-gray-700 text-gray-300'}`}>
+                        <span className={`inline-block px-3 py-1 rounded text-[10px] font-bold mb-4 uppercase tracking-widest ${viewingUser.tier === UserTier.PLATINUM ? 'bg-purple-900 text-purple-200 border border-purple-500' : viewingUser.tier === UserTier.GOLD ? 'bg-yellow-900 text-yellow-200 border border-yellow-500' : 'bg-gray-800 text-gray-300 border border-gray-600'}`}>
                             {viewingUser.tier}
                         </span>
-                        <div className="bg-black/40 p-3 rounded border border-purple-900/50 min-h-[80px]">
-                            <p className="text-sm text-gray-300 italic">"{viewingUser.bio || 'No bio available.'}"</p>
+                        <div className="bg-black/40 p-4 rounded border border-purple-900/50 min-h-[80px] max-h-[150px] overflow-y-auto">
+                            <p className="text-sm text-gray-300 italic whitespace-pre-wrap leading-relaxed">"{viewingUser.bio || 'No bio available.'}"</p>
                         </div>
                     </div>
                 </div>
@@ -523,7 +527,7 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
     );
 };
 
-const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null; rugColor?: string }> = ({ onComplete, lang, skin, rugColor }) => {
+const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null; rugColor?: string }> = ({ onComplete, lang, skin, activeCustomSkin, rugColor }) => {
     useEffect(() => {
         playShuffleLoop();
         const timer = setTimeout(() => {
@@ -573,13 +577,13 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
                 }
             `}</style>
 
-            <div className="relative w-40 h-64 z-20" style={{ animation: 'bridge-arc 1s infinite ease-in-out' }}>
+            <div className="relative w-40 h-64 z-20" style={{ animation: 'bridge-arc 2.5s infinite ease-in-out' }}>
                 {/* Left Deck Flow */}
                 {[...Array(6)].map((_, i) => (
                     <div key={`left-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/50 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
                          style={{ 
-                             animation: `riffle-left 0.8s ease-in-out infinite`,
-                             animationDelay: `${i * 0.1}s`,
+                             animation: `riffle-left 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite`,
+                             animationDelay: `${i * 0.15}s`,
                              opacity: 0.9,
                              boxShadow: '0 0 10px rgba(168, 85, 247, 0.5)'
                          }}>
@@ -590,8 +594,8 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
                 {[...Array(6)].map((_, i) => (
                     <div key={`right-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/50 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}
                         style={{
-                            animation: `riffle-right 0.8s ease-in-out infinite`,
-                            animationDelay: `${i * 0.1}s`,
+                            animation: `riffle-right 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite`,
+                            animationDelay: `${i * 0.15}s`,
                             opacity: 0.9,
                             boxShadow: '0 0 10px rgba(168, 85, 247, 0.5)'
                         }}>
@@ -1013,149 +1017,166 @@ const App: React.FC = () => {
   }, [appState, selectedCategory, selectedQuestion, customQuestion, selectedCards, faceImage, birthTime, partnerBirth]);
 
   const checkUser = useCallback(async () => {
-    const today = new Date().toISOString().split('T')[0];
-    let localUser: User | null = null;
-    
-    try { 
-        const stored = localStorage.getItem('black_tarot_user'); 
-        if (stored) { 
-            localUser = JSON.parse(stored); 
-            if (localUser) setUser(localUser); 
-        } 
-    } catch (e) {}
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        let localUser: User | null = null;
+        
+        try { 
+            const stored = localStorage.getItem('black_tarot_user'); 
+            if (stored) { 
+                localUser = JSON.parse(stored); 
+            } 
+        } catch (e) {
+            console.warn("Failed to parse local user data", e);
+        }
 
-    let currentUser = localUser || { ...user, email: "Guest" };
+        let currentUser = localUser || { ...user, email: "Guest" };
 
-    if (isSupabaseConfigured) {
-        try {
-            const { data, error } = await supabase.auth.getSession();
-            if (data.session?.user) {
-                const u = data.session.user; 
-                const email = u.email || "User";
-                try { 
-                    const { data: profileData } = await supabase.from('profiles').select('data').eq('email', email).single(); 
-                    if (profileData && profileData.data) currentUser = profileData.data; 
-                    else if (!localUser || localUser.email !== email) currentUser = { ...user, email };
-                    else currentUser = { ...localUser, email };
-                } catch(e) { console.warn("Failed to fetch cloud data", e); }
-                currentUser.email = email;
-            } else {
-               if (!localUser || localUser.email !== 'Guest') {
-                   currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
-               }
-               if (!localStorage.getItem('tarot_device_id')) {
-                   localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
-               }
+        if (isSupabaseConfigured) {
+            try {
+                const { data, error } = await supabase.auth.getSession();
+                if (data.session?.user) {
+                    const u = data.session.user; 
+                    const email = u.email || "User";
+                    try { 
+                        const { data: profileData } = await supabase.from('profiles').select('data').eq('email', email).single(); 
+                        if (profileData && profileData.data) {
+                            // PRIORITIZE CLOUD DATA for logged-in users to prevent overwriting with stale local data
+                            currentUser = profileData.data; 
+                        } else if (!localUser || localUser.email !== email) {
+                            currentUser = { ...user, email };
+                        } else {
+                            // Fallback to local if cloud fetch empty but local exists and matches email
+                            currentUser = { ...localUser, email };
+                        }
+                    } catch(e) { console.warn("Failed to fetch cloud data", e); }
+                    currentUser.email = email;
+                } else {
+                   // Guest logic
+                   if (!localUser || localUser.email !== 'Guest') {
+                       currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
+                   }
+                   if (!localStorage.getItem('tarot_device_id')) {
+                       localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
+                   }
+                }
+            } catch (err: any) { 
+                console.warn("Session check failed (network/config error), defaulting to Guest:", err);
+                if (!localUser || localUser.email !== 'Guest') {
+                     currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
+                }
             }
-        } catch (err: any) { 
-            console.warn("Session check failed (network/config error), defaulting to Guest:", err);
+        } else {
             if (!localUser || localUser.email !== 'Guest') {
                  currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
             }
-            if (!localStorage.getItem('tarot_device_id')) {
-                localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
+        }
+
+        const oldTier = currentUser.tier;
+        const lastLoginDate = new Date(currentUser.lastLoginDate || today);
+        const currentDate = new Date();
+        const diffTime = Math.abs(currentDate.getTime() - lastLoginDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        let newTier = currentUser.tier;
+        
+        if (diffDays >= 15) {
+            const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
+            const currentIdx = tiers.indexOf(newTier);
+            const drops = Math.floor(diffDays / 15);
+            const newIdx = Math.max(0, currentIdx - drops);
+            newTier = tiers[newIdx];
+        }
+
+        let newLoginDates = [...(currentUser.loginDates || [])]; if (!newLoginDates.includes(today)) newLoginDates.push(today);
+        let newCoins = currentUser.coins; let currentMonthlyReward = currentUser.lastMonthlyReward; let newAttendanceDay = currentUser.attendanceDay; let newLastAttendance = currentUser.lastAttendance;
+        let newMonthlyCoinsSpent = currentUser.monthlyCoinsSpent || 0;
+        const currentMonth = today.substring(0, 7);
+
+        if (currentMonthlyReward !== currentMonth) {
+            if (newTier !== UserTier.BRONZE) {
+                if (currentUser.email !== 'Guest') {
+                    if (newTier === UserTier.GOLD) { newCoins = Math.floor(newCoins * 1.5); alert(TRANSLATIONS[lang].reward_popup + " (1.5x)"); }
+                    else if (newTier === UserTier.PLATINUM) { newCoins = Math.floor(newCoins * 2.0); alert(TRANSLATIONS[lang].reward_popup + " (2.0x)"); }
+                }
+            }
+            newMonthlyCoinsSpent = 0; 
+            newTier = UserTier.BRONZE; 
+            currentMonthlyReward = currentMonth;
+        } else {
+            if (diffDays < 15) {
+                 newTier = calculateTier(newMonthlyCoinsSpent);
             }
         }
-    } else {
-        if (!localUser || localUser.email !== 'Guest') {
-             currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
+
+        if (currentUser.email === 'Guest') {
+            newTier = UserTier.PLATINUM;
         }
-        if (!localStorage.getItem('tarot_device_id')) {
-            localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
+
+        if (currentUser.email !== 'Guest' && newTier !== oldTier) {
+            const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
+            const oldIdx = tiers.indexOf(oldTier);
+            const newIdx = tiers.indexOf(newTier);
+            
+            // Fix: Don't show upgrade popup if the new tier is BRONZE (no benefits)
+            if (newTier !== UserTier.BRONZE) {
+                setTierChangeNewTier(newTier);
+                if (newIdx > oldIdx) {
+                    setTierChangeDirection('UP');
+                    setShowTierChangePopup(true);
+                } else if (newIdx < oldIdx) {
+                    setTierChangeDirection('DOWN');
+                    setShowTierChangePopup(true);
+                }
+            }
         }
-    }
 
-    const oldTier = currentUser.tier;
-    const lastLoginDate = new Date(currentUser.lastLoginDate || today);
-    const currentDate = new Date();
-    const diffTime = Math.abs(currentDate.getTime() - lastLoginDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    let newTier = currentUser.tier;
-    
-    if (diffDays >= 15) {
-        const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
-        const currentIdx = tiers.indexOf(newTier);
-        const drops = Math.floor(diffDays / 15);
-        const newIdx = Math.max(0, currentIdx - drops);
-        newTier = tiers[newIdx];
-    }
-
-    let newLoginDates = [...(currentUser.loginDates || [])]; if (!newLoginDates.includes(today)) newLoginDates.push(today);
-    let newCoins = currentUser.coins; let currentMonthlyReward = currentUser.lastMonthlyReward; let newAttendanceDay = currentUser.attendanceDay; let newLastAttendance = currentUser.lastAttendance;
-    let newMonthlyCoinsSpent = currentUser.monthlyCoinsSpent || 0;
-    const currentMonth = today.substring(0, 7);
-
-    if (currentMonthlyReward !== currentMonth) {
-        if (newTier !== UserTier.BRONZE) {
+        if (newLastAttendance !== today) {
+            if (newAttendanceDay < 10) newAttendanceDay += 1; else newAttendanceDay = 1; 
+            const reward = ATTENDANCE_REWARDS[Math.min(newAttendanceDay, 10) - 1] || 20;
+            
             if (currentUser.email !== 'Guest') {
-                if (newTier === UserTier.GOLD) { newCoins = Math.floor(newCoins * 1.5); alert(TRANSLATIONS[lang].reward_popup + " (1.5x)"); }
-                else if (newTier === UserTier.PLATINUM) { newCoins = Math.floor(newCoins * 2.0); alert(TRANSLATIONS[lang].reward_popup + " (2.0x)"); }
+                newCoins += reward; 
+                setAttendanceReward(reward); 
+                setShowAttendancePopup(true);
             }
+            newLastAttendance = today; 
         }
-        newMonthlyCoinsSpent = 0; 
-        newTier = UserTier.BRONZE; 
-        currentMonthlyReward = currentMonth;
-    } else {
-        if (diffDays < 15) {
-             newTier = calculateTier(newMonthlyCoinsSpent);
-        }
-    }
-
-    if (currentUser.email === 'Guest') {
-        newTier = UserTier.PLATINUM;
-    }
-
-    if (currentUser.email !== 'Guest' && newTier !== oldTier) {
-        const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
-        const oldIdx = tiers.indexOf(oldTier);
-        const newIdx = tiers.indexOf(newTier);
         
-        setTierChangeNewTier(newTier);
-        if (newIdx > oldIdx) {
-            setTierChangeDirection('UP');
-            setShowTierChangePopup(true);
-        } else if (newIdx < oldIdx) {
-            setTierChangeDirection('DOWN');
-            setShowTierChangePopup(true);
-        }
-    }
+        const readingsToday = currentUser.lastReadingDate === today ? currentUser.readingsToday : 0;
 
-    if (newLastAttendance !== today) {
-        if (newAttendanceDay < 10) newAttendanceDay += 1; else newAttendanceDay = 1; 
-        const reward = ATTENDANCE_REWARDS[Math.min(newAttendanceDay, 10) - 1] || 20;
+        const updatedUser = { ...currentUser, tier: newTier, coins: newCoins, lastLoginDate: today, loginDates: newLoginDates, readingsToday: readingsToday, lastReadingDate: today, lastMonthlyReward: currentMonthlyReward, attendanceDay: newAttendanceDay, lastAttendance: newLastAttendance, monthlyCoinsSpent: newMonthlyCoinsSpent };
         
-        if (currentUser.email !== 'Guest') {
-            newCoins += reward; 
-            setAttendanceReward(reward); 
-            setShowAttendancePopup(true);
+        if (updatedUser.currentSession) {
+            const session = updatedUser.currentSession;
+            if (session.appState) setAppState(session.appState);
+            if (session.selectedCategoryId) setSelectedCategory(CATEGORIES.find(c => c.id === session.selectedCategoryId) || null);
+            if (session.selectedQuestion) setSelectedQuestion(session.selectedQuestion);
+            if (session.customQuestion) setCustomQuestion(session.customQuestion);
+            if (session.selectedCards) setSelectedCards(session.selectedCards);
+            if (session.faceImage) setFaceImage(session.faceImage);
+            if (session.birthTime) setBirthTime(session.birthTime);
+            if (session.partnerBirth) setPartnerBirth(session.partnerBirth);
+        } else if (updatedUser.lastAppState) {
+            setAppState(updatedUser.lastAppState);
         }
-        newLastAttendance = today; 
+
+        setUser(updatedUser); 
+        // Save back consolidated state
+        saveUserState(updatedUser, updatedUser.lastAppState || AppState.WELCOME);
+    } catch (error) {
+        console.error("Critical error in checkUser:", error);
     }
-    
-    const readingsToday = currentUser.lastReadingDate === today ? currentUser.readingsToday : 0;
-
-    const updatedUser = { ...currentUser, tier: newTier, coins: newCoins, lastLoginDate: today, loginDates: newLoginDates, readingsToday: readingsToday, lastReadingDate: today, lastMonthlyReward: currentMonthlyReward, attendanceDay: newAttendanceDay, lastAttendance: newLastAttendance, monthlyCoinsSpent: newMonthlyCoinsSpent };
-    
-    if (updatedUser.currentSession) {
-        const session = updatedUser.currentSession;
-        if (session.appState) setAppState(session.appState);
-        if (session.selectedCategoryId) setSelectedCategory(CATEGORIES.find(c => c.id === session.selectedCategoryId) || null);
-        if (session.selectedQuestion) setSelectedQuestion(session.selectedQuestion);
-        if (session.customQuestion) setCustomQuestion(session.customQuestion);
-        if (session.selectedCards) setSelectedCards(session.selectedCards);
-        if (session.faceImage) setFaceImage(session.faceImage);
-        if (session.birthTime) setBirthTime(session.birthTime);
-        if (session.partnerBirth) setPartnerBirth(session.partnerBirth);
-    } else if (updatedUser.lastAppState) {
-        setAppState(updatedUser.lastAppState);
-    }
-
-    setUser(updatedUser); 
-    saveUserState(updatedUser, updatedUser.lastAppState || AppState.WELCOME);
-
   }, []);
 
-  useEffect(() => { checkUser(); }, [checkUser]);
+  // Initialization Guard Ref to prevent double-firing in Strict Mode causing crashes
+  const initRef = useRef(false);
+
+  useEffect(() => { 
+      if (!initRef.current) {
+          initRef.current = true;
+          checkUser(); 
+      }
+  }, [checkUser]);
 
   const handleStart = () => { initSounds(); setBgmStopped(false); if (user.userInfo?.name && user.userInfo?.birthDate) navigateTo(AppState.CATEGORY_SELECT); else navigateTo(AppState.INPUT_INFO); };
   const handleUserInfoSubmit = (info: UserInfo) => { updateUser((prev) => ({ ...prev, userInfo: info })); navigateTo(AppState.CATEGORY_SELECT); };
@@ -1515,14 +1536,14 @@ const App: React.FC = () => {
                             <div className="p-8 pb-4 relative z-10 text-center">
                                 <h2 className="text-3xl font-occult text-yellow-500 mb-2">{TRANSLATIONS[lang].shop_title}</h2>
                                 <p className="text-gray-400 text-sm">{TRANSLATIONS[lang].shop_subtitle}</p>
-                                {isFirstPurchase && <p className="text-green-400 font-bold text-xs mt-2 animate-pulse">🎉 First Purchase 50% OFF! 🎉</p>}
+                                {isFirstPurchase && <p className="text-green-400 font-bold text-xs mt-2 animate-pulse">First Purchase 50% OFF!</p>}
                             </div>
 
                             {/* Packages */}
                             <div className="p-8 pt-0 space-y-4 relative z-10">
                                 <button onClick={() => initiatePayment(isFirstPurchase ? 2450 : 4900, 60)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-gray-700 hover:border-yellow-500 p-4 rounded-xl flex items-center justify-between group transition-all">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-yellow-900/20 flex items-center justify-center text-xl">💰</div>
+                                        <div className="w-10 h-10 rounded-full bg-yellow-900/20 flex items-center justify-center text-xs font-bold text-yellow-500">C</div>
                                         <div className="text-left">
                                             <div className="text-yellow-100 font-bold group-hover:text-yellow-400">60 Coins</div>
                                             <div className="text-gray-500 text-xs">Basic Reading</div>
@@ -1535,7 +1556,7 @@ const App: React.FC = () => {
                                 </button>
                                 <button onClick={() => initiatePayment(isFirstPurchase ? 3950 : 7900, 110)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-gray-700 hover:border-yellow-500 p-4 rounded-xl flex items-center justify-between group transition-all">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-yellow-900/20 flex items-center justify-center text-xl">💎</div>
+                                        <div className="w-10 h-10 rounded-full bg-yellow-900/20 flex items-center justify-center text-xs font-bold text-yellow-500">C</div>
                                         <div className="text-left">
                                             <div className="text-yellow-100 font-bold group-hover:text-yellow-400">110 Coins</div>
                                             <div className="text-gray-500 text-xs">Popular Choice</div>
@@ -1549,7 +1570,7 @@ const App: React.FC = () => {
                                 <button onClick={() => initiatePayment(isFirstPurchase ? 7750 : 15500, 220)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-yellow-700/50 hover:border-yellow-400 p-4 rounded-xl flex items-center justify-between group transition-all relative overflow-hidden">
                                     <div className="absolute inset-0 bg-yellow-900/10 group-hover:bg-yellow-900/20 transition-colors"></div>
                                     <div className="flex items-center gap-4 relative z-10">
-                                        <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-xl text-black font-bold">👑</div>
+                                        <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-xs text-black font-bold">VIP</div>
                                         <div className="text-left">
                                             <div className="text-yellow-400 font-bold group-hover:text-yellow-200">220 Coins</div>
                                             <div className="text-yellow-700 text-xs">Best Value</div>
@@ -1609,9 +1630,25 @@ const App: React.FC = () => {
                                      <button onClick={() => setLang('en')} className={`flex-1 py-2 rounded-lg text-sm transition-all font-serif ${lang === 'en' ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)]' : 'text-gray-400 hover:text-white'}`}>English</button>
                                  </div>
                              </div>
+                             
+                             {/* Attendance Progress Section - Visible Only to Logged In Users */}
+                             {user.email !== 'Guest' && (
+                                <div className="bg-[#1a0b2e] rounded-xl border border-purple-500/30 p-4 mt-2">
+                                    <h4 className="text-sm font-bold text-purple-200 mb-2 font-serif">{TRANSLATIONS[lang].attendance}</h4>
+                                    <div className="flex justify-between text-xs text-gray-400 mb-1">
+                                        <span>Day {user.attendanceDay}</span>
+                                        <span>Goal: 10</span>
+                                    </div>
+                                    <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden shadow-inner">
+                                        <div className="bg-gradient-to-r from-yellow-600 to-yellow-300 h-2 rounded-full transition-all duration-1000 ease-out" style={{ width: `${(Math.min(user.attendanceDay, 10) / 10) * 100}%` }}></div>
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 mt-2 text-center italic">Log in daily for bonus coins!</p>
+                                </div>
+                             )}
+
                              <div>
                                  <label className="block text-sm text-purple-200 mb-2 font-serif">{TRANSLATIONS[lang].bgm_control}</label>
-                                 <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={e => setBgmVolume(parseFloat(e.target.value))} className="w-full accent-purple-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer" />
+                                 <input type="range" min="0" max="1" step="0.01" value={bgmVolume} onChange={e => setBgmVolume(parseFloat(e.target.value))} className="w-full accent-purple-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer" />
                                  <div className="flex justify-between mt-2">
                                      <button onClick={() => setBgmStopped(!bgmStopped)} className="text-xs text-purple-300 border border-purple-500/30 px-3 py-1 rounded-lg hover:bg-purple-500/20 transition-all">{bgmStopped ? 'PLAY' : 'STOP'}</button>
                                      <span className="text-xs text-gray-500">{currentBgm.name}</span>
@@ -1621,31 +1658,24 @@ const App: React.FC = () => {
                              <div className="border-t border-purple-500/20 pt-6 space-y-3">
                                  <button onClick={() => handleSettingsClick('SKIN')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].skin_shop}</span>
-                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🎨</span>
                                  </button>
                                  <button onClick={() => handleSettingsClick('FRAME')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].frame_shop}</span>
-                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🖼️</span>
                                  </button>
                                  <button onClick={() => handleSettingsClick('RESULT_BG')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].result_bg_shop}</span>
-                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🌌</span>
                                  </button>
                                  <button onClick={() => handleSettingsClick('STICKER')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].sticker_shop}</span>
-                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🦋</span>
                                  </button>
                                  <button onClick={() => handleSettingsClick('RUG')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].rug_shop}</span>
-                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🧶</span>
                                  </button>
                                  <button onClick={() => handleSettingsClick('BGM')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].bgm_upload}</span>
-                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">🎵</span>
                                  </button>
                                  <button onClick={() => handleSettingsClick('HISTORY')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm">
                                      <span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].history}</span>
-                                     <span className="text-lg opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all">📜</span>
                                  </button>
                              </div>
                              
