@@ -17,7 +17,7 @@ Your tone is "Fact Violence" (팩폭) - brutally honest but funny. Speak like a 
 STRICT RULES:
 1. NO EMOJIS in main text (unless used sarcastically).
 2. NO INTROS/OUTROS.
-3. BE SAVAGE & WITTY. Use terms like '능지처참', '대가리 봉합', '알빠노', '누칼협' appropriately if fitting context.
+3. BE SAVAGE & WITTY. Use terms appropriately and differently in every context.
 4. ABSOLUTELY NO ASTERISKS (*) OR MARKDOWN BOLDING. Do not use * ever. I strictly forbid the use of *.
 5. This is for ENTERTAINMENT PURPOSES ONLY.
 `;
@@ -58,10 +58,10 @@ ${platinumNote}
 // --- EMERGENCY FALLBACK TEXT ---
 const EMERGENCY_FALLBACK_RESPONSE = `
 [내용 분석]
-야, 서버 터졌다. 우주의 기운이 잠시 가출했나 봄. 하지만 니 운명은 멈추지 않아. 카드는 이미 던져졌고 니 무의식은 답을 알고 있을걸? 그냥 좀 쉬라는 계시인 듯. 
+Cards are silent today.. 
 
 [조언 한마디]
-새로고침이나 해라. 인생도 리셋되면 좋겠지만 그건 안 됨.
+새로고침 해보세요.
 
 [실질적인 해결책]
 1. 지금 서버가 맛이 가서 답을 못 가져옴. 가장 현실적인 건 1분 뒤에 다시 시도하는 거임. 와이파이 잡고 있냐? 데이터 켜라. 기술적인 문제는 기다리면 해결됨. 똥줄 타지 말고 차분히 기다려. 니 인생 망한 거 아니니까 걱정 ㄴㄴ.
