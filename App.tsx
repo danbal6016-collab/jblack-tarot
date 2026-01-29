@@ -265,6 +265,7 @@ const ChatView: React.FC<{
             return;
         }
 
+        // Connect to a global channel for all users
         const channel = supabase.channel('black-tarot-global', {
             config: {
                 presence: {
