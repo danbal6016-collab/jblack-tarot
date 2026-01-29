@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 
@@ -327,23 +326,34 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     // Face Reading Logic: Detailed, Witty, Physiognomy-based
     const prompt = `
         ${randomSeed}
-        Perform an 'EXPERT KOREAN PHYSIOGNOMY (Gwansang/관상)' analysis on this image.
-        Role: You are a sharp-tongued, witty, but incredibly accurate Fortune Teller.
-        Task: 
-        1. Analyze facial features (Eyes, Nose, Mouth, Face Shape) strictly based on traditional Korean Physiognomy.
-        2. Evaluate their "Vibe/Appearance" (얼평) in a fun, "delicious" way. Be honest but NOT rude. Tease them a little if needed, but compliment their charms.
-        3. Connect features to their destiny (Wealth, Love, Success).
+        [SYSTEM: FACE READER MODE ACTIVATED]
+        Perform a comprehensive 'KOREAN PHYSIOGNOMY (Gwansang/관상) & DESTINY ANALYSIS' on the person in this image.
         
-        TONE: Mystical, Confident, slightly sassy but professional. 
-        LENGTH: MUST BE APPROX 20 SENTENCES. Detailed and rich text.
+        TASK:
+        1. **Image Detection**: Identify the person's key facial features, expression, and vibe.
+        2. **Physiognomy Analysis (Based on Saju principles)**: Interpret their eyes, nose, mouth, and face shape to reveal their innate destiny, wealth luck, and love luck.
+        3. **Appearance Evaluation (얼평)**: Provide a witty, honest, and engaging evaluation of their looks. You can be playful and teasing, but DO NOT use overly offensive or degrading language (no harsh insults). Focus on their "charm" and "vibe".
+        4. **Length**: YOU MUST WRITE AT LEAST 20 SENTENCES. This is a hard requirement.
+        
+        TONE:
+        - Mystical yet modern.
+        - Witty, slightly cynical but ultimately insightful.
+        - Use Korean honorifics (존댓말).
+        
+        STRUCTURE:
+        [인물 인식 및 관상 총평]
+        (Describe the face and general energy. Is it a "wealthy" face? A "lonely" face? Connect to Saju elements.)
+        
+        [이목구비 정밀 분석]
+        (Analyze specific features. E.g., "Eyes like a fox," "Nose that leaks money.")
+        
+        [매력 포인트 및 얼평]
+        (Witty commentary on their appearance. What makes them attractive or unique? Be fun!)
+        
+        [운명적 조언]
+        (Final verdict and advice based on their face reading.)
+        
         STRICTLY NO ASTERISKS (*).
-
-        Structure:
-        [관상 분석 & 매력 포인트]
-        (Detailed analysis of features. e.g., "눈매가 도화살이 있어 이성이 꼬인다", "코가 복코라 재물이 쌓인다". Mix in witty comments about their first impression.)
-
-        [운세 총평]
-        (Final verdict on their life path based on the face. Will they be rich? Are they a heartbreaker? Be specific and fun.)
     `;
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };

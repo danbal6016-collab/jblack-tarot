@@ -558,7 +558,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
                 @keyframes cosmic-shuffle {
                     0% { transform: translateX(0) scale(1); z-index: 1; filter: brightness(1); }
                     25% { transform: translateX(-120px) translateY(-20px) rotate(-10deg) scale(1.05); z-index: 10; filter: brightness(1.2); }
-                    50% { transform: translateX(0) translateY(-40px) rotate(0deg) scale(1.1); z-index: 20; filter: brightness(1.5) drop-shadow(0 0 15px gold); }
+                    50% { transform: translateX(0) translateY(-40px) rotate(0deg) scale(1.1); z-index: 20; filter: brightness(1.5) drop-shadow(0 0 15px #a855f7); }
                     75% { transform: translateX(120px) translateY(-20px) rotate(10deg) scale(1.05); z-index: 10; filter: brightness(1.2); }
                     100% { transform: translateX(0) scale(1); z-index: 1; filter: brightness(1); }
                 }
@@ -1063,6 +1063,18 @@ const App: React.FC = () => {
                  currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
             }
         }
+
+        // FORCE SANITIZATION of numeric values to prevent NaN
+        const safeNum = (val: any) => {
+            const num = Number(val);
+            return Number.isFinite(num) ? num : 0;
+        };
+
+        currentUser.coins = safeNum(currentUser.coins);
+        currentUser.totalSpent = safeNum(currentUser.totalSpent);
+        currentUser.monthlyCoinsSpent = safeNum(currentUser.monthlyCoinsSpent);
+        currentUser.readingsToday = safeNum(currentUser.readingsToday);
+        currentUser.attendanceDay = safeNum(currentUser.attendanceDay);
 
         const oldTier = currentUser.tier;
         const lastLoginDate = new Date(currentUser.lastLoginDate || today);
