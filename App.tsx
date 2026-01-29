@@ -539,7 +539,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
     // Dazzling, Flashy Shuffling on Rug (Rug fully visible under cards)
     return (
         <div className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in rug-texture" style={{ backgroundColor: rugColor || 'transparent' }}>
-            {/* Removed overlay to make rug vivid and directly under cards */}
+            {/* Removed ALL overlay to make rug vivid and directly under cards */}
             <div className="relative w-40 h-64 z-20">
                 {/* Core Cards - Faster orbits */}
                 {[...Array(9)].map((_, i) => (
@@ -587,16 +587,16 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
             <h2 className="text-2xl font-occult text-purple-200 mb-8 animate-pulse text-center w-full">
                 {lang === 'ko' ? "3장의 카드를 선택하세요" : "Select 3 Cards"}
             </h2>
-            {/* Denser Grid Layout: 7 cols on mobile, 10 on desktop for smaller cards to fit screen */}
-            <div className="w-full max-w-5xl h-[70vh] overflow-y-auto px-2 scrollbar-thin scrollbar-thumb-purple-700 scrollbar-track-transparent">
-                <div className="grid grid-cols-7 md:grid-cols-10 gap-1.5 pb-20">
+            {/* Extremely Dense Grid Layout for Mobile: 8 cols on mobile, 12 on desktop */}
+            <div className="w-full max-w-5xl h-[70vh] overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-purple-700 scrollbar-track-transparent">
+                <div className="grid grid-cols-8 md:grid-cols-12 gap-1 pb-20">
                     {TAROT_DECK.map((cardName, i) => {
                         const isSelected = selected.includes(i);
                         return (
                             <div 
                                 key={i}
                                 onClick={() => handleCardClick(i)}
-                                className={`aspect-[2/3] rounded-md border border-purple-500/30 shadow-md cursor-pointer transition-all duration-300 card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
+                                className={`aspect-[2/3] rounded-sm border border-purple-500/30 shadow-md cursor-pointer transition-all duration-300 card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
                                 ${isSelected 
                                     ? 'scale-110 shadow-[0_0_20px_#d946ef] border-purple-200 z-50 brightness-125 -translate-y-2' 
                                     : 'hover:-translate-y-1 hover:scale-105 hover:shadow-[0_0_10px_rgba(168,85,247,0.4)] z-0 hover:z-10'}`}
@@ -644,12 +644,14 @@ const ResultView: React.FC<{
             setIsSolutionUnlocked(true);
             localStorage.setItem('has_visited', 'true');
         } else {
-            setIsSolutionUnlocked(false);
+            // Keep unlocked state if already unlocked in session, otherwise locked
+            // However, resetting on re-render when user object changes is desired ONLY if not paid.
+            // If user pays, we manually set state.
         }
     }, [user.email]);
 
     useEffect(() => {
-        if (readingPromise) {
+        if (readingPromise && !rawText) { // Added check to prevent re-running if text is already set
             readingPromise
                 .then(text => {
                     setRawText(text);
@@ -672,7 +674,7 @@ const ResultView: React.FC<{
                     setRawText("운명의 신호가 약합니다. 다시 시도해주세요.");
                 });
         }
-    }, [readingPromise, onReadingComplete]);
+    }, [readingPromise, onReadingComplete, rawText]);
 
     const handleUnlockSolution = () => {
         if (spendCoins(15)) {
@@ -933,6 +935,12 @@ const App: React.FC = () => {
 
   const navigateTo = (newState: AppState) => { setAppState(newState); saveUserState(user, newState); };
   const updateUser = (updater: (prev: User) => User) => { setUser(prev => { const newUser = updater(prev); saveUserState(newUser, appState); return newUser; }); };
+
+  // CRITICAL FIX: Wrapped in useCallback to prevent recreating on every render, avoiding infinite loop in ResultView useEffect
+  const handleReadingComplete = useCallback((text: string) => { 
+      const result: ReadingResult = { date: new Date().toISOString(), question: selectedQuestion, cards: selectedCards, interpretation: text }; 
+      updateUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] })); 
+  }, [selectedQuestion, selectedCards]); // Dependencies required for context
 
   // --- SESSION PERSISTENCE LOGIC ---
   useEffect(() => {
@@ -1439,7 +1447,7 @@ const App: React.FC = () => {
           {appState === AppState.QUESTION_SELECT && selectedCategory && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20"><h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{selectedCategory.label}</h2><div className="w-full max-w-xl space-y-3">{selectedCategory.questions.map((q, i) => (<button key={i} onClick={() => handleQuestionSelect(q)} className="w-full p-4 text-left bg-black/60 border border-purple-900/50 rounded hover:bg-purple-900/30 hover:border-purple-500 transition-all text-gray-200 text-sm md:text-base">{q}</button>))}<div className="relative mt-6 pt-4 border-t border-gray-800"><input className="w-full p-4 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 focus:outline-none" placeholder={TRANSLATIONS[lang].custom_q_ph} value={customQuestion} onChange={(e) => setCustomQuestion(e.target.value)} /><button onClick={() => handleQuestionSelect(customQuestion)} className="absolute right-2 top-6 bottom-2 px-4 bg-purple-900 rounded text-xs font-bold hover:bg-purple-700 mt-4 mb-2">OK</button></div><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="w-full mt-6 py-3 bg-gray-800 text-gray-400 hover:text-white rounded border border-gray-700">{TRANSLATIONS[lang].back}</button></div></div> )}
           {appState === AppState.SHUFFLING && ( <ShufflingAnimation onComplete={() => navigateTo(AppState.CARD_SELECT)} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} rugColor={user.rugColor} /> )}
           {appState === AppState.CARD_SELECT && ( <CardSelection onSelectCards={handleCardSelect} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} /> )}
-          {appState === AppState.RESULT && ( <ResultView question={selectedQuestion} selectedCards={selectedCards} onRetry={() => navigateTo(AppState.CATEGORY_SELECT)} lang={lang} readingPromise={readingPromise} onReadingComplete={(text) => { const result: ReadingResult = { date: new Date().toISOString(), question: selectedQuestion, cards: selectedCards, interpretation: text }; updateUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] })); }} user={user} spendCoins={spendCoins} onLogin={() => setAuthMode("LOGIN")} /> )}
+          {appState === AppState.RESULT && ( <ResultView question={selectedQuestion} selectedCards={selectedCards} onRetry={() => navigateTo(AppState.CATEGORY_SELECT)} lang={lang} readingPromise={readingPromise} onReadingComplete={handleReadingComplete} user={user} spendCoins={spendCoins} onLogin={() => setAuthMode("LOGIN")} /> )}
           
           {showShop && (
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4">
