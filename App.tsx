@@ -536,25 +536,25 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
         };
     }, [onComplete]);
 
-    // Dazzling, Flashy Shuffling on Rug
+    // Dazzling, Flashy Shuffling on Rug (Rug fully visible under cards)
     return (
         <div className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in rug-texture" style={{ backgroundColor: rugColor || 'transparent' }}>
-            <div className="absolute inset-0 bg-black/30 pointer-events-none"></div>
+            {/* Removed overlay to make rug vivid and directly under cards */}
             <div className="relative w-40 h-64 z-20">
-                {/* Core Cards */}
-                {[...Array(7)].map((_, i) => (
+                {/* Core Cards - Faster orbits */}
+                {[...Array(9)].map((_, i) => (
                     <div key={i} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.5)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
                          style={{ 
-                             animation: i % 2 === 0 ? `orbit-cw ${2 + i * 0.1}s linear infinite` : `orbit-ccw ${2.5 + i * 0.1}s linear infinite`,
+                             animation: i % 2 === 0 ? `orbit-cw ${0.5 + i * 0.05}s linear infinite` : `orbit-ccw ${0.6 + i * 0.05}s linear infinite`,
                              opacity: 0.9
                          }}>
                     </div>
                 ))}
-                {/* Floating Particles/Flashy Cards */}
-                {[...Array(5)].map((_, i) => (
+                {/* Floating Particles/Flashy Cards - Increased count and speed */}
+                {[...Array(8)].map((_, i) => (
                     <div key={`fly-${i}`} className={`absolute w-full h-full bg-purple-900 rounded-lg border border-yellow-400/30 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}
                         style={{
-                            animation: `chaotic-fly ${3 + i * 0.5}s ease-in-out infinite alternate`,
+                            animation: `chaotic-fly ${0.8 + i * 0.15}s ease-in-out infinite alternate`,
                             opacity: 0.6
                         }}>
                     </div>
@@ -570,14 +570,6 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
 const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null }> = ({ onSelectCards, lang, skin, activeCustomSkin }) => {
     const [selected, setSelected] = useState<number[]>([]);
     
-    // Fan/Spread Layout
-    const spread = [...Array(22)].map((_, i) => ({
-        id: i,
-        rot: (i - 11) * 5, // Wider spread
-        y: Math.abs(i - 11) * 3, 
-        x: (i - 11) * 20
-    }));
-
     const handleCardClick = (i: number) => {
         if (selected.includes(i) || selected.length >= 3) return;
         
@@ -591,35 +583,34 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen overflow-hidden relative z-10 pt-20">
-            <h2 className="text-2xl font-occult text-purple-200 mb-8 animate-pulse">
+        <div className="flex flex-col items-center justify-start min-h-screen overflow-hidden relative z-10 pt-20 pb-10">
+            <h2 className="text-2xl font-occult text-purple-200 mb-8 animate-pulse text-center w-full">
                 {lang === 'ko' ? "3장의 카드를 선택하세요" : "Select 3 Cards"}
             </h2>
-            <div className="relative w-full max-w-5xl h-80 flex justify-center items-end perspective-1000">
-                {spread.map((card) => {
-                    const isSelected = selected.includes(card.id);
-                    return (
-                        <div 
-                            key={card.id}
-                            onClick={() => handleCardClick(card.id)}
-                            className={`absolute w-24 h-40 md:w-32 md:h-52 rounded-lg border border-purple-500/30 shadow-2xl cursor-pointer transition-all duration-500 cubic-bezier(0.25, 0.46, 0.45, 0.94) card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
-                            ${isSelected 
-                                ? '-translate-y-24 scale-110 shadow-[0_0_30px_#d946ef] border-purple-200 z-50 brightness-125' 
-                                : 'hover:-translate-y-6 hover:scale-110 hover:shadow-[0_0_20px_rgba(168,85,247,0.6)] z-0 hover:z-10'}`}
-                            style={{
-                                transform: isSelected 
-                                    ? `translateX(${card.x}px) rotate(0deg) translateY(-60px)` 
-                                    : `translateX(${card.x}px) rotate(${card.rot}deg) translateY(${card.y}px)`,
-                                transformOrigin: 'bottom center',
-                                backgroundSize: 'cover',
-                                backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined
-                            }}
-                        >
-                        </div>
-                    );
-                })}
+            {/* Denser Grid Layout: 7 cols on mobile, 10 on desktop for smaller cards to fit screen */}
+            <div className="w-full max-w-5xl h-[70vh] overflow-y-auto px-2 scrollbar-thin scrollbar-thumb-purple-700 scrollbar-track-transparent">
+                <div className="grid grid-cols-7 md:grid-cols-10 gap-1.5 pb-20">
+                    {TAROT_DECK.map((cardName, i) => {
+                        const isSelected = selected.includes(i);
+                        return (
+                            <div 
+                                key={i}
+                                onClick={() => handleCardClick(i)}
+                                className={`aspect-[2/3] rounded-md border border-purple-500/30 shadow-md cursor-pointer transition-all duration-300 card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
+                                ${isSelected 
+                                    ? 'scale-110 shadow-[0_0_20px_#d946ef] border-purple-200 z-50 brightness-125 -translate-y-2' 
+                                    : 'hover:-translate-y-1 hover:scale-105 hover:shadow-[0_0_10px_rgba(168,85,247,0.4)] z-0 hover:z-10'}`}
+                                style={{
+                                    backgroundSize: 'cover',
+                                    backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined
+                                }}
+                            >
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
-            <div className="mt-16 flex gap-3">
+            <div className="absolute bottom-10 flex gap-3 z-20">
                 {[...Array(3)].map((_, i) => (
                     <div key={i} className={`w-4 h-4 rounded-full border-2 border-purple-500 transition-all duration-300 ${selected.length > i ? 'bg-purple-500 shadow-[0_0_15px_#d946ef] scale-125' : 'bg-transparent'}`}></div>
                 ))}
@@ -662,7 +653,7 @@ const ResultView: React.FC<{
             readingPromise
                 .then(text => {
                     setRawText(text);
-                    playSound('REVEAL');
+                    // playSound('REVEAL'); // Removed per request
                     onReadingComplete(text);
                     
                     // Parse Text
