@@ -213,7 +213,7 @@ export const CATEGORIES: QuestionCategory[] = [
   },
   {
     id: 'SECRET_COMPAT',
-    label: '19금',
+    label: '수위',
     icon: '🔞',
     questions: [],
     cost: 200
