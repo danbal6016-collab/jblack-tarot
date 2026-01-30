@@ -1035,24 +1035,21 @@ const App: React.FC = () => {
       let channel: RealtimeChannel | null = null;
       if (isSupabaseConfigured && user.email !== 'Guest') {
           // Listen to changes on 'user_profiles' for this user ID
-          channel = supabase.channel(`user_profiles:${user.email}`)
-              .on(
-                  'postgres_changes',
-                  {
-                      event: 'UPDATE',
-                      schema: 'public',
-                      table: 'user_profiles', // Changed to user_profiles
-                      filter: `email=eq.${user.email}`,
-                  },
-                  (payload) => {
-                      if (payload.new && payload.new.data) {
-                          setUser(prev => ({
-                              ...prev,
-                              ...payload.new.data
-                          }));
-                      }
-                  }
-              )
+         const { data: { session } } = await supabase.auth.getSession();
+const uid = session?.user?.id;
+if (!uid) return;
+
+channel = supabase.channel(`user_profiles:${uid}`)
+  .on('postgres_changes', {
+    event: 'UPDATE',
+    schema: 'public',
+    table: 'user_profiles',
+    filter: `id=eq.${uid}`,
+  }, (payload) => {
+    if (payload.new?.data) setUser(payload.new.data);
+  })
+  .subscribe();
+
               .subscribe();
       }
 
