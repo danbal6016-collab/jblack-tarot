@@ -1023,62 +1023,65 @@ const App: React.FC = () => {
   }, [selectedQuestion, selectedCards]); 
 
   // --- IDENTITY SYNC & AUTH LISTENER ---
- // --- IDENTITY SYNC & AUTH LISTENER ---
-useEffect(() => {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
-      checkUser();
-    }
-  });
+  useEffect(() => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+              if (session?.user) {
+                  // Renamed function call to ensure we reload data
+                  // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                  checkUser(); 
+              }
+          }
+      });
+      return () => {
+          subscription.unsubscribe();
+      };
+  }, []);
 
-  return () => {
-    subscription?.unsubscribe();
-  };
-}, [checkUser]);
+  useEffect(() => {
+      let channel: RealtimeChannel | null = null;
+      let cancelled = false;
 
-useEffect(() => {
-  let channel: RealtimeChannel | null = null;
-  let cancelled = false;
+      // Check condition before async wrapper
+      if (!isSupabaseConfigured || user.email === "Guest") {
+        return; 
+      }
 
-  if (!isSupabaseConfigured || user.email === "Guest") {
-    return;
-  }
+      (async () => {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (cancelled) return;
 
-  (async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (cancelled) return;
-
-    if (error) {
-      console.error("getSession error:", error);
-      return;
-    }
-
-    const uid = session?.user?.id;
-    if (!uid) return;
-
-    channel = supabase
-      .channel(`user_profiles:${uid}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "user_profiles",
-          filter: `id=eq.${uid}`,
-        },
-        (payload: any) => {
-          const newData = payload?.new?.data;
-          if (newData) setUser(newData);
+        if (error) {
+          console.error("getSession error:", error);
+          return;
         }
-      )
-      .subscribe();
-  })();
 
-  return () => {
-    cancelled = true;
-    if (channel) supabase.removeChannel(channel);
-  };
-}, [user.email]);
+        const uid = session?.user?.id;
+        if (!uid) return;
+
+        channel = supabase
+          .channel(`user_profiles:${uid}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "user_profiles",
+              filter: `id=eq.${uid}`,
+            },
+            (payload: any) => {
+              const newData = payload?.new?.data;
+              if (newData) setUser(newData);
+            }
+          )
+          .subscribe();
+      })();
+
+      return () => {
+        cancelled = true;
+        if (channel) supabase.removeChannel(channel);
+      };
+  }, [isSupabaseConfigured, user.email]);
 
   // --- SESSION PERSISTENCE LOGIC ---
   useEffect(() => {
