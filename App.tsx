@@ -716,7 +716,7 @@ const ResultView: React.FC<{
                     onReadingComplete(text);
                     
                     // Parse Text
-                    const solutionHeader = "[실질적인 해결책]";
+                    const solutionHeader = lang === 'en' ? "[Practical Solutions]" : "[실질적인 해결책]";
                     if (text.includes(solutionHeader)) {
                         const parts = text.split(solutionHeader);
                         setInterpretation(parts[0].trim());
@@ -731,7 +731,7 @@ const ResultView: React.FC<{
                     setRawText("운명의 신호가 약합니다. 다시 시도해주세요.");
                 });
         }
-    }, [readingPromise, onReadingComplete, rawText]);
+    }, [readingPromise, onReadingComplete, rawText, lang]);
 
     const handleUnlockSolution = () => {
         if (spendCoins(15)) {
@@ -983,14 +983,25 @@ const App: React.FC = () => {
   const [pendingPackage, setPendingPackage] = useState<{amount: number, coins: number} | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'TOSS' | 'PAYPAL' | 'APPLE' | 'KAKAO'>('TOSS');
 
-  const saveUserState = useCallback((u: User, state: AppState) => {
+  const saveUserState = useCallback(async (u: User, state: AppState) => {
       try {
           localStorage.setItem('black_tarot_user', JSON.stringify({ ...u, lastAppState: state }));
       } catch (e) {
           console.error("Local storage error (Quota exceeded?):", e);
       }
       if (u.email !== 'Guest' && isSupabaseConfigured) {
-          supabase.from('profiles').upsert({ email: u.email, data: { ...u, lastAppState: state }, updated_at: new Date().toISOString() }, { onConflict: 'email' }).then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
+          const { data: { session } } = await supabase.auth.getSession();
+          const userId = session?.user?.id;
+          
+          const payload: any = { 
+              email: u.email, 
+              data: { ...u, lastAppState: state }, 
+              updated_at: new Date().toISOString() 
+          };
+          if (userId) payload.user_id = userId; // Critical for RLS
+
+          supabase.from('profiles').upsert(payload, { onConflict: 'email' })
+            .then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
       }
   }, []);
 
@@ -1048,7 +1059,8 @@ const App: React.FC = () => {
                     const u = data.session.user; 
                     const email = u.email || "User";
                     try { 
-                        const { data: profileData } = await supabase.from('profiles').select('data').eq('email', email).single(); 
+                        // Fix: use .limit(1).maybeSingle() instead of .single() to avoid error on duplicates
+                        const { data: profileData } = await supabase.from('profiles').select('data').eq('email', email).limit(1).maybeSingle(); 
                         if (profileData && profileData.data) {
                             // PRIORITIZE CLOUD DATA for logged-in users
                             currentUser = profileData.data; 

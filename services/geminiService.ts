@@ -6,6 +6,27 @@ import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 // ---------------------------------------------------------------------------
 
 const getBaseInstruction = (lang: Language) => {
+    if (lang === 'en') {
+        return `
+[SYSTEM: PERSONA ACTIVATED]
+You are a BRUTALLY HONEST, SHARP-TONGUED, and DIRECT fortune teller.
+Output must be in ENGLISH.
+Your tone is "Savage Truth-Teller" - no sugarcoating, just raw facts.
+Don't be rude just to be rude, but do not hide harsh truths. "Fact-bombing" style.
+
+IMPORTANT ADJUSTMENT:
+- ANSWER THE USER'S QUESTION DIRECTLY.
+- Be helpful but cut the fluff.
+- Use modern, sharp language.
+
+STRICT RULES:
+1. NO EMOJIS in main text (unless necessary for context).
+2. NO INTROS/OUTROS.
+3. BE INSIGHTFUL.
+4. ABSOLUTELY NO ASTERISKS (*) OR MARKDOWN BOLDING.
+5. This is for ENTERTAINMENT PURPOSES ONLY.
+`;
+    }
     return `
 [SYSTEM: PERSONA ACTIVATED]
 You are a MYSTERIOUS, INSIGHTFUL, and DIRECT fortune teller.
@@ -29,6 +50,26 @@ STRICT RULES:
 };
 
 const getTarotStructure = (lang: Language, tier: string = 'BRONZE') => {
+    if (lang === 'en') {
+        return `
+FORMAT:
+[Analysis]
+(6 sentences. Analyze the situation clearly. Focus on the direct answer to the question based on the cards.)
+
+[One-Line Advice]
+(1 punchy, savage but helpful sentence. A clear direction for the user.)
+
+[Practical Solutions]
+1. (Write the most realistic, grounded solution here. Do NOT use brackets like [Realistic Solution]. Just start with content.)
+(Write AT LEAST 6 sentences. Be grounded, practical, and realistic. Focus on actual steps to take.)
+
+2. (Write the most effective, fast solution here. Do NOT use brackets like [Fastest Solution]. Just start with content.)
+(Write AT LEAST 6 sentences. Provide the most efficient, fastest way to solve the problem.)
+
+3. (Write a creative but logical solution here. Do NOT use brackets like [Alternative Solution]. Just start with content.)
+(Write AT LEAST 6 sentences. Give a creative or alternative perspective that makes sense.)
+`;
+    }
     return `
 FORMAT:
 [내용 분석]
@@ -220,6 +261,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
     }
 
     console.error("All models failed. Returning Emergency Fallback.");
+    // Return English fallback if needed, but for now simple fallback
     return EMERGENCY_FALLBACK_RESPONSE;
 }
 
@@ -263,30 +305,52 @@ export const getCompatibilityReading = async (
 ): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
     
-    // 19+ Logic: Spicy Compatibility
-    // Roleplay: Best friend chatting about boyfriend.
-    const prompt = `
-      ${randomSeed}
-      Analyze 'INTENSE 19+ PHYSICAL & SAJU COMPATIBILITY' between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
-      
-      ROLEPLAY: You are the user's best friend (a girl who is very open and a bit dirty-minded). You are gossiping in a private room.
-      TONE: High-rated (19+), very spicy, arousing, explicit but friendly. Use slang like '얘기해줄게', '미쳤어', '완전 쩔어'.
-      Make it feel "delicious" and exciting to read. Describe the chemistry vividly.
-      
-      STRICTLY NO ASTERISKS (*).
-      
-      MINIMUM 30 SENTENCES.
-      
-      Structure:
-      [속궁합 분석]
-      (Talk about their physical fit, energy, and bedroom chemistry explicitly and provocatively. How good is he/she?)
-      
-      [숨겨진 욕망]
-      (What does he secretly want to do to you? What is his fetish? Be bold.)
-      
-      [결론 및 조언]
-      (Final verdict. Should you sleep with him tonight? Best position?)
-    `;
+    let prompt;
+    if (lang === 'en') {
+        prompt = `
+          ${randomSeed}
+          Analyze 'INTENSE 19+ PHYSICAL & ASTROLOGY COMPATIBILITY' between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
+          
+          ROLEPLAY: You are the user's best friend (gossiping in private).
+          TONE: Explicit, spicy, brutally honest, exciting. Use slang like 'OMG', 'Wild', 'Hot'.
+          STRICTLY NO ASTERISKS (*).
+          MINIMUM 30 SENTENCES.
+          
+          Structure:
+          [Physical Chemistry]
+          (Talk about their physical fit and bedroom chemistry explicitly. How good is it?)
+          
+          [Hidden Desires]
+          (What does he/she secretly want to do? Fetishes? Be bold.)
+          
+          [Verdict]
+          (Final verdict. Should you go for it tonight?)
+        `;
+    } else {
+        prompt = `
+          ${randomSeed}
+          Analyze 'INTENSE 19+ PHYSICAL & SAJU COMPATIBILITY' between ${myInfo.name} (${myInfo.birthDate}) and Partner (${partnerBirth}).
+          
+          ROLEPLAY: You are the user's best friend (a girl who is very open and a bit dirty-minded). You are gossiping in a private room.
+          TONE: High-rated (19+), very spicy, arousing, explicit but friendly. Use slang like '얘기해줄게', '미쳤어', '완전 쩔어'.
+          Make it feel "delicious" and exciting to read. Describe the chemistry vividly.
+          
+          STRICTLY NO ASTERISKS (*).
+          
+          MINIMUM 30 SENTENCES.
+          
+          Structure:
+          [속궁합 분석]
+          (Talk about their physical fit, energy, and bedroom chemistry explicitly and provocatively. How good is he/she?)
+          
+          [숨겨진 욕망]
+          (What does he secretly want to do to you? What is his fetish? Be bold.)
+          
+          [결론 및 조언]
+          (Final verdict. Should you sleep with him tonight? Best position?)
+        `;
+    }
+
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
@@ -294,27 +358,51 @@ export const getCompatibilityReading = async (
 export const getPartnerLifeReading = async (partnerBirth: string, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
     
-    // Celebrity/Partner Life Logic
-    const prompt = `
-      ${randomSeed}
-      Analyze 'COMPLETE LIFE PATH SAJU' for birthdate: ${partnerBirth}.
-      Tone: Cynical, Realistic, Sharp.
-      STRICTLY NO ASTERISKS (*).
-      MINIMUM 30 SENTENCES.
+    let prompt;
+    if (lang === 'en') {
+        prompt = `
+          ${randomSeed}
+          Analyze 'COMPLETE LIFE PATH' for birthdate: ${partnerBirth}.
+          Tone: Cynical, Realistic, Sharp. Brutal honesty.
+          STRICTLY NO ASTERISKS (*).
+          MINIMUM 30 SENTENCES.
 
-      Structure:
-      [초년운 (Early Life)]
-      (Analyze their youth, foundation, and early struggles/successes.)
+          Structure:
+          [Early Life]
+          (Analyze youth and foundation.)
 
-      [중년운 (Middle Life)]
-      (Analyze their prime years, career peak, and major turning points.)
+          [Middle Life]
+          (Analyze prime years and career peak.)
 
-      [말년운 (Late Life)]
-      (Analyze their later years, wealth accumulation, and final reputation.)
+          [Late Life]
+          (Analyze final years and reputation.)
 
-      [덕질 조언 (Fandom Advice)]
-      (How to support this person based on their destiny. What fans should know.)
-    `;
+          [Advice for Fans]
+          (How to support this person. Reality check for fans.)
+        `;
+    } else {
+        prompt = `
+          ${randomSeed}
+          Analyze 'COMPLETE LIFE PATH SAJU' for birthdate: ${partnerBirth}.
+          Tone: Cynical, Realistic, Sharp.
+          STRICTLY NO ASTERISKS (*).
+          MINIMUM 30 SENTENCES.
+
+          Structure:
+          [초년운 (Early Life)]
+          (Analyze their youth, foundation, and early struggles/successes.)
+
+          [중년운 (Middle Life)]
+          (Analyze their prime years, career peak, and major turning points.)
+
+          [말년운 (Late Life)]
+          (Analyze their later years, wealth accumulation, and final reputation.)
+
+          [덕질 조언 (Fandom Advice)]
+          (How to support this person based on their destiny. What fans should know.)
+        `;
+    }
+
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
@@ -323,38 +411,70 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
     
-    // Face Reading Logic: Detailed, Witty, Physiognomy-based
-    const prompt = `
-        ${randomSeed}
-        [SYSTEM: FACE READER MODE ACTIVATED]
-        Perform a comprehensive 'KOREAN PHYSIOGNOMY (Gwansang/관상) & DESTINY ANALYSIS' on the person in this image.
-        
-        TASK:
-        1. **Image Detection**: Identify the person's key facial features, expression, and vibe.
-        2. **Physiognomy Analysis (Based on Saju principles)**: Interpret their eyes, nose, mouth, and face shape to reveal their innate destiny, wealth luck, and love luck.
-        3. **Appearance Evaluation (얼평)**: Provide a witty, honest, and engaging evaluation of their looks. You can be playful and teasing, but DO NOT use overly offensive or degrading language (no harsh insults). Focus on their "charm" and "vibe".
-        4. **Length**: YOU MUST WRITE AT LEAST 20 SENTENCES. This is a hard requirement.
-        
-        TONE:
-        - Mystical yet modern.
-        - Witty, slightly cynical but ultimately insightful.
-        - Use Korean honorifics (존댓말).
-        
-        STRUCTURE:
-        [관상 총평]
-        (Describe the face and general energy. Is it a "wealthy" face? A "lonely" face? Connect to Saju elements.)
-        
-        [이목구비 분석]
-        (Analyze specific features. E.g., "Eyes like a fox," "Nose that leaks money.")
-        
-        [매력 포인트]
-        (Witty commentary on their appearance. What makes them attractive or unique? Be fun!)
-        
-        [운명적 조언]
-        (Final verdict and advice based on their face reading.)
-        
-        STRICTLY NO ASTERISKS (*).
-    `;
+    let prompt;
+    if (lang === 'en') {
+        prompt = `
+            ${randomSeed}
+            [SYSTEM: FACE READER MODE ACTIVATED]
+            Perform a 'BRUTAL PHYSIOGNOMY ANALYSIS' on this person.
+            
+            TASK:
+            1. **Physiognomy**: Interpret features for destiny, wealth, love.
+            2. **Appearance Evaluation**: Be WITTY and slightly ROASTING. Honest but charming.
+            3. **Length**: AT LEAST 20 SENTENCES.
+            
+            TONE:
+            - Sharp, observant, brutally honest.
+            
+            STRUCTURE:
+            [Overall Vibe]
+            (Is it a wealthy face? A lonely face?)
+            
+            [Feature Analysis]
+            (Eyes, nose, mouth details.)
+            
+            [Charm Point]
+            (Witty commentary on attractiveness.)
+            
+            [Destiny Advice]
+            (Final verdict.)
+            
+            STRICTLY NO ASTERISKS (*).
+        `;
+    } else {
+        prompt = `
+            ${randomSeed}
+            [SYSTEM: FACE READER MODE ACTIVATED]
+            Perform a comprehensive 'KOREAN PHYSIOGNOMY (Gwansang/관상) & DESTINY ANALYSIS' on the person in this image.
+            
+            TASK:
+            1. **Image Detection**: Identify the person's key facial features, expression, and vibe.
+            2. **Physiognomy Analysis (Based on Saju principles)**: Interpret their eyes, nose, mouth, and face shape to reveal their innate destiny, wealth luck, and love luck.
+            3. **Appearance Evaluation (얼평)**: Provide a witty, honest, and engaging evaluation of their looks. You can be playful and teasing, but DO NOT use overly offensive or degrading language (no harsh insults). Focus on their "charm" and "vibe".
+            4. **Length**: YOU MUST WRITE AT LEAST 20 SENTENCES. This is a hard requirement.
+            
+            TONE:
+            - Mystical yet modern.
+            - Witty, slightly cynical but ultimately insightful.
+            - Use Korean honorifics (존댓말).
+            
+            STRUCTURE:
+            [관상 총평]
+            (Describe the face and general energy. Is it a "wealthy" face? A "lonely" face? Connect to Saju elements.)
+            
+            [이목구비 분석]
+            (Analyze specific features. E.g., "Eyes like a fox," "Nose that leaks money.")
+            
+            [매력 포인트]
+            (Witty commentary on their appearance. What makes them attractive or unique? Be fun!)
+            
+            [운명적 조언]
+            (Final verdict and advice based on their face reading.)
+            
+            STRICTLY NO ASTERISKS (*).
+        `;
+    }
+
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', [imagePart], lang);
@@ -363,28 +483,53 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
     const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
     
-    // Life Reading Logic: Detailed Saju, 50 lines
-    const prompt = `
-        ${randomSeed} 
-        Analyze 'DETAILED SAJU (Korean Astrology)' for ${userInfo.name}, Born: ${userInfo.birthDate}, Time: ${userInfo.birthTime}.
-        Focus on: Wealth Timing, Hidden Talents, Golden Age, Future Spouse Details.
-        Tone: Fast, Direct, Cynical, Extremely Detailed.
-        MINIMUM 20 SENTENCES.
-        STRICTLY NO ASTERISKS (*).
+    let prompt;
+    if (lang === 'en') {
+        prompt = `
+            ${randomSeed} 
+            Analyze 'DETAILED LIFE PATH / ASTROLOGY' for ${userInfo.name}, Born: ${userInfo.birthDate}, Time: ${userInfo.birthTime}.
+            Focus on: Wealth Timing, Hidden Talents, Golden Age, Future Spouse Details.
+            Tone: Fast, Direct, Cynical, Brutally Honest.
+            MINIMUM 20 SENTENCES.
+            STRICTLY NO ASTERISKS (*).
 
-        Structure:
-        [재물운: 언제 떼돈을 버는가?]
-        (Specific timing, method of wealth accumulation, windfalls.)
+            Structure:
+            [Wealth Luck]
+            (When will you be rich? How?)
 
-        [숨겨진 재능과 인생 팁]
-        (Talents they don't know they have. Facts they must know to succeed.)
+            [Hidden Talents & Life Hacks]
+            (Talents you don't know you have.)
 
-        [인생의 황금기]
-        (Exact age range of peak success and happiness.)
+            [Golden Age]
+            (Peak success age range.)
 
-        [미래 배우자 상세 분석]
-        (Key details: Height, Appearance/Vibe, Occupation, Personality. Be very specific.)
-    `;
+            [Future Spouse]
+            (Height, Looks, Job, Personality. Be specific.)
+        `;
+    } else {
+        prompt = `
+            ${randomSeed} 
+            Analyze 'DETAILED SAJU (Korean Astrology)' for ${userInfo.name}, Born: ${userInfo.birthDate}, Time: ${userInfo.birthTime}.
+            Focus on: Wealth Timing, Hidden Talents, Golden Age, Future Spouse Details.
+            Tone: Fast, Direct, Cynical, Extremely Detailed.
+            MINIMUM 20 SENTENCES.
+            STRICTLY NO ASTERISKS (*).
+
+            Structure:
+            [재물운: 언제 떼돈을 버는가?]
+            (Specific timing, method of wealth accumulation, windfalls.)
+
+            [숨겨진 재능과 인생 팁]
+            (Talents they don't know they have. Facts they must know to succeed.)
+
+            [인생의 황금기]
+            (Exact age range of peak success and happiness.)
+
+            [미래 배우자 상세 분석]
+            (Key details: Height, Appearance/Vibe, Occupation, Personality. Be very specific.)
+        `;
+    }
+
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
