@@ -1050,7 +1050,6 @@ channel = supabase.channel(`user_profiles:${uid}`)
   })
   .subscribe();
 
-              .subscribe();
       }
 
       return () => {
