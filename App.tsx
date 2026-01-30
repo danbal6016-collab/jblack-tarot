@@ -1023,21 +1023,25 @@ const App: React.FC = () => {
   }, [selectedQuestion, selectedCards]); 
 
   // --- IDENTITY SYNC & AUTH LISTENER ---
-  useEffect(() => {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-              if (session?.user) {
-                  checkUser(); // Load data after sync
-              }
-          }
-      });
+ // --- IDENTITY SYNC & AUTH LISTENER ---
+useEffect(() => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+      checkUser();
+    }
+  });
+
+  return () => {
+    subscription?.unsubscribe();
+  };
+}, [checkUser]);
+
 useEffect(() => {
   let channel: RealtimeChannel | null = null;
   let cancelled = false;
 
-  // ✅ 조건 체크는 effect 바깥 async로 감싸기 전에 해도 됨
   if (!isSupabaseConfigured || user.email === "Guest") {
-    return; // cleanup 필요 없음
+    return;
   }
 
   (async () => {
@@ -1074,8 +1078,7 @@ useEffect(() => {
     cancelled = true;
     if (channel) supabase.removeChannel(channel);
   };
-}, [isSupabaseConfigured, user.email]);
-
+}, [user.email]);
 
   // --- SESSION PERSISTENCE LOGIC ---
   useEffect(() => {
