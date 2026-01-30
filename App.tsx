@@ -787,7 +787,7 @@ const ResultView: React.FC<{
     const handleShare = async () => {
         if (contentRef.current) {
             try {
-                // Temporarily remove max-height/overflow for full screenshot
+                // Temporarily remove max-height/overflow for full screenshot if needed
                 const canvas = await html2canvas(contentRef.current, { 
                     backgroundColor: '#000',
                     useCORS: true,
@@ -825,12 +825,6 @@ const ResultView: React.FC<{
         const container = contentRef.current;
         if (!container) return;
 
-        // Simple Drag Implementation
-        // For full drag we need global listeners, implementing simplified relative move here
-        // Or simpler: click to remove? 
-        // Let's do simple: Click to Remove for now as full drag in one file is heavy?
-        // No, user asked "can put on top". I'll implement basic drag.
-        
         let startX = 'clientX' in e ? e.clientX : e.touches[0].clientX;
         let startY = 'clientY' in e ? e.clientY : e.touches[0].clientY;
         
@@ -861,27 +855,17 @@ const ResultView: React.FC<{
     };
 
     return (
-        <div className="min-h-screen py-6 px-4 relative z-10 overflow-y-auto flex flex-col items-center">
-            {/* Sticker Toolbar */}
-            <div className="w-full max-w-md bg-black/80 p-2 rounded-lg mb-4 flex gap-2 overflow-x-auto scrollbar-hide border border-purple-500/30">
-                <span className="text-xs text-gray-400 self-center px-2 shrink-0">DECORATE:</span>
-                {user.customStickers?.concat(DEFAULT_STICKERS).map((s, i) => (
-                    <button key={i} onClick={() => addSticker(s)} className="w-8 h-8 text-xl flex items-center justify-center hover:scale-125 transition-transform bg-gray-800 rounded shrink-0">
-                        {s.startsWith('http') || s.startsWith('data:') ? <img src={s} className="w-full h-full object-contain" /> : s}
-                    </button>
-                ))}
-            </div>
-
-            {/* Main Result Container - Fixed Aspect Ratio 9:20 for Mobile Receipt Look */}
+        <div className="min-h-screen py-10 px-4 relative z-10 overflow-y-auto flex flex-col items-center">
+            {/* Main Result Container - 9:20 Ratio Target (Vertical 20:9) */}
             <div 
                 ref={contentRef} 
-                className="w-full max-w-[380px] aspect-[9/20] shadow-[0_0_60px_rgba(0,0,0,0.8)] relative overflow-hidden text-center flex flex-col"
+                className="w-full max-w-[400px] aspect-[9/20] shadow-2xl relative overflow-hidden text-center flex flex-col rounded-2xl border border-purple-500/30 bg-black"
                 style={resultBgStyle}
             >
                 {/* Dark Overlay for Readability */}
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"></div>
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"></div>
 
-                {/* Custom Frame Overlay - Pointer events none to allow clicking through to stickers if needed, but stickers are on top */}
+                {/* Custom Frame Overlay */}
                 <div className="absolute inset-0 pointer-events-none z-20" style={isCustomFrame ? resultFrameStyle : { cssText: getPresetFrameCss() } as any}></div>
 
                 {/* Draggable Stickers Layer */}
@@ -900,63 +884,75 @@ const ResultView: React.FC<{
                     </div>
                 ))}
 
-                {/* Content Wrapper - Scrollable inside if needed, but fitting 9:20 */}
-                <div className="relative z-10 flex-1 flex flex-col p-6 overflow-hidden">
-                    {/* Header Decoration */}
-                    <div className="mb-4 opacity-70">
-                        <span className="text-yellow-500/50 text-2xl tracking-[0.5em]">★ ★ ★</span>
-                    </div>
-
-                    <h2 className="text-2xl font-occult text-white mb-2 drop-shadow-lg uppercase tracking-wider">{question}</h2>
-                    <div className="w-16 h-0.5 bg-white/50 mx-auto mb-6"></div>
+                {/* Content Wrapper */}
+                <div className="relative z-10 flex-1 flex flex-col p-6 overflow-y-auto scrollbar-hide">
                     
-                    {/* Cards Display - Compact */}
-                    <div className="flex justify-center items-center gap-2 mb-6 w-full">
+                    {/* Header Question */}
+                    <h2 className="text-xl md:text-2xl font-bold text-white mb-6 drop-shadow-md break-keep leading-snug">{question}</h2>
+                    {/* Purple Gradient Line - More Visible */}
+                    <div className="w-24 h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent mx-auto mb-6 rounded-full opacity-90"></div>
+                    
+                    {/* Cards Display - Wide Layout */}
+                    <div className="flex justify-center items-center gap-2 md:gap-4 mb-6 w-full flex-wrap md:flex-nowrap">
                         {selectedCards.map((card, idx) => (
-                            <div key={idx} className="flex flex-col items-center animate-fade-in w-1/3">
-                                <div className="w-full aspect-[2/3] rounded border border-white/30 overflow-hidden relative shadow-md bg-black/50">
+                            <div key={idx} className="flex flex-col items-center animate-fade-in w-[30%] md:w-auto">
+                                <div className="w-full aspect-[2/3] rounded-md border border-white/20 overflow-hidden relative shadow-lg bg-gray-900 group hover:scale-105 transition-transform">
                                     <img 
                                         src={card.generatedImage || card.imagePlaceholder} 
                                         alt={card.name} 
-                                        className={`w-full h-full object-cover ${card.isReversed ? 'rotate-180' : ''}`} 
+                                        className={`w-full h-full object-cover transition-transform duration-700 ${card.isReversed ? 'rotate-180' : ''}`} 
                                     />
+                                    {card.isReversed && <div className="absolute inset-0 bg-red-900/30 pointer-events-none flex items-center justify-center"><span className="text-[8px] font-bold bg-black/70 px-1 py-0.5 rounded text-red-400 border border-red-500">REV</span></div>}
                                 </div>
-                                <span className="text-[10px] text-white/80 mt-1 font-serif truncate w-full text-center tracking-tighter">{card.name}</span>
+                                <span className="text-[10px] text-white/70 mt-1 font-serif truncate w-full text-center tracking-wide">{card.name}</span>
                             </div>
                         ))}
                     </div>
 
-                    {/* Interpretation - Auto Scroll if too long */}
-                    <div className="flex-1 overflow-hidden relative">
+                    {/* Interpretation - Dark Purple Box */}
+                    <div className="flex-1 text-left space-y-4">
                         {!rawText ? (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <div className="inline-block w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mb-2"></div>
-                                <p className="text-white/70 text-xs animate-pulse font-serif">Reading Fate...</p>
+                            <div className="flex flex-col items-center justify-center py-12">
+                                <div className="inline-block w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <p className="text-white/70 animate-pulse font-serif text-sm">운명을 읽어내는 중...</p>
                             </div>
                         ) : (
-                            <div className="h-full overflow-y-auto scrollbar-hide text-left space-y-4 pb-4">
-                                <div className="prose prose-invert max-w-none">
-                                    <div className="whitespace-pre-line text-white/90 leading-relaxed text-xs font-serif tracking-wide drop-shadow-sm bg-black/20 p-2 rounded">
+                            <>
+                                <div className="bg-[#1a0b2e]/90 backdrop-blur-md rounded-xl p-5 border border-purple-500/30 shadow-inner">
+                                    <div className="text-gray-100 text-base leading-relaxed whitespace-pre-line font-sans drop-shadow-sm">
                                         {interpretation}
                                     </div>
                                 </div>
 
-                                {/* Solution Section - Only show if unlocked. NO LOCK UI IN CAPTURE. */}
-                                {isSolutionUnlocked && solution && (
-                                    <div className="mt-4 pt-4 border-t border-white/20">
-                                        <div className="whitespace-pre-line text-white leading-relaxed text-xs font-bold font-serif bg-purple-900/40 p-2 rounded border border-purple-500/30">
-                                            {solution}
+                                {/* Solution Section - Mosaic if locked */}
+                                {solution && (
+                                    <div className="mt-4 pt-4 border-t border-white/10 relative">
+                                        <div className={`p-4 rounded-xl transition-all duration-700 ${isSolutionUnlocked ? 'bg-purple-900/20 border border-purple-500/30' : 'bg-black/40 border-gray-700 select-none'}`}>
+                                            <div className={`text-base leading-relaxed whitespace-pre-line font-bold font-sans ${isSolutionUnlocked ? 'text-white' : 'text-transparent blur-md opacity-50'}`}>
+                                                {solution}
+                                            </div>
                                         </div>
+                                        
+                                        {!isSolutionUnlocked && (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+                                                <div className="text-4xl mb-2 drop-shadow-lg animate-bounce">🔒</div>
+                                                <button 
+                                                    onClick={handleUnlockSolution}
+                                                    className="px-6 py-3 bg-gradient-to-r from-purple-800 to-indigo-800 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-full shadow-[0_0_20px_rgba(168,85,247,0.6)] transform hover:scale-105 transition-all flex items-center gap-2 border border-purple-400/30"
+                                                >
+                                                    <span className="text-sm">{lang === 'ko' ? '실질적인 해결책 보기' : 'Unlock Solution'}</span>
+                                                    <span className="bg-black/40 px-2 py-0.5 rounded-full text-xs text-yellow-300 font-mono">-15 C</span>
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
-                            </div>
+                            </>
                         )}
-                        {/* Fade at bottom to indicate scroll */}
-                        {rawText && <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>}
                     </div>
                     
                     {/* Footer Date */}
-                    <div className="mt-2 text-[8px] text-white/40 uppercase tracking-widest text-center font-serif">
+                    <div className="mt-auto pt-6 pb-2 text-[10px] text-white/30 uppercase tracking-[0.3em] text-center font-serif">
                         {new Date().toLocaleDateString()} • BLACK TAROT
                     </div>
                 </div>
@@ -964,28 +960,33 @@ const ResultView: React.FC<{
 
             {/* Actions & Unlock - OUTSIDE CAPTURE AREA */}
             {rawText && (
-                <div className="w-full max-w-[380px] mt-4 flex flex-col gap-3 relative z-40">
-                    {/* Unlock Button - Only if locked */}
-                    {!isSolutionUnlocked && solution && (
-                        <button 
-                            onClick={handleUnlockSolution}
-                            className="w-full py-3 bg-gradient-to-r from-purple-900 to-indigo-900 border border-purple-500/50 text-white font-bold rounded shadow-[0_0_15px_rgba(168,85,247,0.3)] flex items-center justify-center gap-2 hover:brightness-110 transition-all"
-                        >
-                            <span>🔐 {lang === 'ko' ? '실질적인 해결책 보기' : 'Unlock Solution'}</span>
-                            <span className="bg-black/50 px-2 py-0.5 rounded text-xs text-yellow-400">-15 C</span>
-                        </button>
-                    )}
-
-                    <div className="flex gap-2">
-                        <button onClick={onRetry} className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 rounded text-gray-300 font-bold transition-all border border-gray-600">
-                            {lang === 'ko' ? "처음으로" : "Home"}
-                        </button>
-                        <button onClick={handleShare} className="flex-[2] py-3 bg-white text-black font-bold rounded shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
-                            <span>📸</span> {lang === 'ko' ? "이미지 저장" : "Save Image"}
-                        </button>
-                    </div>
+                <div className="w-full max-w-[400px] mt-6 flex gap-3 z-40">
+                    <button onClick={onRetry} className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-gray-300 font-bold transition-all text-sm border border-gray-600 shadow-lg">
+                        {lang === 'ko' ? "처음으로" : "Home"}
+                    </button>
+                    <button onClick={handleShare} className="flex-1 py-3 bg-purple-600 hover:bg-purple-500 rounded-xl text-white font-bold shadow-lg transition-all text-sm flex items-center justify-center gap-2 border border-purple-400/50">
+                        <span>📥</span> {lang === 'ko' ? "결과 저장" : "Save Image"}
+                    </button>
                 </div>
             )}
+
+            {/* Sticker Toolbar - Stylish Floating Panel */}
+            <div className="w-full max-w-[400px] mt-4 mb-10 z-40">
+                <div className="bg-[#0f0518]/90 backdrop-blur-xl border border-purple-500/40 rounded-2xl p-4 shadow-[0_0_30px_rgba(168,85,247,0.15)] flex flex-col gap-2">
+                    <div className="text-[10px] text-purple-300 font-bold uppercase tracking-widest text-center mb-1 flex items-center justify-center gap-2">
+                        <span className="w-8 h-[1px] bg-purple-500/50"></span>
+                        DECORATE YOUR FATE
+                        <span className="w-8 h-[1px] bg-purple-500/50"></span>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 justify-start md:justify-center px-1">
+                        {user.customStickers?.concat(DEFAULT_STICKERS).map((s, i) => (
+                            <button key={i} onClick={() => addSticker(s)} className="w-12 h-12 bg-white/5 hover:bg-purple-500/20 rounded-xl flex items-center justify-center text-2xl hover:scale-110 shrink-0 border border-white/5 hover:border-purple-500/50 transition-all active:scale-95 shadow-sm">
+                                {s.startsWith('http') || s.startsWith('data:') ? <img src={s} className="w-full h-full object-contain p-1" /> : s}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
@@ -1160,8 +1161,18 @@ const App: React.FC = () => {
   const updateUser = (updater: (prev: User) => User) => { setUser(prev => { const newUser = updater(prev); saveUserState(newUser, appState); return newUser; }); };
 
   const handleReadingComplete = useCallback((text: string) => { 
-      const result: ReadingResult = { date: new Date().toISOString(), question: selectedQuestion, cards: selectedCards, interpretation: text }; 
-      updateUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] })); 
+      updateUser((prev) => {
+          // Prevent duplicate history entries
+          if (prev.history.length > 0) {
+              const last = prev.history[0];
+              // Check if same question and within 1 minute
+              if (last.question === selectedQuestion && Math.abs(new Date(last.date).getTime() - Date.now()) < 60000) {
+                  return prev;
+              }
+          }
+          const result: ReadingResult = { date: new Date().toISOString(), question: selectedQuestion, cards: selectedCards, interpretation: text }; 
+          return { ...prev, history: [result, ...(prev.history ?? [])] };
+      }); 
   }, [selectedQuestion, selectedCards]); 
 
   // --- IDENTITY SYNC & AUTH LISTENER ---

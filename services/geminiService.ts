@@ -29,10 +29,10 @@ STRICT RULES:
     }
     return `
 [SYSTEM: PERSONA ACTIVATED]
-You are a MYSTERIOUS, INSIGHTFUL, and DIRECT fortune teller.
+You are a HONEST, INSIGHTFUL, and DIRECT fortune teller.
 Output must be CONCISE and CLEAR.
 Use Korean Honorifics (존댓말) appropriately.
-Your tone is "Cool & Objective" - telling the truth without sugarcoating, but NOT aggressive or rude.
+Your tone is "Cool & Objective" - telling the truth without sugarcoating like a "Fact-bombing" style, but NOT aggressive or rude.
 
 IMPORTANT ADJUSTMENT:
 - ANSWER THE USER'S QUESTION DIRECTLY. Do not beat around the bush.
@@ -120,14 +120,14 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Prioritize faster, stable models to prevent timeouts and cutoffs
 const MODEL_FALLBACK_CHAIN = [
-    'gemini-3-flash-preview',
     'gemini-2.5-flash',
+    'gemini-3-flash-preview',
     'gemini-flash-latest'
 ];
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
-    maxAttempts: number = 3, // Increased attempts
+    maxAttempts: number = 3, 
     baseDelay: number = 500
 ): Promise<T> {
     let lastError: any;
@@ -145,8 +145,8 @@ async function retryOperation<T>(
     throw lastError;
 }
 
-async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const API_TIMEOUT = 180000; // Increased to 3 minutes to handle retries and slow responses
+async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.5-flash', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
+    const API_TIMEOUT = 180000; // 3 minutes timeout
     let lastErrorMessage = "";
 
     const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -167,7 +167,8 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
             console.log(`Attempting generation with model: ${model}`);
             
             const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-            if (!config.maxOutputTokens) config.maxOutputTokens = 8192; // Increased to prevent cutoffs
+            // Reduce max tokens to ensure faster completion and less chance of timeout
+            if (!config.maxOutputTokens) config.maxOutputTokens = 4096; 
             if (config.thinkingConfig) delete config.thinkingConfig;
 
             let responseText = "";
@@ -224,8 +225,8 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                     if (imageParts) body.imageParts = imageParts;
 
                     const controller = new AbortController();
-                    // Reduce client fetch timeout slightly to allow graceful error before hard cut
-                    const timeoutId = setTimeout(() => controller.abort(), 175000); 
+                    // Reduce client fetch timeout to ensure we catch it before the main timeout
+                    const timeoutId = setTimeout(() => controller.abort(), 120000); 
 
                     try {
                         const constEqRes = await fetch('/api/gemini', {
@@ -261,7 +262,6 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
     }
 
     console.error("All models failed. Returning Emergency Fallback.");
-    // Return English fallback if needed, but for now simple fallback
     return EMERGENCY_FALLBACK_RESPONSE;
 }
 
@@ -292,10 +292,10 @@ export const getTarotReading = async (
   const config = {
     systemInstruction: getBaseInstruction(lang),
     temperature: 0.9, 
-    maxOutputTokens: 8192, 
+    maxOutputTokens: 4096, 
   };
 
-  return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+  return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getCompatibilityReading = async (
@@ -314,7 +314,7 @@ export const getCompatibilityReading = async (
           ROLEPLAY: You are the user's best friend (gossiping in private).
           TONE: Explicit, spicy, brutally honest, exciting. Use slang like 'OMG', 'Wild', 'Hot'.
           STRICTLY NO ASTERISKS (*).
-          MINIMUM 30 SENTENCES.
+          MINIMUM 20 SENTENCES.
           
           Structure:
           [Physical Chemistry]
@@ -337,7 +337,7 @@ export const getCompatibilityReading = async (
           
           STRICTLY NO ASTERISKS (*).
           
-          MINIMUM 30 SENTENCES.
+          MINIMUM 20 SENTENCES.
           
           Structure:
           [속궁합 분석]
@@ -351,8 +351,8 @@ export const getCompatibilityReading = async (
         `;
     }
 
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 4096 };
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getPartnerLifeReading = async (partnerBirth: string, lang: Language = 'ko'): Promise<string> => {
@@ -365,7 +365,7 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
           Analyze 'COMPLETE LIFE PATH' for birthdate: ${partnerBirth}.
           Tone: Cynical, Realistic, Sharp. Brutal honesty.
           STRICTLY NO ASTERISKS (*).
-          MINIMUM 30 SENTENCES (Absolute Requirement).
+          MINIMUM 20 SENTENCES.
 
           Structure:
           [Early Life]
@@ -386,7 +386,7 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
           Analyze 'COMPLETE LIFE PATH SAJU' for birthdate: ${partnerBirth}.
           Tone: Cynical, Realistic, Sharp.
           STRICTLY NO ASTERISKS (*).
-          MINIMUM 30 SENTENCES (Absolute Requirement).
+          MINIMUM 20 SENTENCES.
 
           Structure:
           [초년운 (Early Life)]
@@ -403,8 +403,8 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
         `;
     }
 
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 4096 };
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -421,7 +421,7 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
             TASK:
             1. **Physiognomy**: Interpret features for destiny, wealth, love.
             2. **Appearance Evaluation**: Be WITTY and slightly ROASTING. Honest but charming.
-            3. **Length**: AT LEAST 30 SENTENCES (Mandatory).
+            3. **Length**: AT LEAST 20 SENTENCES.
             
             TONE:
             - Sharp, observant, brutally honest.
@@ -451,7 +451,7 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
             1. **Image Detection**: Identify the person's key facial features, expression, and vibe.
             2. **Physiognomy Analysis**: Interpret their eyes, nose, mouth, and face shape to reveal their innate destiny, wealth luck, and love luck.
             3. **Detailed Appearance Evaluation (얼평)**: Provide a very specific, witty, honest, and engaging evaluation of their looks. Don't hold back on the details. Evaluate their vibe, attractiveness, and first impression.
-            4. **Length**: YOU MUST WRITE AT LEAST 30 SENTENCES. This is a hard requirement. The answer must be long and detailed.
+            4. **Length**: YOU MUST WRITE AT LEAST 20 SENTENCES. This is a hard requirement. The answer must be long and detailed.
             
             TONE:
             - Mystical yet modern.
@@ -476,8 +476,8 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     }
 
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', [imagePart], lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 4096 };
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -490,7 +490,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
             Analyze 'EXTREMELY DETAILED LIFE PATH / ASTROLOGY' for ${userInfo.name}, Born: ${userInfo.birthDate}, Time: ${userInfo.birthTime}.
             Focus on: Wealth Timing, Hidden Talents, Golden Age, Future Spouse Details, Noble Person, Personality, Caution.
             Tone: Fast, Direct, Cynical, Brutally Honest.
-            MINIMUM 30 SENTENCES (Mandatory).
+            MINIMUM 20 SENTENCES.
             STRICTLY NO ASTERISKS (*).
 
             Structure:
@@ -521,7 +521,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
             Analyze 'EXTREMELY DETAILED SAJU (Korean Astrology)' for ${userInfo.name}, Born: ${userInfo.birthDate}, Time: ${userInfo.birthTime}.
             
             TASK: Based on Saju and user data, provide a deep, comprehensive analysis covering all aspects of life.
-            REQUIREMENT: YOU MUST WRITE AT LEAST 30 SENTENCES. The answer should be very long and detailed.
+            REQUIREMENT: YOU MUST WRITE AT LEAST 20 SENTENCES. The answer should be very long and detailed.
             STRICTLY NO ASTERISKS (*).
 
             Structure:
@@ -548,8 +548,8 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
         `;
     }
 
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 4096 };
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getFallbackTarotImage = (cardId: number): string => {
