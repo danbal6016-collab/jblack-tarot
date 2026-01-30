@@ -365,7 +365,7 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
           Analyze 'COMPLETE LIFE PATH' for birthdate: ${partnerBirth}.
           Tone: Cynical, Realistic, Sharp. Brutal honesty.
           STRICTLY NO ASTERISKS (*).
-          MINIMUM 30 SENTENCES.
+          MINIMUM 30 SENTENCES (Absolute Requirement).
 
           Structure:
           [Early Life]
@@ -386,7 +386,7 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
           Analyze 'COMPLETE LIFE PATH SAJU' for birthdate: ${partnerBirth}.
           Tone: Cynical, Realistic, Sharp.
           STRICTLY NO ASTERISKS (*).
-          MINIMUM 30 SENTENCES.
+          MINIMUM 30 SENTENCES (Absolute Requirement).
 
           Structure:
           [초년운 (Early Life)]
@@ -421,23 +421,23 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
             TASK:
             1. **Physiognomy**: Interpret features for destiny, wealth, love.
             2. **Appearance Evaluation**: Be WITTY and slightly ROASTING. Honest but charming.
-            3. **Length**: AT LEAST 20 SENTENCES.
+            3. **Length**: AT LEAST 30 SENTENCES (Mandatory).
             
             TONE:
             - Sharp, observant, brutally honest.
             
             STRUCTURE:
-            [Overall Vibe]
-            (Is it a wealthy face? A lonely face?)
+            [Overall Vibe & Rating]
+            (Give a harsh but fair rating of the face. Is it a wealthy face? A lonely face?)
             
-            [Feature Analysis]
-            (Eyes, nose, mouth details.)
+            [Detailed Feature Analysis]
+            (Eyes, nose, mouth details. What do they signify in destiny?)
             
             [Charm Point]
             (Witty commentary on attractiveness.)
             
             [Destiny Advice]
-            (Final verdict.)
+            (Final verdict on life path based on face.)
             
             STRICTLY NO ASTERISKS (*).
         `;
@@ -445,13 +445,13 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
         prompt = `
             ${randomSeed}
             [SYSTEM: FACE READER MODE ACTIVATED]
-            Perform a comprehensive 'KOREAN PHYSIOGNOMY (Gwansang/관상) & DESTINY ANALYSIS' on the person in this image.
+            Perform a comprehensive 'KOREAN PHYSIOGNOMY (Gwansang/관상) & DETAILED APPEARANCE EVALUATION' on the person in this image.
             
             TASK:
             1. **Image Detection**: Identify the person's key facial features, expression, and vibe.
-            2. **Physiognomy Analysis (Based on Saju principles)**: Interpret their eyes, nose, mouth, and face shape to reveal their innate destiny, wealth luck, and love luck.
-            3. **Appearance Evaluation (얼평)**: Provide a witty, honest, and engaging evaluation of their looks. You can be playful and teasing, but DO NOT use overly offensive or degrading language (no harsh insults). Focus on their "charm" and "vibe".
-            4. **Length**: YOU MUST WRITE AT LEAST 20 SENTENCES. This is a hard requirement.
+            2. **Physiognomy Analysis**: Interpret their eyes, nose, mouth, and face shape to reveal their innate destiny, wealth luck, and love luck.
+            3. **Detailed Appearance Evaluation (얼평)**: Provide a very specific, witty, honest, and engaging evaluation of their looks. Don't hold back on the details. Evaluate their vibe, attractiveness, and first impression.
+            4. **Length**: YOU MUST WRITE AT LEAST 30 SENTENCES. This is a hard requirement. The answer must be long and detailed.
             
             TONE:
             - Mystical yet modern.
@@ -459,17 +459,17 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
             - Use Korean honorifics (존댓말).
             
             STRUCTURE:
-            [관상 총평]
-            (Describe the face and general energy. Is it a "wealthy" face? A "lonely" face? Connect to Saju elements.)
+            [관상 및 외모 총평]
+            (Describe the face and general energy. Give a detailed evaluation of their looks. Is it a "wealthy" face? A "lonely" face? Connect to Saju elements.)
             
-            [이목구비 분석]
-            (Analyze specific features. E.g., "Eyes like a fox," "Nose that leaks money.")
+            [이목구비 정밀 분석]
+            (Analyze specific features deeply. E.g., "Eyes like a fox," "Nose that leaks money." Explain what each feature means for their destiny.)
             
-            [매력 포인트]
-            (Witty commentary on their appearance. What makes them attractive or unique? Be fun!)
+            [매력 포인트 및 호감도]
+            (Witty commentary on their appearance. What makes them attractive or unique? How do others perceive them?)
             
             [운명적 조언]
-            (Final verdict and advice based on their face reading.)
+            (Final verdict and advice based on their face reading regarding future success and love.)
             
             STRICTLY NO ASTERISKS (*).
         `;
@@ -487,46 +487,64 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
     if (lang === 'en') {
         prompt = `
             ${randomSeed} 
-            Analyze 'DETAILED LIFE PATH / ASTROLOGY' for ${userInfo.name}, Born: ${userInfo.birthDate}, Time: ${userInfo.birthTime}.
-            Focus on: Wealth Timing, Hidden Talents, Golden Age, Future Spouse Details.
+            Analyze 'EXTREMELY DETAILED LIFE PATH / ASTROLOGY' for ${userInfo.name}, Born: ${userInfo.birthDate}, Time: ${userInfo.birthTime}.
+            Focus on: Wealth Timing, Hidden Talents, Golden Age, Future Spouse Details, Noble Person, Personality, Caution.
             Tone: Fast, Direct, Cynical, Brutally Honest.
-            MINIMUM 20 SENTENCES.
+            MINIMUM 30 SENTENCES (Mandatory).
             STRICTLY NO ASTERISKS (*).
 
             Structure:
-            [Wealth Luck]
-            (When will you be rich? How?)
+            [Wealth Luck: When and How?]
+            (Specific timing, method of wealth accumulation, windfalls.)
 
-            [Hidden Talents & Life Hacks]
-            (Talents you don't know you have.)
+            [Genius Talent & Hidden Potential]
+            (Talents they don't know they have. What is their cheat code?)
 
-            [Golden Age]
-            (Peak success age range.)
+            [Golden Age of Life]
+            (Exact age range of peak success and happiness.)
 
-            [Future Spouse]
-            (Height, Looks, Job, Personality. Be specific.)
+            [Future Spouse Detailed Analysis]
+            (Height, Looks, Vibe, Occupation, Personality. Be very specific.)
+
+            [Noble Person (Gui-in)]
+            (Who is the key person to help them succeed?)
+
+            [Innate Personality & Nature]
+            (Their true self and tendencies.)
+
+            [Cautionary Points]
+            (What to watch out for to avoid failure.)
         `;
     } else {
         prompt = `
             ${randomSeed} 
-            Analyze 'DETAILED SAJU (Korean Astrology)' for ${userInfo.name}, Born: ${userInfo.birthDate}, Time: ${userInfo.birthTime}.
-            Focus on: Wealth Timing, Hidden Talents, Golden Age, Future Spouse Details.
-            Tone: Fast, Direct, Cynical, Extremely Detailed.
-            MINIMUM 20 SENTENCES.
+            Analyze 'EXTREMELY DETAILED SAJU (Korean Astrology)' for ${userInfo.name}, Born: ${userInfo.birthDate}, Time: ${userInfo.birthTime}.
+            
+            TASK: Based on Saju and user data, provide a deep, comprehensive analysis covering all aspects of life.
+            REQUIREMENT: YOU MUST WRITE AT LEAST 30 SENTENCES. The answer should be very long and detailed.
             STRICTLY NO ASTERISKS (*).
 
             Structure:
-            [재물운: 언제 떼돈을 버는가?]
-            (Specific timing, method of wealth accumulation, windfalls.)
+            [재물운: 언제, 무엇으로 떼돈을 버는가?]
+            (Specific timing, method of wealth accumulation, windfalls. Detailed analysis of financial flow.)
 
-            [숨겨진 재능과 인생 팁]
-            (Talents they don't know they have. Facts they must know to succeed.)
+            [천재적 재능과 숨겨진 잠재력]
+            (Talents they don't know they have. What is their life cheat code?)
 
             [인생의 황금기]
-            (Exact age range of peak success and happiness.)
+            (Exact age range of peak success and happiness. When will they rule the world?)
 
             [미래 배우자 상세 분석]
-            (Key details: Height, Appearance/Vibe, Occupation, Personality. Be very specific.)
+            (Key details: Height, Appearance/Vibe, Occupation, Personality. Be very specific about what kind of person they will marry.)
+
+            [내 인생의 귀인]
+            (Who is the 'Noble Person' that will help them reach the top? Characteristics of this person.)
+
+            [타고난 성격과 성향]
+            (Deep dive into their innate nature, strengths, and weaknesses based on Saju.)
+
+            [인생에서 주의해야 할 점]
+            (Critical advice on what to avoid or be careful about to ensure success.)
         `;
     }
 

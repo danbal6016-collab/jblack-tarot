@@ -1,4 +1,3 @@
-
 import { CategoryKey, QuestionCategory, UserTier, Country, BGM, Skin } from './types';
 
 // --- COUNTRIES (Top 50 Selection) ---
@@ -118,7 +117,8 @@ export const CATEGORIES: QuestionCategory[] = [
       '현재 그 관계의 가장 큰 문제점은 무엇인가?',
       '상대는 나에게 무엇을 숨기고 있는가?',
       '그 관계의 미래는 어떻게 되는가?',
-      '미래에 내가 만나게 될 이성은 어떤 스타일인가?'
+      '미래에 내가 만나게 될 이성은 어떤 스타일인가?',
+      '내 연애 흐름은 어떻게 되는가?'
     ]
   },
   {
@@ -209,7 +209,7 @@ export const CATEGORIES: QuestionCategory[] = [
     label: '인생',
     icon: '🧬',
     questions: [], 
-    cost: 150 
+    cost: 250 
   },
   {
     id: 'SECRET_COMPAT',
