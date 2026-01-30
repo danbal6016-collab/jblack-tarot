@@ -701,6 +701,40 @@ const ResultView: React.FC<{
     const [solution, setSolution] = useState<string>("");
     const [isSolutionUnlocked, setIsSolutionUnlocked] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
+    const hasLogRef = useRef(false); // Ref to prevent double logging in StrictMode
+
+    // Determine Result Background Style
+    let resultBgStyle: any = {};
+    if (user.resultBackground) {
+        if (user.resultBackground.startsWith('http') || user.resultBackground.startsWith('data:')) {
+            resultBgStyle = { backgroundImage: `url(${user.resultBackground})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+        } else {
+            const foundBg = RESULT_BACKGROUNDS.find(bg => bg.id === user.resultBackground);
+            if (foundBg) resultBgStyle = { background: foundBg.css };
+        }
+    } else {
+        resultBgStyle = { background: RESULT_BACKGROUNDS[0].css };
+    }
+
+    // Determine Result Frame Style
+    let resultFrameStyle: any = {};
+    let isCustomFrame = false;
+    if (user.resultFrame && user.resultFrame !== 'default') {
+        const presetFrame = RESULT_FRAMES.find(f => f.id === user.resultFrame);
+        if (presetFrame) {
+            // Preset frames use raw CSS string, need to apply via style attribute carefully or class
+            // Here we just use the raw CSS text on an inner div
+        } else {
+            const customFrame = user.customFrames?.find(f => f.id === user.resultFrame);
+            if (customFrame) {
+                isCustomFrame = true;
+                resultFrameStyle = { 
+                    border: '20px solid transparent', 
+                    borderImage: `url(${customFrame.imageUrl}) 30 round` 
+                };
+            }
+        }
+    }
 
     // Initial Solution Unlock Check
     useEffect(() => {
@@ -709,20 +743,20 @@ const ResultView: React.FC<{
         if (!hasVisited && user.email === 'Guest') {
             setIsSolutionUnlocked(true);
             localStorage.setItem('has_visited', 'true');
-        } else {
-            // Keep unlocked state if already unlocked in session, otherwise locked
-            // However, resetting on re-render when user object changes is desired ONLY if not paid.
-            // If user pays, we manually set state.
         }
     }, [user.email]);
 
     useEffect(() => {
-        if (readingPromise && !rawText) { // Added check to prevent re-running if text is already set
+        if (readingPromise && !rawText) { 
             readingPromise
                 .then(text => {
                     setRawText(text);
-                    // playSound('REVEAL'); // Removed per request
-                    onReadingComplete(text);
+                    
+                    // Fix: Prevent double execution of history saving
+                    if (!hasLogRef.current) {
+                        hasLogRef.current = true;
+                        onReadingComplete(text);
+                    }
                     
                     // Parse Text
                     const solutionHeader = lang === 'en' ? "[Practical Solutions]" : "[실질적인 해결책]";
@@ -732,7 +766,7 @@ const ResultView: React.FC<{
                         setSolution(solutionHeader + "\n" + parts[1].trim());
                     } else {
                         setInterpretation(text);
-                        setSolution(""); // Should not happen with new prompt structure, but safe fallback
+                        setSolution(""); 
                     }
                 })
                 .catch(err => {
@@ -751,10 +785,15 @@ const ResultView: React.FC<{
     const handleShare = async () => {
         if (contentRef.current) {
             try {
-                const canvas = await html2canvas(contentRef.current, { backgroundColor: '#000' });
+                // Temporarily remove max-height/overflow for full screenshot if needed, or rely on scroll capture
+                const canvas = await html2canvas(contentRef.current, { 
+                    backgroundColor: '#000',
+                    useCORS: true,
+                    scale: 2 // Higher quality
+                });
                 const link = document.createElement('a');
                 link.download = 'black-tarot-result.png';
-                link.href = canvas.toDataURL();
+                link.href = canvas.toDataURL('image/png');
                 link.click();
             } catch (e) {
                 console.error("Share failed", e);
@@ -762,93 +801,128 @@ const ResultView: React.FC<{
         }
     };
 
+    // Helper to get Frame CSS string if it's a preset
+    const getPresetFrameCss = () => {
+        const frame = RESULT_FRAMES.find(f => f.id === user.resultFrame);
+        return frame ? frame.css : '';
+    };
+
     return (
-        <div className="min-h-screen py-20 px-4 relative z-10 overflow-y-auto">
-            <div ref={contentRef} className="max-w-2xl mx-auto bg-black/80 border border-purple-900/50 p-6 md:p-10 rounded-xl backdrop-blur-md shadow-[0_0_30px_rgba(88,28,135,0.3)]">
-                <h2 className="text-xl md:text-2xl font-bold text-center text-purple-200 mb-2">{question}</h2>
-                <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-purple-500 to-transparent mx-auto mb-8"></div>
-                
-                {/* Cards Display - Forces Single Row on Mobile (flex-nowrap). 
-                    IMPORTANT FIX: Changed overflow-hidden to overflow-visible to prevent cutting off shadows/cards. 
-                    Added overflow-x-auto to allow horizontal scrolling if screen is too small, ensuring NO CUT OFF. 
-                    Added pb-4 for shadow space. 
-                */}
-                <div className="flex justify-center items-center gap-2 md:gap-4 mb-8 flex-nowrap w-full overflow-x-auto overflow-y-visible px-2 pb-4 scrollbar-hide">
-                    {selectedCards.map((card, idx) => (
-                        <div key={idx} className="flex flex-col items-center animate-fade-in flex-shrink-0" style={{ animationDelay: `${idx * 0.2}s` }}>
-                            <div className="w-[28vw] h-[42vw] max-w-[120px] max-h-[180px] md:w-32 md:h-52 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden relative shadow-lg group">
-                                <img 
-                                    src={card.generatedImage || card.imagePlaceholder} 
-                                    alt={card.name} 
-                                    className={`w-full h-full object-cover transition-transform duration-700 ${card.isReversed ? 'rotate-180' : ''} group-hover:scale-110`} 
-                                />
-                                {card.isReversed && <div className="absolute inset-0 bg-red-900/20 pointer-events-none flex items-center justify-center"><span className="text-[10px] md:text-xs font-bold bg-black/50 px-1 rounded text-red-300">Rev</span></div>}
-                            </div>
-                            <span className="text-[10px] md:text-xs text-gray-400 mt-2 font-serif truncate w-full text-center px-1">{card.name}</span>
-                        </div>
-                    ))}
-                </div>
+        <div className="min-h-screen py-10 px-4 relative z-10 overflow-y-auto">
+            {/* Main Result Container with Custom Background */}
+            <div 
+                ref={contentRef} 
+                className="max-w-3xl mx-auto p-8 md:p-12 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden text-center"
+                style={resultBgStyle}
+            >
+                {/* Dark Overlay for Readability */}
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"></div>
 
-                {/* Interpretation */}
-                <div className="space-y-6">
-                    {!rawText ? (
-                        <div className="text-center py-10 space-y-4">
-                            <div className="inline-block w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-purple-300 animate-pulse">
-                                {lang === 'ko' ? "운명을 해석하는 중..." : "Interpreting Fate..."}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                                {lang === 'ko' ? "최대 30초 정도 소요될 수 있습니다." : "This may take up to 30 seconds."}
-                            </p>
-                        </div>
-                    ) : (
-                        <>
-                            {/* Analysis & Advice */}
-                            <div className="prose prose-invert max-w-none">
-                                <div className="whitespace-pre-line text-gray-200 leading-relaxed text-sm md:text-base p-4 bg-purple-900/10 rounded-lg border border-purple-500/20">
-                                    {interpretation}
-                                </div>
-                            </div>
+                {/* Custom Frame Overlay */}
+                <div className="absolute inset-0 pointer-events-none z-20" style={isCustomFrame ? resultFrameStyle : { cssText: getPresetFrameCss() } as any}></div>
 
-                            {/* Practical Solution Section */}
-                            {solution && (
-                                <div className="relative mt-4">
-                                    <div className={`prose prose-invert max-w-none p-4 rounded-lg border transition-all duration-500 ${isSolutionUnlocked ? 'bg-purple-900/20 border-purple-500/40' : 'bg-black/50 border-gray-800 blur-sm select-none'}`}>
-                                        <div className="whitespace-pre-line text-gray-300 leading-relaxed text-sm md:text-base font-bold">
-                                            {isSolutionUnlocked ? solution : "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(10)}
-                                        </div>
-                                    </div>
-                                    
-                                    {!isSolutionUnlocked && (
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/10">
-                                            <div className="text-4xl mb-2">🔒</div>
-                                            <button 
-                                                onClick={handleUnlockSolution}
-                                                className="px-6 py-3 bg-gradient-to-r from-purple-700 to-indigo-600 hover:from-purple-600 hover:to-indigo-500 text-white font-bold rounded-full shadow-[0_0_20px_rgba(168,85,247,0.5)] transform hover:scale-105 transition-all flex items-center gap-2"
-                                            >
-                                                <span>{lang === 'ko' ? '실질적인 해결책 보기' : 'Unlock Practical Solution'}</span>
-                                                <span className="bg-black/30 px-2 py-0.5 rounded text-xs text-yellow-300">-15 Coin</span>
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
+                {/* Stickers - Randomly placed for decoration */}
+                {user.customStickers?.map((sticker, idx) => (
+                    <img 
+                        key={idx} 
+                        src={sticker} 
+                        className="absolute w-12 h-12 md:w-16 md:h-16 object-contain z-20 opacity-80"
+                        style={{ 
+                            top: `${Math.random() * 90}%`, 
+                            left: `${Math.random() * 90}%`, 
+                            transform: `rotate(${Math.random() * 45 - 22.5}deg)` 
+                        }}
+                    />
+                ))}
 
-                {/* Actions */}
-                {rawText && (
-                    <div className="mt-8 flex gap-3 justify-center">
-                        <button onClick={onRetry} className="px-6 py-2 bg-gray-800 hover:bg-gray-700 rounded text-gray-300 text-sm font-bold transition-colors">
-                            {lang === 'ko' ? "처음으로" : "Home"}
-                        </button>
-                        <button onClick={handleShare} className="px-6 py-2 bg-purple-700 hover:bg-purple-600 rounded text-white text-sm font-bold shadow-[0_0_15px_rgba(147,51,234,0.4)] transition-colors">
-                            {lang === 'ko' ? "결과 저장" : "Save Image"}
-                        </button>
+                {/* Content Wrapper */}
+                <div className="relative z-30">
+                    {/* Header Decoration */}
+                    <div className="mb-6">
+                        <span className="text-yellow-500/50 text-4xl">✦</span>
                     </div>
-                )}
+
+                    <h2 className="text-2xl md:text-4xl font-occult text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600 mb-4 drop-shadow-md">{question}</h2>
+                    <div className="w-32 h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent mx-auto mb-10"></div>
+                    
+                    {/* Cards Display */}
+                    <div className="flex justify-center items-center gap-4 md:gap-8 mb-10 flex-nowrap w-full overflow-x-auto overflow-y-visible px-4 pb-6 scrollbar-hide">
+                        {selectedCards.map((card, idx) => (
+                            <div key={idx} className="flex flex-col items-center animate-fade-in flex-shrink-0" style={{ animationDelay: `${idx * 0.2}s` }}>
+                                <div className="w-[30vw] h-[45vw] max-w-[140px] max-h-[210px] md:w-40 md:h-60 rounded-lg bg-gray-900 border-2 border-yellow-600/30 overflow-hidden relative shadow-[0_0_20px_rgba(0,0,0,0.5)] group transform hover:scale-105 transition-transform duration-300">
+                                    <img 
+                                        src={card.generatedImage || card.imagePlaceholder} 
+                                        alt={card.name} 
+                                        className={`w-full h-full object-cover transition-transform duration-700 ${card.isReversed ? 'rotate-180' : ''}`} 
+                                    />
+                                    {card.isReversed && <div className="absolute inset-0 bg-red-900/30 pointer-events-none flex items-center justify-center"><span className="text-xs md:text-sm font-bold bg-black/70 px-2 py-1 rounded text-red-400 border border-red-500">REVERSED</span></div>}
+                                </div>
+                                <span className="text-xs md:text-sm text-yellow-100/80 mt-3 font-serif truncate w-full text-center px-1 tracking-wider">{card.name}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Interpretation */}
+                    <div className="text-left space-y-8 bg-black/40 p-6 rounded-lg border border-white/10 backdrop-blur-md">
+                        {!rawText ? (
+                            <div className="text-center py-10 space-y-4">
+                                <div className="inline-block w-12 h-12 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                                <p className="text-yellow-200 animate-pulse font-serif text-lg">
+                                    {lang === 'ko' ? "운명의 메시지를 해석하는 중..." : "Interpreting Fate..."}
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="prose prose-invert max-w-none">
+                                    <div className="whitespace-pre-line text-gray-100 leading-relaxed text-sm md:text-lg font-serif tracking-wide">
+                                        {interpretation}
+                                    </div>
+                                </div>
+
+                                {solution && (
+                                    <div className="relative mt-8 pt-6 border-t border-white/10">
+                                        <div className={`prose prose-invert max-w-none p-6 rounded-lg border transition-all duration-700 ${isSolutionUnlocked ? 'bg-purple-900/30 border-purple-400/50 shadow-[0_0_30px_rgba(168,85,247,0.2)]' : 'bg-black/60 border-gray-700 blur-sm select-none'}`}>
+                                            <div className="whitespace-pre-line text-gray-200 leading-relaxed text-sm md:text-lg font-bold font-serif">
+                                                {isSolutionUnlocked ? solution : "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(15)}
+                                            </div>
+                                        </div>
+                                        
+                                        {!isSolutionUnlocked && (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/20 backdrop-blur-[1px]">
+                                                <div className="text-5xl mb-4 drop-shadow-lg">🔒</div>
+                                                <button 
+                                                    onClick={handleUnlockSolution}
+                                                    className="px-8 py-4 bg-gradient-to-r from-purple-800 to-indigo-800 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-full shadow-[0_0_25px_rgba(168,85,247,0.6)] transform hover:scale-105 transition-all flex items-center gap-3 border border-purple-400/30"
+                                                >
+                                                    <span className="text-lg">{lang === 'ko' ? '실질적인 해결책 보기' : 'Unlock Practical Solution'}</span>
+                                                    <span className="bg-black/40 px-3 py-1 rounded-full text-sm text-yellow-300 font-mono">-15 Coin</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                    
+                    {/* Footer Decoration */}
+                    <div className="mt-10 opacity-50">
+                        <span className="text-yellow-500 text-2xl">✦ &nbsp; ✦ &nbsp; ✦</span>
+                    </div>
+                </div>
             </div>
+
+            {/* Actions */}
+            {rawText && (
+                <div className="mt-8 flex gap-4 justify-center relative z-40">
+                    <button onClick={onRetry} className="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-full text-gray-300 font-bold transition-all border border-gray-600 shadow-lg">
+                        {lang === 'ko' ? "처음으로" : "Home"}
+                    </button>
+                    <button onClick={handleShare} className="px-8 py-3 bg-gradient-to-r from-yellow-700 to-yellow-600 hover:from-yellow-600 hover:to-yellow-500 text-white font-bold rounded-full shadow-[0_0_20px_rgba(234,179,8,0.4)] transition-all border border-yellow-500/50 flex items-center gap-2">
+                        <span>📸</span> {lang === 'ko' ? "결과 저장" : "Save Image"}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
@@ -954,7 +1028,7 @@ const TIER_POPUP_TEXT = {
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
-  const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0, resultFrame: 'default', customFrames: [], resultBackground: 'default', customStickers: [] });
+  const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [] });
   const [authMode, setAuthMode] = useState<'LOGIN'|'SIGNUP'|null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsMode, setSettingsMode] = useState<'MAIN' | 'RUG' | 'BGM' | 'SKIN' | 'HISTORY' | 'FRAME' | 'RESULT_BG' | 'STICKER'>('MAIN');
@@ -1150,6 +1224,7 @@ const App: React.FC = () => {
                             if (!currentUser.customSkins) currentUser.customSkins = [];
                             if (!currentUser.customFrames) currentUser.customFrames = [];
                             if (!currentUser.customStickers) currentUser.customStickers = [];
+                            if (!currentUser.customBackgrounds) currentUser.customBackgrounds = []; // Init backgrounds
                             if (!currentUser.ownedSkins) currentUser.ownedSkins = ['default'];
                         } else {
                             // If fetch fails or no data column (new user), fallback to local logic
@@ -1333,6 +1408,7 @@ const App: React.FC = () => {
           resultFrame: 'default',
           customFrames: [],
           resultBackground: 'default',
+          customBackgrounds: [],
           customStickers: []
       };
       
@@ -1371,7 +1447,20 @@ const App: React.FC = () => {
   const handleSaveCustomFrame = () => { if (checkGuestAction()) return; if (!customFrameImage) return; const newFrame: CustomFrame = { id: Math.random().toString(36).substring(2), imageUrl: customFrameImage, name: 'Custom Frame' }; updateUser(prev => ({ ...prev, customFrames: [...(prev.customFrames || []), newFrame], resultFrame: newFrame.id })); setCustomFrameImage(null); alert("Frame Saved & Applied!"); };
 
   const handleCustomBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomBgImage(e.target?.result as string); reader.readAsDataURL(file); };
-  const handleSaveCustomBg = () => { if (checkGuestAction()) return; if (!customBgImage) return; updateUser(prev => ({ ...prev, resultBackground: customBgImage })); setCustomBgImage(null); alert("Background Saved & Applied!"); };
+  const handleSaveCustomBg = () => { 
+      if (checkGuestAction()) return; 
+      if (!customBgImage) return; 
+      
+      const newBg: CustomFrame = { id: Math.random().toString(36).substring(2), imageUrl: customBgImage, name: 'Custom BG' };
+      updateUser(prev => ({ 
+          ...prev, 
+          customBackgrounds: [...(prev.customBackgrounds || []), newBg],
+          resultBackground: newBg.imageUrl // Automatically select the new background
+      })); 
+      
+      setCustomBgImage(null); 
+      alert("Background Saved & Applied!"); 
+  };
 
   const handleCustomStickerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomStickerImage(e.target?.result as string); reader.readAsDataURL(file); };
   const handleSaveCustomSticker = () => { if (checkGuestAction()) return; if (!customStickerImage) return; updateUser(prev => ({ ...prev, customStickers: [...(prev.customStickers || []), customStickerImage] })); setCustomStickerImage(null); alert("Sticker Added!"); };
@@ -1902,6 +1991,17 @@ const App: React.FC = () => {
                                      {customBgImage ? <img src={customBgImage} className="h-20 mx-auto object-cover rounded" /> : <span className="text-xs text-gray-400">Upload Background</span>}
                                  </div>
                                  {customBgImage && <button onClick={handleSaveCustomBg} className="w-full mt-2 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded-lg font-bold shadow-lg">Set Background</button>}
+
+                                 {/* Render User Uploaded Backgrounds */}
+                                 {user.customBackgrounds && user.customBackgrounds.length > 0 && (
+                                     <div className="grid grid-cols-3 gap-2 mt-4">
+                                         {user.customBackgrounds.map(bg => (
+                                             <div key={bg.id} onClick={() => updateUser(prev => ({...prev, resultBackground: bg.imageUrl}))} className={`aspect-square border cursor-pointer relative rounded-lg overflow-hidden ${user.resultBackground === bg.imageUrl ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-gray-800'}`}>
+                                                 <div className="absolute inset-0" style={{ backgroundImage: `url(${bg.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+                                             </div>
+                                         ))}
+                                     </div>
+                                 )}
                              </div>
                          </div>
                      )}

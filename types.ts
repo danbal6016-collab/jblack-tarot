@@ -132,6 +132,7 @@ export interface User {
 
   // Result Customization
   resultBackground?: string;
+  customBackgrounds?: CustomFrame[]; // Added for saving uploaded result backgrounds
   customStickers?: string[];
 
   lastMonthlyReward?: string; 
