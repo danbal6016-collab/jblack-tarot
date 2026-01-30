@@ -485,7 +485,6 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
     const [name, setName] = useState('');
     const [birthDate, setBirthDate] = useState('');
     const [country, setCountry] = useState('South Korea');
-    const [gender, setGender] = useState('female');
 
     const handleSubmit = () => {
         if (!name || !birthDate) return alert("Please fill in all fields.");
@@ -1004,14 +1003,13 @@ const App: React.FC = () => {
           }
 
           const payload: any = { 
-              email: u.email, 
-              user_id: userId, // CRITICAL: Use Auth User ID as Primary Key
+              id: userId, // PK matching Auth ID
+              email: u.email,
               data: { ...u, lastAppState: state }, 
               updated_at: new Date().toISOString() 
           };
 
-          // Explicitly use 'user_id' for conflict resolution to ensure consistency
-          supabase.from('profiles').upsert(payload, { onConflict: 'user_id' })
+          supabase.from('user_profiles').upsert(payload, { onConflict: 'id' })
             .then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
       }
   }, []);
@@ -1024,28 +1022,26 @@ const App: React.FC = () => {
       updateUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] })); 
   }, [selectedQuestion, selectedCards]); 
 
-  // --- AUTH LISTENER & SYNC ---
+  // --- IDENTITY SYNC & AUTH LISTENER ---
   useEffect(() => {
-      // 1. Listen for Auth State Changes (Login, Logout, Token Refresh)
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-              // Immediately check and load user data on login
-              checkUser();
-          } else if (event === 'SIGNED_OUT') {
-              // Handle logout clean up if needed, though handleLogout does most of it
+              if (session?.user) {
+                  checkUser(); // Load data after sync
+              }
           }
       });
 
-      // 2. Real-time Database Sync for Multi-device support
       let channel: RealtimeChannel | null = null;
       if (isSupabaseConfigured && user.email !== 'Guest') {
-          channel = supabase.channel(`profile:${user.email}`)
+          // Listen to changes on 'user_profiles' for this user ID
+          channel = supabase.channel(`user_profiles:${user.email}`)
               .on(
                   'postgres_changes',
                   {
                       event: 'UPDATE',
                       schema: 'public',
-                      table: 'profiles',
+                      table: 'user_profiles', // Changed to user_profiles
                       filter: `email=eq.${user.email}`,
                   },
                   (payload) => {
@@ -1106,36 +1102,48 @@ const App: React.FC = () => {
 
         if (isSupabaseConfigured) {
             try {
-                const { data, error } = await supabase.auth.getSession();
-                if (data.session?.user) {
-                    const u = data.session.user; 
-                    const email = u.email || "User";
-                    const userId = u.id; 
-
+                // Renamed to authUser to prevent conflict with state 'user'
+                const { data: { user: authUser }, error: userErr } = await supabase.auth.getUser();
+                
+                if (authUser) {
+                    const email = authUser.email || "User";
+                    
                     try { 
-                        // STRATEGY: 
-                        // 1. Try fetching by user_id (Reliable, primary method)
-                        let { data: profileData } = await supabase.from('profiles').select('data').eq('user_id', userId).maybeSingle(); 
-                        
-                        // 2. Fallback: If not found by ID, try email (Migration/Legacy support)
-                        if (!profileData) {
-                             const { data: profileByEmail } = await supabase.from('profiles').select('data').eq('email', email).maybeSingle();
-                             if (profileByEmail) {
-                                 profileData = profileByEmail;
-                                 // MIGRATION FIX: If found by email but missing user_id linkage, fix it now.
-                                 await supabase.from('profiles').update({ user_id: userId }).eq('email', email);
-                             }
-                        }
+                        // --- INTEGRATED SYNC LOGIC ---
+                        const profilePayload = {
+                            id: authUser.id,
+                            email: authUser.email ?? null,
+                            full_name: (authUser.user_metadata?.full_name ?? authUser.user_metadata?.name) ?? null,
+                            avatar_url: authUser.user_metadata?.avatar_url ?? null,
+                            updated_at: new Date().toISOString(),
+                        };
 
+                        // 1. Ensure Profile Exists via Upsert
+                        const { error: upsertErr } = await supabase
+                            .from("user_profiles")
+                            .upsert(profilePayload, { onConflict: "id" })
+                            .select()
+                            .single();
+
+                        if (upsertErr) console.warn("Upsert warning:", upsertErr.message);
+
+                        // 2. Fetch Fresh Data
+                        const { data: profileData, error: fetchErr } = await supabase
+                            .from("user_profiles")
+                            .select("*")
+                            .eq("id", authUser.id)
+                            .single();
+                        
                         if (profileData && profileData.data) {
                             // FOUND: Use cloud data
                             currentUser = profileData.data; 
-                        } else if (!localUser || localUser.email !== email) {
-                            // NOT FOUND & No Local Match: New User
-                            currentUser = { ...user, email };
                         } else {
-                            // NOT FOUND but Local Matches: Use Local (Sync later)
-                            currentUser = { ...localUser, email };
+                            // If fetch fails or no data column, fallback to local logic
+                            if (!localUser || localUser.email !== email) {
+                                currentUser = { ...user, email };
+                            } else {
+                                currentUser = { ...localUser, email };
+                            }
                         }
                     } catch(e) { console.warn("Failed to fetch cloud data", e); }
                     currentUser.email = email;
@@ -1160,7 +1168,7 @@ const App: React.FC = () => {
             }
         }
 
-        // FORCE SANITIZATION of numeric values to prevent NaN
+        // FORCE SANITIZATION
         const safeNum = (val: any) => {
             const num = Number(val);
             return Number.isFinite(num) ? num : 0;
@@ -1172,6 +1180,7 @@ const App: React.FC = () => {
         currentUser.readingsToday = safeNum(currentUser.readingsToday);
         currentUser.attendanceDay = safeNum(currentUser.attendanceDay);
 
+        // ... (Tier calculation logic remains the same) ...
         const oldTier = currentUser.tier;
         const lastLoginDate = new Date(currentUser.lastLoginDate || today);
         const currentDate = new Date();
@@ -1217,7 +1226,6 @@ const App: React.FC = () => {
             const oldIdx = tiers.indexOf(oldTier);
             const newIdx = tiers.indexOf(newTier);
             
-            // Fix: Don't show upgrade popup if the new tier is BRONZE (no benefits)
             if (newTier !== UserTier.BRONZE) {
                 setTierChangeNewTier(newTier);
                 if (newIdx > oldIdx) {
@@ -1261,7 +1269,6 @@ const App: React.FC = () => {
         }
 
         setUser(updatedUser); 
-        // Save back consolidated state
         saveUserState(updatedUser, updatedUser.lastAppState || AppState.WELCOME);
     } catch (error) {
         console.error("Critical error in checkUser:", error);
@@ -1278,7 +1285,7 @@ const App: React.FC = () => {
       }
   }, [checkUser]);
 
-  // LOGOUT HANDLER - Resets state directly without reload to prevent re-triggering logic
+  // LOGOUT HANDLER
   const handleLogout = async () => {
       try {
           if (isSupabaseConfigured) {
@@ -1303,7 +1310,6 @@ const App: React.FC = () => {
           loginDates: [], 
           monthlyCoinsSpent: 0, 
           lastAppState: AppState.WELCOME,
-          // Reset custom fields to ensure clean slate
           customSkins: [],
           activeCustomSkin: null,
           resultFrame: 'default',
@@ -1387,50 +1393,21 @@ const App: React.FC = () => {
               return;
           }
           nextInfo.birthDateChanged = true;
-      } else {
-          nextInfo.birthDateChanged = currentInfo.birthDateChanged;
       }
-
+      
       // Country
       if (nextInfo.country !== currentInfo.country) {
-          if (currentInfo.countryChanged) {
+           if (currentInfo.countryChanged) {
               alert("국가는 한 번만 변경할 수 있습니다.");
               return;
           }
           nextInfo.countryChanged = true;
-      } else {
-          nextInfo.countryChanged = currentInfo.countryChanged;
       }
 
-      // 4. Construct updated user object
-      const updatedUser = { ...user, userInfo: nextInfo };
-      
-      // 5. Apply State Immediately
-      setUser(updatedUser);
-      
-      // 6. Persist to LocalStorage Immediately
-      try {
-          localStorage.setItem('black_tarot_user', JSON.stringify({ ...updatedUser, lastAppState: appState }));
-      } catch (e) {
-          console.warn("Local storage quota exceeded or error", e);
-          alert("저장 공간이 부족하여 일부 데이터가 저장되지 않았습니다.");
-      }
-
-      // 7. Persist to Cloud (Supabase)
-      if (isSupabaseConfigured) {
-          await supabase.from('profiles').upsert({ 
-              email: user.email, 
-              user_id: (await supabase.auth.getSession()).data.session?.user.id,
-              data: updatedUser, 
-              updated_at: new Date().toISOString() 
-          }, { onConflict: 'user_id' }).then(({ error }) => {
-              if (error) console.warn("Cloud save warning:", error.message);
-          });
-      }
-      
-      // 8. Feedback
-      alert(TRANSLATIONS[lang].save_changes);
-      setShowProfile(false); 
+      // Update
+      updateUser(prev => ({ ...prev, userInfo: nextInfo }));
+      setShowProfile(false);
+      alert("프로필이 저장되었습니다.");
   };
 
   const handleDeleteAccount = async () => { if (confirm(TRANSLATIONS[lang].delete_confirm)) { if (isSupabaseConfigured) await supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); localStorage.removeItem('tarot_device_id'); const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME }; setUser(cleanUser); setAppState(AppState.WELCOME); setShowProfile(false); } };
@@ -2017,6 +1994,7 @@ const App: React.FC = () => {
                              <p className="text-[10px] text-gray-500 mt-2 text-center">Supported: MP3, WAV. Stored locally.</p>
                          </div>
                      )}
+
 
                      {settingsMode === 'HISTORY' && (
                          <div className="space-y-4">
