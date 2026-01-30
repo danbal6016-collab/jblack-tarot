@@ -17,7 +17,7 @@ IMPORTANT ADJUSTMENT:
 - ANSWER THE USER'S QUESTION DIRECTLY. Do not beat around the bush.
 - Be helpful and constructive.
 - Be professional and mystical.
-- Avoid excessive slang. Use clear, modern language.
+- Use appropriate slang. Use clear, modern language.
 
 STRICT RULES:
 1. NO EMOJIS in main text (unless strictly necessary for context).
@@ -341,13 +341,13 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
         - Use Korean honorifics (존댓말).
         
         STRUCTURE:
-        [인물 인식 및 관상 총평]
+        [관상 총평]
         (Describe the face and general energy. Is it a "wealthy" face? A "lonely" face? Connect to Saju elements.)
         
-        [이목구비 정밀 분석]
+        [이목구비 분석]
         (Analyze specific features. E.g., "Eyes like a fox," "Nose that leaks money.")
         
-        [매력 포인트 및 얼평]
+        [매력 포인트]
         (Witty commentary on their appearance. What makes them attractive or unique? Be fun!)
         
         [운명적 조언]
