@@ -1027,61 +1027,40 @@ const App: React.FC = () => {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
               if (session?.user) {
-                  // Renamed function call to ensure we reload data
-                  // eslint-disable-next-line @typescript-eslint/no-use-before-define
-                  checkUser(); 
+                  checkUser(); // Load data after sync
               }
           }
       });
-      return () => {
-          subscription.unsubscribe();
-      };
-  }, []);
 
-  useEffect(() => {
       let channel: RealtimeChannel | null = null;
-      let cancelled = false;
-
-      // Check condition before async wrapper
-      if (!isSupabaseConfigured || user.email === "Guest") {
-        return; 
+      if (isSupabaseConfigured && user.email !== 'Guest') {
+          // Listen to changes on 'user_profiles' for this user ID
+          channel = supabase.channel(`user_profiles:${user.email}`)
+              .on(
+                  'postgres_changes',
+                  {
+                      event: 'UPDATE',
+                      schema: 'public',
+                      table: 'user_profiles', // Changed to user_profiles
+                      filter: `email=eq.${user.email}`,
+                  },
+                  (payload) => {
+                      if (payload.new && payload.new.data) {
+                          setUser(prev => ({
+                              ...prev,
+                              ...payload.new.data
+                          }));
+                      }
+                  }
+              )
+              .subscribe();
       }
 
-      (async () => {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (cancelled) return;
-
-        if (error) {
-          console.error("getSession error:", error);
-          return;
-        }
-
-        const uid = session?.user?.id;
-        if (!uid) return;
-
-        channel = supabase
-          .channel(`user_profiles:${uid}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "UPDATE",
-              schema: "public",
-              table: "user_profiles",
-              filter: `id=eq.${uid}`,
-            },
-            (payload: any) => {
-              const newData = payload?.new?.data;
-              if (newData) setUser(newData);
-            }
-          )
-          .subscribe();
-      })();
-
       return () => {
-        cancelled = true;
-        if (channel) supabase.removeChannel(channel);
+          subscription.unsubscribe();
+          if (channel) supabase.removeChannel(channel);
       };
-  }, [isSupabaseConfigured, user.email]);
+  }, [user.email]);
 
   // --- SESSION PERSISTENCE LOGIC ---
   useEffect(() => {
@@ -1124,13 +1103,14 @@ const App: React.FC = () => {
         if (isSupabaseConfigured) {
             try {
                 // Renamed to authUser to prevent conflict with state 'user'
+                // This gets the currently logged-in user from auth
                 const { data: { user: authUser }, error: userErr } = await supabase.auth.getUser();
                 
                 if (authUser) {
                     const email = authUser.email || "User";
                     
                     try { 
-                        // --- INTEGRATED SYNC LOGIC ---
+                        // --- STRICT SYNC LOGIC START ---
                         const profilePayload = {
                             id: authUser.id,
                             email: authUser.email ?? null,
@@ -1139,16 +1119,16 @@ const App: React.FC = () => {
                             updated_at: new Date().toISOString(),
                         };
 
-                        // 1. Ensure Profile Exists via Upsert
+                        // 1. Ensure Profile Exists via Upsert (Syncing Account Existence)
                         const { error: upsertErr } = await supabase
                             .from("user_profiles")
-                            .upsert(profilePayload, { onConflict: "id" })
+                            .upsert(profilePayload, { onConflict: "id" }) // ID-based conflict resolution
                             .select()
                             .single();
 
                         if (upsertErr) console.warn("Upsert warning:", upsertErr.message);
 
-                        // 2. Fetch Fresh Data
+                        // 2. Fetch Fresh Data (Syncing Account Data)
                         const { data: profileData, error: fetchErr } = await supabase
                             .from("user_profiles")
                             .select("*")
@@ -1156,18 +1136,24 @@ const App: React.FC = () => {
                             .single();
                         
                         if (profileData && profileData.data) {
-                            // FOUND: Use cloud data
+                            // FOUND: Use cloud data -> This effectively syncs across devices
                             currentUser = profileData.data; 
+                            // Ensure the email matches the authenticated user (robustness)
+                            currentUser.email = email;
                         } else {
-                            // If fetch fails or no data column, fallback to local logic
+                            // If fetch fails or no data column (new user), fallback to local logic
+                            // But attach correct email
                             if (!localUser || localUser.email !== email) {
                                 currentUser = { ...user, email };
                             } else {
                                 currentUser = { ...localUser, email };
                             }
                         }
+                        // --- STRICT SYNC LOGIC END ---
+
                     } catch(e) { console.warn("Failed to fetch cloud data", e); }
-                    currentUser.email = email;
+                    // Double check email is set correctly
+                    if (currentUser.email !== email) currentUser.email = email;
                 } else {
                    // Guest logic
                    if (!localUser || localUser.email !== 'Guest') {
