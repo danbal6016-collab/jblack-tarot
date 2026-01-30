@@ -549,6 +549,9 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
         backgroundBlendMode: 'multiply'
     };
 
+    // Custom skin support
+    const cardBackStyle = activeCustomSkin ? { backgroundImage: `url(${activeCustomSkin.imageUrl})`, backgroundSize: 'cover' } : {};
+
     return (
         <div 
             className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in rug-texture !border-0 !outline-none !shadow-none" 
@@ -570,7 +573,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
 
             <div className="relative w-40 h-64 z-20" style={{ animation: 'deck-pulse-fancy 1.5s infinite ease-in-out', willChange: 'transform, box-shadow' }}>
                 {/* Center Static Base */}
-                 <div className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-500/30 shadow-[0_0_20px_rgba(0,0,0,0.8)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}></div>
+                 <div className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-500/30 shadow-[0_0_20px_rgba(0,0,0,0.8)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={cardBackStyle}></div>
 
                 {/* Left Orbit - Fluid & Flashy */}
                 {[...Array(8)].map((_, i) => (
@@ -579,7 +582,8 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
                              animation: `cosmic-shuffle 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite`,
                              animationDelay: `${i * 0.08}s`,
                              boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
-                             willChange: 'transform, filter'
+                             willChange: 'transform, filter',
+                             ...cardBackStyle
                          }}>
                     </div>
                 ))}
@@ -591,7 +595,8 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
                             animation: `cosmic-shuffle 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite reverse`,
                             animationDelay: `${i * 0.08}s`,
                             boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
-                            willChange: 'transform, filter'
+                            willChange: 'transform, filter',
+                            ...cardBackStyle
                         }}>
                     </div>
                 ))}
@@ -1139,7 +1144,13 @@ const App: React.FC = () => {
                         if (profileData && profileData.data) {
                             // FOUND: Use cloud data -> This effectively syncs across devices
                             // Overwrite currentUser completely with cloud data
-                            currentUser = { ...profileData.data, email }; 
+                            currentUser = { ...profileData.data, email };
+                            
+                            // Initialize arrays to prevent crashes in settings
+                            if (!currentUser.customSkins) currentUser.customSkins = [];
+                            if (!currentUser.customFrames) currentUser.customFrames = [];
+                            if (!currentUser.customStickers) currentUser.customStickers = [];
+                            if (!currentUser.ownedSkins) currentUser.ownedSkins = ['default'];
                         } else {
                             // If fetch fails or no data column (new user), fallback to local logic
                             // But attach correct email
