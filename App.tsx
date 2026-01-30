@@ -1031,32 +1031,51 @@ const App: React.FC = () => {
               }
           }
       });
+useEffect(() => {
+  let channel: RealtimeChannel | null = null;
+  let cancelled = false;
 
-      let channel: RealtimeChannel | null = null;
-      if (isSupabaseConfigured && user.email !== 'Guest') {
-          // Listen to changes on 'user_profiles' for this user ID
-         const { data: { session } } = await supabase.auth.getSession();
-const uid = session?.user?.id;
-if (!uid) return;
+  // ✅ 조건 체크는 effect 바깥 async로 감싸기 전에 해도 됨
+  if (!isSupabaseConfigured || user.email === "Guest") {
+    return; // cleanup 필요 없음
+  }
 
-channel = supabase.channel(`user_profiles:${uid}`)
-  .on('postgres_changes', {
-    event: 'UPDATE',
-    schema: 'public',
-    table: 'user_profiles',
-    filter: `id=eq.${uid}`,
-  }, (payload) => {
-    if (payload.new?.data) setUser(payload.new.data);
-  })
-  .subscribe();
+  (async () => {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (cancelled) return;
 
-      }
+    if (error) {
+      console.error("getSession error:", error);
+      return;
+    }
 
-      return () => {
-          subscription.unsubscribe();
-          if (channel) supabase.removeChannel(channel);
-      };
-  }, [user.email]);
+    const uid = session?.user?.id;
+    if (!uid) return;
+
+    channel = supabase
+      .channel(`user_profiles:${uid}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "user_profiles",
+          filter: `id=eq.${uid}`,
+        },
+        (payload: any) => {
+          const newData = payload?.new?.data;
+          if (newData) setUser(newData);
+        }
+      )
+      .subscribe();
+  })();
+
+  return () => {
+    cancelled = true;
+    if (channel) supabase.removeChannel(channel);
+  };
+}, [isSupabaseConfigured, user.email]);
+
 
   // --- SESSION PERSISTENCE LOGIC ---
   useEffect(() => {
