@@ -534,7 +534,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
         const timer = setTimeout(() => {
             stopShuffleLoop();
             onComplete();
-        }, 3000); // Extended shuffle duration slightly
+        }, 1500); // Speed up shuffling to 1.5s as requested
         return () => {
             clearTimeout(timer);
             stopShuffleLoop();
@@ -557,11 +557,11 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
         >
             <style>{`
                 @keyframes cosmic-shuffle {
-                    0% { transform: translateX(0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); }
-                    25% { transform: translateX(-120px) translateY(-20px) rotate(-10deg) scale(1.05); z-index: 10; filter: brightness(1.2); }
-                    50% { transform: translateX(0) translateY(-40px) rotate(0deg) scale(1.1); z-index: 20; filter: brightness(1.5) drop-shadow(0 0 15px #a855f7); }
-                    75% { transform: translateX(120px) translateY(-20px) rotate(10deg) scale(1.05); z-index: 10; filter: brightness(1.2); }
-                    100% { transform: translateX(0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); }
+                    0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); }
+                    25% { transform: translate3d(-100px, -15px, 0) rotate(-8deg) scale(1.02); z-index: 10; filter: brightness(1.1); }
+                    50% { transform: translate3d(0, -30px, 0) rotate(0deg) scale(1.05); z-index: 20; filter: brightness(1.3) drop-shadow(0 0 12px #a855f7); }
+                    75% { transform: translate3d(100px, -15px, 0) rotate(8deg) scale(1.02); z-index: 10; filter: brightness(1.1); }
+                    100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); }
                 }
                 @keyframes deck-pulse-fancy {
                     0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(168,85,247,0.3); }
@@ -569,7 +569,7 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
                 }
             `}</style>
 
-            <div className="relative w-40 h-64 z-20" style={{ animation: 'deck-pulse-fancy 3s infinite ease-in-out' }}>
+            <div className="relative w-40 h-64 z-20" style={{ animation: 'deck-pulse-fancy 2s infinite ease-in-out', willChange: 'transform, box-shadow' }}>
                 {/* Center Static Base */}
                  <div className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-500/30 shadow-[0_0_20px_rgba(0,0,0,0.8)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}></div>
 
@@ -577,9 +577,10 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
                 {[...Array(8)].map((_, i) => (
                     <div key={`left-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} 
                          style={{ 
-                             animation: `cosmic-shuffle 2.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite`,
-                             animationDelay: `${i * 0.15}s`,
-                             boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
+                             animation: `cosmic-shuffle 1.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite`,
+                             animationDelay: `${i * 0.1}s`,
+                             boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                             willChange: 'transform, filter'
                          }}>
                     </div>
                 ))}
@@ -588,9 +589,10 @@ const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; ski
                 {[...Array(8)].map((_, i) => (
                     <div key={`right-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`}
                         style={{
-                            animation: `cosmic-shuffle 2.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite reverse`,
-                            animationDelay: `${i * 0.15}s`,
-                            boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
+                            animation: `cosmic-shuffle 1.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite reverse`,
+                            animationDelay: `${i * 0.1}s`,
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                            willChange: 'transform, filter'
                         }}>
                     </div>
                 ))}
@@ -650,16 +652,22 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
                             <div 
                                 key={i}
                                 onClick={() => handleCardClick(i)}
-                                // Updated transition for a much smoother, fluid, spring-like feel (duration increased, custom bezier)
+                                // Optimized Mobile Animation:
+                                // 1. Use transform-only transition for GPU accel
+                                // 2. Remove shadow transition during movement to prevent lag
+                                // 3. Use 'will-change: transform'
+                                // 4. Snappy bezier curve
                                 className={`aspect-[2/3] rounded-sm border border-purple-500/30 shadow-md cursor-pointer 
-                                transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
-                                touch-manipulation active:scale-95
+                                transition-transform duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] card-back ${SKINS.find(s => s.id === skin)?.cssClass} 
+                                touch-manipulation active:scale-95 will-change-transform
                                 ${isSelected 
-                                    ? 'scale-110 shadow-[0_0_20px_#d946ef] border-purple-200 z-50 brightness-125 -translate-y-4' 
-                                    : 'hover:-translate-y-1 hover:scale-105 hover:shadow-[0_0_10px_rgba(168,85,247,0.4)] z-0 hover:z-10'}`}
+                                    ? 'scale-110 border-purple-200 z-50 brightness-125 -translate-y-4' 
+                                    : 'hover:-translate-y-1 hover:scale-105 z-0 hover:z-10'}`}
                                 style={{
                                     backgroundSize: 'cover',
-                                    backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined
+                                    backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined,
+                                    // Apply shadow conditionally via style to avoid transition lag
+                                    boxShadow: isSelected ? '0 0 15px #d946ef' : '0 2px 5px rgba(0,0,0,0.5)'
                                 }}
                             >
                             </div>
@@ -993,14 +1001,21 @@ const App: React.FC = () => {
           const { data: { session } } = await supabase.auth.getSession();
           const userId = session?.user?.id;
           
+          if (!userId) {
+              console.warn("No active session, skipping cloud save.");
+              return;
+          }
+
           const payload: any = { 
               email: u.email, 
+              user_id: userId, // CRITICAL: Use Auth User ID as Primary Key
               data: { ...u, lastAppState: state }, 
               updated_at: new Date().toISOString() 
           };
-          if (userId) payload.user_id = userId; // Critical for RLS
 
-          supabase.from('profiles').upsert(payload, { onConflict: 'email' })
+          // Use 'user_id' as conflict target if possible, or 'email' if schema set up that way.
+          // Best practice: rely on user_id if RLS is enabled.
+          supabase.from('profiles').upsert(payload, { onConflict: 'user_id' })
             .then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
       }
   }, []);
@@ -1013,6 +1028,38 @@ const App: React.FC = () => {
       const result: ReadingResult = { date: new Date().toISOString(), question: selectedQuestion, cards: selectedCards, interpretation: text }; 
       updateUser((prev) => ({ ...prev, history: [result, ...(prev.history ?? [])] })); 
   }, [selectedQuestion, selectedCards]); // Dependencies required for context
+
+  // --- REAL-TIME SYNC LOGIC ---
+  useEffect(() => {
+      if (!isSupabaseConfigured || user.email === 'Guest') return;
+
+      const channel = supabase.channel(`profile:${user.email}`)
+          .on(
+              'postgres_changes',
+              {
+                  event: 'UPDATE',
+                  schema: 'public',
+                  table: 'profiles',
+                  filter: `email=eq.${user.email}`,
+              },
+              (payload) => {
+                  console.log("Real-time sync received:", payload);
+                  if (payload.new && payload.new.data) {
+                      // Merge cloud data into local state to keep devices in sync
+                      // We spread payload.new.data to update coins, history, etc.
+                      setUser(prev => ({
+                          ...prev,
+                          ...payload.new.data
+                      }));
+                  }
+              }
+          )
+          .subscribe();
+
+      return () => {
+          supabase.removeChannel(channel);
+      };
+  }, [user.email]);
 
   // --- SESSION PERSISTENCE LOGIC ---
   useEffect(() => {
@@ -1058,13 +1105,24 @@ const App: React.FC = () => {
                 if (data.session?.user) {
                     const u = data.session.user; 
                     const email = u.email || "User";
+                    const userId = u.id; // Correct Supabase User ID
+
                     try { 
-                        // Fix: use .limit(1).maybeSingle() instead of .single() to avoid error on duplicates
-                        const { data: profileData } = await supabase.from('profiles').select('data').eq('email', email).limit(1).maybeSingle(); 
+                        // Fix: Query by 'user_id' first for accuracy in RLS environment
+                        // .maybeSingle() prevents errors if multiple rows somehow exist or none exist
+                        let { data: profileData } = await supabase.from('profiles').select('data').eq('user_id', userId).maybeSingle(); 
+                        
+                        // Fallback query by email if user_id lookup fails (migration support)
+                        if (!profileData) {
+                             const { data: profileByEmail } = await supabase.from('profiles').select('data').eq('email', email).maybeSingle();
+                             if (profileByEmail) profileData = profileByEmail;
+                        }
+
                         if (profileData && profileData.data) {
                             // PRIORITIZE CLOUD DATA for logged-in users
                             currentUser = profileData.data; 
                         } else if (!localUser || localUser.email !== email) {
+                            // New User Setup or Mismatch
                             currentUser = { ...user, email };
                         } else {
                             // Fallback to local if cloud fetch empty but local exists and matches email
