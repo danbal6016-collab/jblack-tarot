@@ -145,124 +145,110 @@ async function retryOperation<T>(
     throw lastError;
 }
 
+// Global Timeout Wrapper to enforce strict 50s limit
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.5-flash', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const API_TIMEOUT = 50000; // 50 seconds timeout (STRICT REQUIREMENT)
-    let lastErrorMessage = "";
+    const GLOBAL_TIMEOUT = 50000; // 50 seconds strict limit
 
-    const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
-        return new Promise((resolve, reject) => {
-            const timer = setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms);
-            promise.then(
-                (res) => { clearTimeout(timer); resolve(res); },
-                (err) => { clearTimeout(timer); reject(err); }
-            );
-        });
-    };
+    // The actual generation logic wrapped in a function
+    const generationTask = async () => {
+        let lastErrorMessage = "";
+        const chainSet = new Set([preferredModel, ...MODEL_FALLBACK_CHAIN]);
+        const modelsToTry = Array.from(chainSet);
 
-    const chainSet = new Set([preferredModel, ...MODEL_FALLBACK_CHAIN]);
-    const modelsToTry = Array.from(chainSet);
+        // Reduce max tokens per request to ensure speed
+        const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
+        if (!config.maxOutputTokens) config.maxOutputTokens = 2048; 
+        if (config.thinkingConfig) delete config.thinkingConfig;
 
-    for (const model of modelsToTry) {
-        try {
-            console.log(`Attempting generation with model: ${model}`);
-            
-            const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-            // Reduce max tokens to ensure faster completion and less chance of timeout
-            if (!config.maxOutputTokens) config.maxOutputTokens = 4096; 
-            if (config.thinkingConfig) delete config.thinkingConfig;
-
-            let responseText = "";
-            
-            // 1. Client-Side Call (SDK)
-            let apiKey = '';
+        for (const model of modelsToTry) {
             try {
-                // @ts-ignore
-                if (typeof import.meta !== 'undefined' && import.meta.env) {
-                    // @ts-ignore
-                    apiKey = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
-                }
-            } catch(e) {}
-
-            try {
-                // @ts-ignore
-                if (!apiKey && typeof process !== 'undefined' && process.env) {
-                    apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
-                }
-            } catch(e) {}
-
-            if (apiKey) {
+                console.log(`Attempting generation with model: ${model}`);
+                let responseText = "";
+                
+                // 1. Client-Side Call (SDK)
+                let apiKey = '';
                 try {
-                    responseText = await withTimeout(retryOperation(async () => {
-                        const ai = new GoogleGenAI({ apiKey });
-                        
-                        // SDK v1.x compatible content structure
-                        let contents: any = { parts: [{ text: prompt }] };
-                        if (imageParts && imageParts.length > 0) {
-                            contents = { parts: [...imageParts, { text: prompt }] };
+                    // @ts-ignore
+                    if (typeof import.meta !== 'undefined' && import.meta.env) apiKey = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
+                } catch(e) {}
+                try {
+                    // @ts-ignore
+                    if (!apiKey && typeof process !== 'undefined' && process.env) apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
+                } catch(e) {}
+
+                if (apiKey) {
+                    try {
+                        responseText = await retryOperation(async () => {
+                            const ai = new GoogleGenAI({ apiKey });
+                            let contents: any = { parts: [{ text: prompt }] };
+                            if (imageParts && imageParts.length > 0) contents = { parts: [...imageParts, { text: prompt }] };
+
+                            const response = await ai.models.generateContent({
+                                model: model,
+                                contents: contents,
+                                config: config
+                            });
+                            if (response.text) return response.text;
+                            throw new Error("No text generated from model.");
+                        }, 2, 500); // Fast retry
+
+                        if (responseText) return responseText;
+                    } catch (e: any) {
+                        console.warn(`Client-side SDK failed for ${model}.`, e.message);
+                    }
+                }
+
+                // 2. Proxy Fallback
+                try {
+                    responseText = await retryOperation(async () => {
+                        const body: any = { prompt, config, model };
+                        if (imageParts) body.imageParts = imageParts;
+
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 40000); // 40s fetch limit
+
+                        try {
+                            const constEqRes = await fetch('/api/gemini', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body),
+                                signal: controller.signal
+                            });
+                            clearTimeout(timeoutId);
+                            if (!constEqRes.ok) throw new Error(`Proxy error: ${constEqRes.status}`);
+                            const data = await constEqRes.json();
+                            if (!data.text) throw new Error("Empty response from proxy");
+                            return data.text as string;
+                        } catch (fetchErr: any) {
+                            clearTimeout(timeoutId);
+                            throw fetchErr;
                         }
-
-                        const response = await ai.models.generateContent({
-                            model: model,
-                            contents: contents,
-                            config: config
-                        });
-
-                        if (response.text) return response.text;
-                        throw new Error("No text generated from model.");
-                    }, 2, 800), API_TIMEOUT);
+                    }, 2, 500);
 
                     if (responseText) return responseText;
-
-                } catch (e: any) {
-                    console.warn(`Client-side SDK failed for ${model}.`, e.message);
+                } catch (proxyError: any) {
+                    console.error(`Proxy failed for ${model}:`, proxyError);
+                    lastErrorMessage = proxyError.message;
                 }
+
+            } catch (modelError: any) {
+                console.warn(`Model ${model} failed fully.`);
+                continue;
             }
-
-            // 2. Proxy Fallback
-            try {
-                const proxyPromise = retryOperation(async () => {
-                    const body: any = { prompt, config, model };
-                    if (imageParts) body.imageParts = imageParts;
-
-                    const controller = new AbortController();
-                    // Reduce client fetch timeout to match strict 50s constraint
-                    const timeoutId = setTimeout(() => controller.abort(), 50000); 
-
-                    try {
-                        const constEqRes = await fetch('/api/gemini', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(body),
-                            signal: controller.signal
-                        });
-                        
-                        clearTimeout(timeoutId);
-
-                        if (!constEqRes.ok) throw new Error(`Proxy error: ${constEqRes.status}`);
-                        const data = await constEqRes.json();
-                        if (!data.text) throw new Error("Empty response from proxy");
-                        return data.text as string;
-                    } catch (fetchErr: any) {
-                        clearTimeout(timeoutId);
-                        throw fetchErr;
-                    }
-                }, 2, 1000);
-
-                return await withTimeout(proxyPromise, API_TIMEOUT);
-
-            } catch (proxyError: any) {
-                console.error(`Proxy failed for ${model}:`, proxyError);
-                lastErrorMessage = proxyError.message;
-            }
-
-        } catch (modelError: any) {
-            console.warn(`Model ${model} failed fully.`);
-            continue;
         }
-    }
+        console.error("All models failed. Returning Emergency Fallback.");
+        return EMERGENCY_FALLBACK_RESPONSE;
+    };
 
-    console.error("All models failed. Returning Emergency Fallback.");
-    return EMERGENCY_FALLBACK_RESPONSE;
+    // The timeout race
+    const timeoutTask = new Promise<string>((resolve) => {
+        setTimeout(() => {
+            console.error("Global API Timeout (50s reached). Returning fallback to prevent stuck screen.");
+            resolve(EMERGENCY_FALLBACK_RESPONSE);
+        }, GLOBAL_TIMEOUT);
+    });
+
+    return Promise.race([generationTask(), timeoutTask]);
 }
 
 // --- MAIN SERVICES ---
