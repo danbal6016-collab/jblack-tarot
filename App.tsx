@@ -40,7 +40,7 @@ const TRANSLATIONS = {
     profile_edit: "프로필 수정",
     logout: "로그아웃",
     delete_account: "계정 탈퇴",
-    delete_confirm: "모든 데이터가 삭제됩니다. 진행하시겠습니까?",
+    delete_confirm: "정말로 탈퇴하시겠습니까? 모든 데이터(코인, 등급, 기록)가 영구적으로 삭제됩니다.",
     attendance_popup: "출석체크 완료!",
     reward_popup: "등급 보상 지급!",
     face_reading_title: "관상",
@@ -135,7 +135,7 @@ const TRANSLATIONS = {
     profile_edit: "Edit Profile",
     logout: "Logout",
     delete_account: "Delete Account",
-    delete_confirm: "All data will be wiped. Proceed?",
+    delete_confirm: "Are you sure? All data (Coins, Tier, History) will be permanently deleted.",
     attendance_popup: "Attendance Checked!",
     reward_popup: "Monthly Reward!",
     face_reading_title: "Physiognomy",
@@ -950,7 +950,6 @@ const App: React.FC = () => {
 
   const checkUser = useCallback(async (isLoginInit = false) => {
     try {
-        const today = new Date().toISOString().split('T')[0];
         let localUser: User | null = null;
         try { const stored = localStorage.getItem('black_tarot_user'); if (stored) localUser = JSON.parse(stored); } catch (e) {}
         let currentUser = localUser || { ...user, email: "Guest" };
@@ -960,23 +959,16 @@ const App: React.FC = () => {
                 if (authUser) {
                     const email = authUser.email || "User";
                     try { 
-                        // First, try to fetch existing profile to avoid overwriting data with empty payload on upsert
                         const { data: existingProfile, error: fetchError } = await supabase.from("user_profiles").select("*").eq("id", authUser.id).single();
-                        
-                        // STRICT SAFETY CHECK: If fetch failed with network error (not 406/PGRST116), abort to save existing data.
                         if (fetchError && fetchError.code !== 'PGRST116') {
-                            console.error("Critical: Failed to fetch user profile. Aborting initialization to prevent data overwrite.", fetchError);
+                            console.error("Critical: Failed to fetch user profile.", fetchError);
                             return; 
                         }
-
                         if (existingProfile && existingProfile.data) {
                              currentUser = { ...existingProfile.data, email };
                         } else {
-                             // Only upsert basic info if no profile exists (new user).
                              const profilePayload = { id: authUser.id, email: authUser.email ?? null, full_name: (authUser.user_metadata?.full_name ?? authUser.user_metadata?.name) ?? null, avatar_url: authUser.user_metadata?.avatar_url ?? null, updated_at: new Date().toISOString() };
                              await supabase.from("user_profiles").upsert(profilePayload, { onConflict: "id" });
-                             
-                             // If localUser exists and matches email, use it to populate initial cloud data
                              if (localUser && localUser.email === email) {
                                  currentUser = { ...localUser, email };
                              } else {
@@ -991,11 +983,11 @@ const App: React.FC = () => {
                         if (!currentUser.ownedSkins) currentUser.ownedSkins = ['default'];
                     } catch(e) {
                         console.error("Profile check failed", e);
-                        return; // Stop execution on error
+                        return; 
                     }
                     if (currentUser.email !== email) currentUser.email = email;
                 } else {
-                   if (!localUser || localUser.email !== 'Guest') currentUser = { ...user, email: "Guest", lastLoginDate: today, tier: UserTier.PLATINUM }; 
+                   if (!localUser || localUser.email !== 'Guest') currentUser = { ...user, email: "Guest", tier: UserTier.BRONZE }; 
                    if (!localStorage.getItem('tarot_device_id')) localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
                 }
             } catch (error) { console.error(error); }
@@ -1003,19 +995,37 @@ const App: React.FC = () => {
              if (!localStorage.getItem('tarot_device_id')) localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
         }
         
-        // Tier check
+        // --- FIXED: ATTENDANCE LOGIC (Login Only + Country Based) ---
+        // Determine user's current date based on their country/timezone
+        const userTimezone = currentUser.userInfo?.timezone || 'Asia/Seoul';
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: userTimezone }); // Returns YYYY-MM-DD in user's zone
+
+        if (currentUser.email !== 'Guest') {
+            if (currentUser.lastAttendance !== today) {
+                 let newDay = (currentUser.attendanceDay || 0) + 1;
+                 if (newDay > 10) newDay = 1; 
+
+                 const reward = ATTENDANCE_REWARDS[newDay - 1] || 20;
+                 
+                 currentUser.attendanceDay = newDay;
+                 currentUser.lastAttendance = today;
+                 currentUser.coins = (currentUser.coins || 0) + reward;
+                 
+                 setAttendanceReward(reward);
+                 setShowAttendancePopup(true);
+            }
+        }
+
         const computedTier = calculateTier(currentUser.totalSpent);
         if (currentUser.tier !== computedTier) {
             currentUser.tier = computedTier;
         }
 
-        // Initialize Volume from Saved State
         if (typeof currentUser.bgmVolume === 'number') {
             setBgmVolume(currentUser.bgmVolume);
         }
 
         if (isLoginInit) {
-            // Force reset to category selection on fresh login
             setAppState(AppState.CATEGORY_SELECT);
             currentUser.lastAppState = AppState.CATEGORY_SELECT;
             currentUser.currentSession = undefined;
@@ -1024,7 +1034,7 @@ const App: React.FC = () => {
         }
         
         setUser(currentUser); 
-        setIsDataLoaded(true); // Data is safely loaded, enable autosave
+        setIsDataLoaded(true); 
         saveUserState(currentUser, isLoginInit ? AppState.CATEGORY_SELECT : (currentUser.lastAppState || AppState.WELCOME));
     } catch (error) { console.error("Critical error in checkUser:", error); }
   }, []);
@@ -1035,7 +1045,40 @@ const App: React.FC = () => {
   const handleLogout = async () => { try { if (isSupabaseConfigured) await supabase.auth.signOut(); } catch (e) {} localStorage.removeItem('black_tarot_user'); const cleanGuestUser: User = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 }; setUser(cleanGuestUser); setAppState(AppState.WELCOME); setShowSettings(false); setShowProfile(false); setBgmVolume(0.5); };
   const handleStart = () => { initSounds(); setBgmStopped(false); if (user.userInfo?.name && user.userInfo?.birthDate) navigateTo(AppState.CATEGORY_SELECT); else navigateTo(AppState.INPUT_INFO); };
   const handleUserInfoSubmit = (info: UserInfo) => { updateUser((prev) => ({ ...prev, userInfo: info })); navigateTo(AppState.CATEGORY_SELECT); };
-  const spendCoins = (amount: number): boolean => { if (user.email === 'Guest') return true; if (user.coins < amount) { if (confirm(TRANSLATIONS[lang].coin_shortage)) { setShowShop(true); setShopStep('AMOUNT'); } return false; } updateUser(prev => { const newSpent = (prev.monthlyCoinsSpent || 0) + amount; return { ...prev, coins: prev.coins - amount, monthlyCoinsSpent: newSpent, tier: calculateTier(newSpent) }; }); return true; };
+  
+  const spendCoins = (amount: number): boolean => { 
+      if (user.email === 'Guest') return true; 
+      if (user.coins < amount) { 
+          if (confirm(TRANSLATIONS[lang].coin_shortage)) { setShowShop(true); setShopStep('AMOUNT'); } 
+          return false; 
+      } 
+      
+      // Calculate new tier state *before* update to check for changes
+      const newTotalSpent = user.totalSpent + amount;
+      const newTier = calculateTier(newTotalSpent);
+      
+      if (newTier !== user.tier) {
+          const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
+          const oldIndex = tiers.indexOf(user.tier);
+          const newIndex = tiers.indexOf(newTier);
+          
+          setTierChangeNewTier(newTier);
+          setTierChangeDirection(newIndex > oldIndex ? 'UP' : 'DOWN');
+          setShowTierChangePopup(true);
+      }
+
+      updateUser(prev => { 
+          return { 
+              ...prev, 
+              coins: prev.coins - amount, 
+              totalSpent: newTotalSpent, 
+              monthlyCoinsSpent: (prev.monthlyCoinsSpent || 0) + amount,
+              tier: newTier 
+          }; 
+      }); 
+      return true; 
+  };
+
   const checkGuestAction = () => { if (user.email === 'Guest') { alert("로그인한 사용자만 이용 가능합니다."); return true; } return false; };
   const buySkin = (skin: Skin) => { if (checkGuestAction()) return; if (user.ownedSkins.includes(skin.id)) { updateUser(prev => ({ ...prev, currentSkin: skin.id, activeCustomSkin: null })); return; } if (spendCoins(skin.cost)) { updateUser(prev => ({ ...prev, ownedSkins: [...prev.ownedSkins, skin.id], currentSkin: skin.id, activeCustomSkin: null })); } };
   const handleCustomSkinUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomSkinImage(e.target?.result as string); reader.readAsDataURL(file); };
@@ -1051,7 +1094,29 @@ const App: React.FC = () => {
   const handleRugChange = (color: string) => { if (checkGuestAction()) return; updateUser(prev => ({ ...prev, rugColor: color })); };
   const handleOpenProfile = () => { if (user.userInfo) setEditProfileData({ ...user.userInfo }); setShowProfile(true); };
   const handleSaveProfile = async () => { if (!user.userInfo) return; if (checkGuestAction()) return; const currentInfo = user.userInfo; const nextInfo = { ...editProfileData }; if (nextInfo.name !== currentInfo.name) { const currentCount = currentInfo.nameChangeCount || 0; if (currentCount >= 5) { alert("이름 변경 횟수(5회)를 초과했습니다."); return; } nextInfo.nameChangeCount = currentCount + 1; } else { nextInfo.nameChangeCount = currentInfo.nameChangeCount; } if (nextInfo.birthDate !== currentInfo.birthDate) { if (currentInfo.birthDateChanged) { alert("생년월일은 한 번만 변경할 수 있습니다."); return; } nextInfo.birthDateChanged = true; } if (nextInfo.country !== currentInfo.country) { if (currentInfo.countryChanged) { alert("국가는 한 번만 변경할 수 있습니다."); return; } nextInfo.countryChanged = true; } updateUser(prev => ({ ...prev, userInfo: nextInfo })); setShowProfile(false); alert("프로필이 저장되었습니다."); };
-  const handleDeleteAccount = async () => { if (confirm(TRANSLATIONS[lang].delete_confirm)) { if (isSupabaseConfigured) await supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); localStorage.removeItem('tarot_device_id'); const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 }; setUser(cleanUser); setAppState(AppState.WELCOME); setShowProfile(false); } };
+  
+  const handleDeleteAccount = async () => { 
+      if (confirm(TRANSLATIONS[lang].delete_confirm)) { 
+          if (isSupabaseConfigured) {
+              try {
+                  const { data: { user: authUser } } = await supabase.auth.getUser();
+                  if (authUser) {
+                      await supabase.from('user_profiles').delete().eq('id', authUser.id);
+                  }
+              } catch (e) {
+                  console.error("Data deletion failed", e);
+              }
+              await supabase.auth.signOut(); 
+          }
+          localStorage.removeItem('black_tarot_user'); 
+          localStorage.removeItem('tarot_device_id'); 
+          const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 }; 
+          setUser(cleanUser); 
+          setAppState(AppState.WELCOME); 
+          setShowProfile(false); 
+      } 
+  };
+
   const initiatePayment = (amount: number, coins: number) => { if (user.email === 'Guest') { alert("Please login to purchase coins."); return; } setPendingPackage({ amount, coins }); setShopStep('METHOD'); };
   const processPayment = () => { if (!pendingPackage) return; setTimeout(() => { alert(`Payment Successful via ${selectedPaymentMethod}!`); updateUser(prev => ({ ...prev, coins: prev.coins + pendingPackage.coins, totalSpent: prev.totalSpent + pendingPackage.amount, })); setPendingPackage(null); setShopStep('AMOUNT'); setShowShop(false); }, 1500); };
   const handleCategorySelect = (category: QuestionCategory) => { if (user.email === 'Guest' && ['FACE', 'LIFE', 'SECRET_COMPAT', 'PARTNER_LIFE'].includes(category.id)) { setAuthMode('LOGIN'); return; } if (category.minTier) { const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM]; if (tiers.indexOf(user.tier) < tiers.indexOf(category.minTier)) { alert(`This category requires ${category.minTier} tier or higher.`); return; } } setSelectedCategory(category); if (category.id === 'FACE') navigateTo(AppState.FACE_UPLOAD); else if (category.id === 'LIFE') navigateTo(AppState.LIFE_INPUT); else if (category.id === 'SECRET_COMPAT' || category.id === 'PARTNER_LIFE') navigateTo(AppState.PARTNER_INPUT); else navigateTo(AppState.QUESTION_SELECT); };

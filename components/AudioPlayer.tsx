@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 
 interface AudioPlayerProps {
@@ -11,10 +10,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped, currentT
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [blocked, setBlocked] = useState(false);
   
-  // Effect 1: Handle Volume Changes Instantly (No playback side effects)
+  // Effect 1: Handle Volume Changes Instantly
   useEffect(() => {
     if (audioRef.current) {
-        audioRef.current.volume = volume;
+        audioRef.current.volume = Math.max(0, Math.min(1, volume)); // Clamp for safety
     }
   }, [volume]);
 
@@ -73,6 +72,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped, currentT
       loop 
       playsInline
       preload="auto"
+      // Ensure volume is set on mount
+      onLoadedMetadata={(e) => { e.currentTarget.volume = volume; }}
     />
   );
 };
