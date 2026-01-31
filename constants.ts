@@ -246,3 +246,35 @@ export const TAROT_DECK = [
   "Six of Pentacles", "Seven of Pentacles", "Eight of Pentacles", "Nine of Pentacles", "Ten of Pentacles", 
   "Page of Pentacles", "Knight of Pentacles", "Queen of Pentacles", "King of Pentacles"
 ];
+
+export const TIER_POPUP_TEXT = {
+  ko: {
+    up_title: "등급 상승!",
+    down_title: "등급 하락",
+    up_msg: "축하합니다! 새로운 등급으로 승급하셨습니다.",
+    down_msg: "아쉽게도 등급이 하락했습니다. 활동을 늘려 다시 도전하세요!",
+    benefit_silver: "매달 1일 보유 코인 1.5배 지급",
+    benefit_gold: "매달 1일 보유 코인 2.0배 지급",
+    benefit_platinum: "매달 1일 보유 코인 3.0배 지급",
+    confirm: "확인"
+  },
+  en: {
+    up_title: "Tier Up!",
+    down_title: "Tier Down",
+    up_msg: "Congratulations! You have been promoted.",
+    down_msg: "Unfortunately, your tier has dropped. Keep active to regain it!",
+    benefit_silver: "1.5x Coins on 1st of every month",
+    benefit_gold: "2.0x Coins on 1st of every month",
+    benefit_platinum: "3.0x Coins on 1st of every month",
+    confirm: "Confirm"
+  }
+};
+
+export const RK_COLORS = [
+    { name: 'Void Purple', color: '#2e0b49' },
+    { name: 'Crimson Red', color: '#450a0a' },
+    { name: 'Midnight Blue', color: '#0f172a' },
+    { name: 'Deep Forest', color: '#064e3b' },
+    { name: 'Royal Gold', color: '#422006' },
+    { name: 'Pitch Black', color: '#000000' }
+];

@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useRef, useState } from 'react';
 
 interface AudioPlayerProps {
@@ -12,12 +11,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped, currentT
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [blocked, setBlocked] = useState(false);
   
+  // Effect 1: Handle Volume Changes Instantly (No playback side effects)
+  useEffect(() => {
+    if (audioRef.current) {
+        audioRef.current.volume = volume;
+    }
+  }, [volume]);
+
+  // Effect 2: Handle Play/Pause/Track Changes
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-
-    // Apply volume immediately
-    audio.volume = volume;
 
     if (!userStopped && currentTrack) {
         if (audio.src !== currentTrack) {
@@ -32,15 +36,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ volume, userStopped, currentT
                 })
                 .catch(error => {
                     // Browser policy blocked autoplay
-                    // We silently set blocked state to true to trigger the global listener,
-                    // but we do NOT show any UI.
                     setBlocked(true);
                 });
         }
     } else {
         audio.pause();
     }
-  }, [volume, userStopped, currentTrack]);
+  }, [userStopped, currentTrack]);
 
   // Global unlocker: Listens for ANY user interaction to start audio seamlessly
   useEffect(() => {
