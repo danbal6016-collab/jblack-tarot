@@ -494,7 +494,7 @@ const Header: React.FC<{
       {user.email === 'Guest' && (<button onClick={onLogin} className="text-xs bg-purple-900 border border-purple-500 px-3 py-1 rounded text-white animate-pulse">Login / Join</button>)}
       {user.email !== 'Guest' && (<button onClick={openProfile} className="w-10 h-10 rounded-full bg-gray-800 border border-gray-600 overflow-hidden hover:border-purple-500 transition-all">{user.userInfo?.profileImage ? (<img src={user.userInfo.profileImage} alt="Profile" className="w-full h-full object-cover" />) : (<div className="w-full h-full flex items-center justify-center text-xs">👤</div>)}</button>)}
       <button onClick={onOpenSettings} className="text-gray-400 hover:text-purple-400 transition-colors p-2 cursor-pointer z-50">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
       </button>
     </div>
   </div>
@@ -741,23 +741,36 @@ const ResultView: React.FC<{
         if (!container) return;
         const rect = container.getBoundingClientRect();
         
+        // Use requestAnimationFrame for smooth throttling
+        let animationFrameId: number | null = null;
+
         const onMove = (mv: MouseEvent | TouchEvent) => {
-            const clientX = 'clientX' in mv ? (mv as MouseEvent).clientX : (mv as TouchEvent).touches[0].clientX;
-            const clientY = 'clientY' in mv ? (mv as MouseEvent).clientY : (mv as TouchEvent).touches[0].clientY;
-            let newX = ((clientX - rect.left) / rect.width) * 100;
-            let newY = ((clientY - rect.top) / rect.height) * 100;
-            setActiveStickers(prev => prev.map(s => s.id === id ? { ...s, x: newX, y: newY } : s));
+            if (animationFrameId !== null) return; // Throttle
+
+            animationFrameId = requestAnimationFrame(() => {
+                const clientX = 'clientX' in mv ? (mv as MouseEvent).clientX : (mv as TouchEvent).touches[0].clientX;
+                const clientY = 'clientY' in mv ? (mv as MouseEvent).clientY : (mv as TouchEvent).touches[0].clientY;
+                
+                let newX = ((clientX - rect.left) / rect.width) * 100;
+                let newY = ((clientY - rect.top) / rect.height) * 100;
+                
+                setActiveStickers(prev => prev.map(s => s.id === id ? { ...s, x: newX, y: newY } : s));
+                animationFrameId = null;
+            });
         };
         
         const onUp = () => {
+            if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
             window.removeEventListener('mousemove', onMove);
             window.removeEventListener('mouseup', onUp);
             window.removeEventListener('touchmove', onMove);
             window.removeEventListener('touchend', onUp);
         };
-        window.addEventListener('mousemove', onMove);
+        
+        // Passive false is important for touchmove to prevent scrolling
+        window.addEventListener('mousemove', onMove, { passive: false });
         window.addEventListener('mouseup', onUp);
-        window.addEventListener('touchmove', onMove);
+        window.addEventListener('touchmove', onMove, { passive: false });
         window.addEventListener('touchend', onUp);
     };
 
@@ -966,6 +979,9 @@ const App: React.FC = () => {
         const readingsToday = currentUser.lastReadingDate === today ? currentUser.readingsToday : 0;
         const updatedUser = { ...currentUser, tier: newTier, coins: newCoins, lastLoginDate: today, loginDates: newLoginDates, readingsToday: readingsToday, lastReadingDate: today, lastMonthlyReward: currentMonthlyReward, attendanceDay: newAttendanceDay, lastAttendance: newLastAttendance, monthlyCoinsSpent: newMonthlyCoinsSpent };
         
+        // Ensure history is initialized
+        if (!updatedUser.history) updatedUser.history = [];
+
         if (isLoginInit) {
             // Force reset to category selection on fresh login
             setAppState(AppState.CATEGORY_SELECT);
@@ -1168,7 +1184,34 @@ const App: React.FC = () => {
                      {settingsMode === 'SKIN' && (<div className="space-y-4"><button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Card Skin</h3><div className="grid grid-cols-2 gap-4">{SKINS.map(skin => (<div key={skin.id} onClick={() => buySkin(skin)} className={`border rounded-lg p-2 cursor-pointer transition-all ${user.currentSkin === skin.id && !user.activeCustomSkin ? 'border-purple-500 bg-purple-900/20 shadow-[0_0_15px_rgba(168,85,247,0.3)]' : 'border-gray-800 hover:border-purple-500/50'} ${user.tier === UserTier.BRONZE && skin.cost > 0 && !isGuest ? 'opacity-50 grayscale' : ''}`}><div className={`h-24 rounded-md mb-2 w-full card-back ${skin.cssClass}`}></div><div className="flex justify-between items-center"><span className="text-xs text-gray-300 font-serif">{skin.name}</span>{user.ownedSkins.includes(skin.id) ? <span className="text-[10px] bg-green-900/50 text-green-300 px-1.5 py-0.5 rounded border border-green-800">OWNED</span> : <span className={`text-[10px] ${isGuest ? 'text-green-400' : 'text-purple-300'}`}>{isGuest ? 'Free' : skin.cost + ' C'}</span>}</div></div>))}</div><div className="mt-8 pt-4 border-t border-purple-500/20"><h3 className="text-sm font-bold text-purple-200 mb-4">{TRANSLATIONS[lang].custom_skin_title}</h3><div className="space-y-4"><div className="border border-dashed border-purple-500/30 rounded-xl p-4 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative"><input type="file" accept="image/*" onChange={handleCustomSkinUpload} className="absolute inset-0 opacity-0 cursor-pointer" />{customSkinImage ? <img src={customSkinImage} className="h-32 mx-auto object-contain rounded" /> : <span className="text-xs text-gray-400">{TRANSLATIONS[lang].upload_skin}</span>}</div>{customSkinImage && (<div className="flex flex-col gap-2"><div className="flex gap-2 text-xs"><button onClick={() => setIsSkinPublic(false)} className={`flex-1 py-2 rounded-lg border transition-all ${!isSkinPublic ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}>{TRANSLATIONS[lang].private_option}</button><button onClick={() => setIsSkinPublic(true)} className={`flex-1 py-2 rounded-lg border transition-all ${isSkinPublic ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}>{TRANSLATIONS[lang].public_option}</button></div><button onClick={handleSaveCustomSkin} className="w-full py-2.5 bg-white text-black font-bold rounded-lg text-xs hover:bg-gray-200 shadow-lg">Save Custom Skin (-120 Coin)</button></div>)}<div className="mt-4 pt-4 border-t border-purple-500/20"><label className="text-xs text-gray-400 block mb-2">{TRANSLATIONS[lang].skin_code_label}</label><div className="flex gap-2"><input value={inputSkinCode} onChange={e=>setInputSkinCode(e.target.value)} placeholder={TRANSLATIONS[lang].skin_code_placeholder} className="flex-1 bg-black/50 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-purple-500 outline-none" /><button onClick={handleApplySkinCode} className="px-4 py-2 bg-purple-900/50 border border-purple-500/50 text-purple-200 text-xs rounded-lg hover:bg-purple-800 transition-colors font-bold">{TRANSLATIONS[lang].skin_code_btn}</button></div></div>{user.customSkins && user.customSkins.length > 0 && (<div className="grid grid-cols-3 gap-2 mt-4">{user.customSkins.map(cs => (<div key={cs.id} onClick={() => { if(checkGuestAction()) return; updateUser(prev => ({...prev, activeCustomSkin: cs})); }} className={`aspect-[2/3] rounded-lg border cursor-pointer bg-cover bg-center transition-all ${user.activeCustomSkin?.id === cs.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)]' : 'border-gray-800 hover:border-purple-500/50'}`} style={{ backgroundImage: `url(${cs.imageUrl})` }}></div>))}<div onClick={() => { if(checkGuestAction()) return; updateUser(prev => ({...prev, activeCustomSkin: null})); }} className="aspect-[2/3] rounded-lg border border-red-900/50 flex items-center justify-center text-red-400 text-xs cursor-pointer hover:bg-red-900/20 hover:border-red-500 transition-all font-bold">Reset</div></div>)}</div></div></div>)}
                      {settingsMode === 'RUG' && (<div className="space-y-4"><button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Rug Color</h3><div className="grid grid-cols-3 gap-4">{RK_COLORS.map(c => (<div key={c.name} onClick={() => handleRugChange(c.color)} className={`aspect-square rounded-full cursor-pointer border-2 transition-transform ${user.rugColor === c.color ? 'border-white shadow-[0_0_15px_white] scale-110' : 'border-transparent hover:scale-105'}`} style={{ backgroundColor: c.color }}></div>))}</div><div className="flex items-center gap-4 mt-4 p-4 bg-white/5 rounded-xl"><span className="text-sm text-gray-300">Custom Color:</span><input type="color" value={user.rugColor || '#2e0b49'} onChange={(e) => handleRugChange(e.target.value)} className="w-10 h-10 rounded cursor-pointer border-none p-0 bg-transparent" /></div></div>)}
                      {settingsMode === 'BGM' && (<div className="space-y-4"><button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Upload Custom BGM</h3><div className="border border-dashed border-purple-500/30 rounded-xl p-6 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative"><input type="file" accept="audio/*" onChange={handleBgmUpload} className="absolute inset-0 opacity-0 cursor-pointer" /><span className="text-2xl mb-2 block">🎵</span><span className="text-xs text-gray-400">Click to upload MP3/WAV</span></div><p className="text-[10px] text-gray-500 mt-2 text-center">Supported: MP3, WAV. Stored locally.</p></div>)}
-                     {settingsMode === 'HISTORY' && (<div className="space-y-4"><button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">{TRANSLATIONS[lang].history}</h3>{user.history.length === 0 ? <p className="text-gray-500 text-xs text-center py-8">{TRANSLATIONS[lang].no_history}</p> : (<div className="space-y-3">{user.history.slice(0, 50).map((h, i) => (<div key={i} className="bg-white/5 p-4 rounded-xl border border-white/5 hover:border-purple-500/30 transition-all"><div className="flex justify-between text-[10px] text-purple-300 mb-2"><span>{new Date(h.date).toLocaleDateString()}</span><span className="font-bold bg-purple-900/50 px-2 py-0.5 rounded">{h.type || 'TAROT'}</span></div><p className="text-xs text-gray-200 font-bold truncate mb-1">{h.question}</p><p className="text-[10px] text-gray-400 line-clamp-2 leading-relaxed">{h.interpretation || ""}</p></div>))}</div>)}</div>)}
+                     {settingsMode === 'HISTORY' && (
+                        <div className="space-y-4">
+                            <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
+                            <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">{TRANSLATIONS[lang].history}</h3>
+                            {(!Array.isArray(user.history) || user.history.length === 0) ? (
+                                <p className="text-gray-500 text-xs text-center py-8">{TRANSLATIONS[lang].no_history}</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {/* Optimization: Limit to 10 items and ensure safe rendering */}
+                                    {user.history.slice(0, 10).map((h, i) => (
+                                        <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/5 hover:border-purple-500/30 transition-all">
+                                            <div className="flex justify-between text-[10px] text-purple-300 mb-2">
+                                                <span>{new Date(h.date).toLocaleDateString()}</span>
+                                                <span className="font-bold bg-purple-900/50 px-2 py-0.5 rounded">{h.type || 'TAROT'}</span>
+                                            </div>
+                                            <p className="text-xs text-gray-200 font-bold truncate mb-1">{h.question}</p>
+                                            {/* Optimization: Hard truncate string instead of relying on expensive CSS line-clamp */}
+                                            <p className="text-[10px] text-gray-400 leading-relaxed">
+                                                {(h.interpretation || "").length > 100 
+                                                    ? (h.interpretation || "").substring(0, 100) + "..." 
+                                                    : (h.interpretation || "")}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                     )}
                  </div>
              </div>
           )}
