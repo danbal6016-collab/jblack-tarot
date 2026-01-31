@@ -138,6 +138,9 @@ export interface User {
   lastMonthlyReward?: string; 
   monthlyCoinsSpent?: number;
   
+  // Settings
+  bgmVolume?: number; // 0 to 1
+  
   // Persistence
   lastAppState?: AppState; // Saved state to resume
   

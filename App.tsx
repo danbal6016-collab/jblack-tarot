@@ -494,10 +494,7 @@ const Header: React.FC<{
       {user.email === 'Guest' && (<button onClick={onLogin} className="text-xs bg-purple-900 border border-purple-500 px-3 py-1 rounded text-white animate-pulse">Login / Join</button>)}
       {user.email !== 'Guest' && (<button onClick={openProfile} className="w-10 h-10 rounded-full bg-gray-800 border border-gray-600 overflow-hidden hover:border-purple-500 transition-all">{user.userInfo?.profileImage ? (<img src={user.userInfo.profileImage} alt="Profile" className="w-full h-full object-cover" />) : (<div className="w-full h-full flex items-center justify-center text-xs">👤</div>)}</button>)}
       <button onClick={onOpenSettings} className="text-gray-400 hover:text-purple-400 transition-colors p-2 cursor-pointer z-50">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
       </button>
     </div>
   </div>
@@ -871,7 +868,7 @@ const ResultView: React.FC<{
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
-  const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [] });
+  const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 });
   const [authMode, setAuthMode] = useState<'LOGIN'|'SIGNUP'|null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsMode, setSettingsMode] = useState<'MAIN' | 'RUG' | 'BGM' | 'SKIN' | 'HISTORY' | 'FRAME' | 'RESULT_BG' | 'STICKER'>('MAIN');
@@ -905,6 +902,7 @@ const App: React.FC = () => {
   const [shopStep, setShopStep] = useState<'AMOUNT' | 'METHOD'>('AMOUNT');
   const [pendingPackage, setPendingPackage] = useState<{amount: number, coins: number} | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'TOSS' | 'PAYPAL' | 'APPLE' | 'KAKAO'>('TOSS');
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const saveUserState = useCallback(async (u: User, state: AppState) => {
       try { localStorage.setItem('black_tarot_user', JSON.stringify({ ...u, lastAppState: state })); } catch (e) { console.error(e); }
@@ -939,11 +937,13 @@ const App: React.FC = () => {
   }, [user.email]);
 
   useEffect(() => {
+      // Prevent saving incomplete data
+      if (!isDataLoaded) return;
       const timeoutId = setTimeout(() => {
           updateUser(prev => ({ ...prev, currentSession: { appState: appState, selectedCategoryId: selectedCategory?.id, selectedQuestion: selectedQuestion, customQuestion: customQuestion, selectedCards: selectedCards, readingResult: undefined, faceImage: faceImage || undefined, birthTime: birthTime, partnerBirth: partnerBirth } }));
       }, 1000); 
       return () => clearTimeout(timeoutId);
-  }, [appState, selectedCategory, selectedQuestion, customQuestion, selectedCards, faceImage, birthTime, partnerBirth]);
+  }, [appState, selectedCategory, selectedQuestion, customQuestion, selectedCards, faceImage, birthTime, partnerBirth, isDataLoaded]);
 
   const checkUser = useCallback(async (isLoginInit = false) => {
     try {
@@ -957,10 +957,30 @@ const App: React.FC = () => {
                 if (authUser) {
                     const email = authUser.email || "User";
                     try { 
-                        const profilePayload = { id: authUser.id, email: authUser.email ?? null, full_name: (authUser.user_metadata?.full_name ?? authUser.user_metadata?.name) ?? null, avatar_url: authUser.user_metadata?.avatar_url ?? null, updated_at: new Date().toISOString(), };
-                        await supabase.from("user_profiles").upsert(profilePayload, { onConflict: "id" });
-                        const { data: profileData } = await supabase.from("user_profiles").select("*").eq("id", authUser.id).single();
-                        if (profileData && profileData.data) { currentUser = { ...profileData.data, email }; if (!currentUser.customSkins) currentUser.customSkins = []; if (!currentUser.customFrames) currentUser.customFrames = []; if (!currentUser.customStickers) currentUser.customStickers = []; if (!currentUser.customBackgrounds) currentUser.customBackgrounds = []; if (!currentUser.ownedSkins) currentUser.ownedSkins = ['default']; } else { if (!localUser || localUser.email !== email) currentUser = { ...user, email }; else currentUser = { ...localUser, email }; }
+                        // First, try to fetch existing profile to avoid overwriting data with empty payload on upsert
+                        const { data: existingProfile } = await supabase.from("user_profiles").select("*").eq("id", authUser.id).single();
+                        
+                        if (existingProfile && existingProfile.data) {
+                             currentUser = { ...existingProfile.data, email };
+                        } else {
+                             // Only upsert basic info if no profile exists, or if we want to ensure email is current.
+                             // Don't overwrite 'data' column if it exists.
+                             const profilePayload = { id: authUser.id, email: authUser.email ?? null, full_name: (authUser.user_metadata?.full_name ?? authUser.user_metadata?.name) ?? null, avatar_url: authUser.user_metadata?.avatar_url ?? null, updated_at: new Date().toISOString() };
+                             await supabase.from("user_profiles").upsert(profilePayload, { onConflict: "id" });
+                             
+                             // If localUser exists and matches email, use it to populate initial cloud data
+                             if (localUser && localUser.email === email) {
+                                 currentUser = { ...localUser, email };
+                             } else {
+                                 currentUser = { ...user, email };
+                             }
+                        }
+                        
+                        if (!currentUser.customSkins) currentUser.customSkins = []; 
+                        if (!currentUser.customFrames) currentUser.customFrames = []; 
+                        if (!currentUser.customStickers) currentUser.customStickers = []; 
+                        if (!currentUser.customBackgrounds) currentUser.customBackgrounds = []; 
+                        if (!currentUser.ownedSkins) currentUser.ownedSkins = ['default'];
                     } catch(e) {}
                     if (currentUser.email !== email) currentUser.email = email;
                 } else {
@@ -994,14 +1014,21 @@ const App: React.FC = () => {
             if (updatedUser.currentSession) { const session = updatedUser.currentSession; if (session.appState) setAppState(session.appState); if (session.selectedCategoryId) setSelectedCategory(CATEGORIES.find(c => c.id === session.selectedCategoryId) || null); if (session.selectedQuestion) setSelectedQuestion(session.selectedQuestion); if (session.customQuestion) setCustomQuestion(session.customQuestion); if (session.selectedCards) setSelectedCards(session.selectedCards); if (session.faceImage) setFaceImage(session.faceImage); if (session.birthTime) setBirthTime(session.birthTime); if (session.partnerBirth) setPartnerBirth(session.partnerBirth); } else if (updatedUser.lastAppState) { setAppState(updatedUser.lastAppState); }
         }
         
-        setUser(updatedUser); saveUserState(updatedUser, isLoginInit ? AppState.CATEGORY_SELECT : (updatedUser.lastAppState || AppState.WELCOME));
+        // Volume Init
+        if (typeof updatedUser.bgmVolume === 'number') {
+            setBgmVolume(updatedUser.bgmVolume);
+        }
+
+        setUser(updatedUser); 
+        setIsDataLoaded(true); // Data is safely loaded, enable autosave
+        saveUserState(updatedUser, isLoginInit ? AppState.CATEGORY_SELECT : (updatedUser.lastAppState || AppState.WELCOME));
     } catch (error) { console.error("Critical error in checkUser:", error); }
   }, []);
 
   const initRef = useRef(false);
   useEffect(() => { if (!initRef.current) { initRef.current = true; checkUser(); } }, [checkUser]);
 
-  const handleLogout = async () => { try { if (isSupabaseConfigured) await supabase.auth.signOut(); } catch (e) {} localStorage.removeItem('black_tarot_user'); const cleanGuestUser: User = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [] }; setUser(cleanGuestUser); setAppState(AppState.WELCOME); setShowSettings(false); setShowProfile(false); };
+  const handleLogout = async () => { try { if (isSupabaseConfigured) await supabase.auth.signOut(); } catch (e) {} localStorage.removeItem('black_tarot_user'); const cleanGuestUser: User = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 }; setUser(cleanGuestUser); setAppState(AppState.WELCOME); setShowSettings(false); setShowProfile(false); setBgmVolume(0.5); };
   const handleStart = () => { initSounds(); setBgmStopped(false); if (user.userInfo?.name && user.userInfo?.birthDate) navigateTo(AppState.CATEGORY_SELECT); else navigateTo(AppState.INPUT_INFO); };
   const handleUserInfoSubmit = (info: UserInfo) => { updateUser((prev) => ({ ...prev, userInfo: info })); navigateTo(AppState.CATEGORY_SELECT); };
   const spendCoins = (amount: number): boolean => { if (user.email === 'Guest') return true; if (user.coins < amount) { if (confirm(TRANSLATIONS[lang].coin_shortage)) { setShowShop(true); setShopStep('AMOUNT'); } return false; } updateUser(prev => { const newSpent = (prev.monthlyCoinsSpent || 0) + amount; return { ...prev, coins: prev.coins - amount, monthlyCoinsSpent: newSpent, tier: calculateTier(newSpent) }; }); return true; };
@@ -1020,7 +1047,7 @@ const App: React.FC = () => {
   const handleRugChange = (color: string) => { if (checkGuestAction()) return; updateUser(prev => ({ ...prev, rugColor: color })); };
   const handleOpenProfile = () => { if (user.userInfo) setEditProfileData({ ...user.userInfo }); setShowProfile(true); };
   const handleSaveProfile = async () => { if (!user.userInfo) return; if (checkGuestAction()) return; const currentInfo = user.userInfo; const nextInfo = { ...editProfileData }; if (nextInfo.name !== currentInfo.name) { const currentCount = currentInfo.nameChangeCount || 0; if (currentCount >= 5) { alert("이름 변경 횟수(5회)를 초과했습니다."); return; } nextInfo.nameChangeCount = currentCount + 1; } else { nextInfo.nameChangeCount = currentInfo.nameChangeCount; } if (nextInfo.birthDate !== currentInfo.birthDate) { if (currentInfo.birthDateChanged) { alert("생년월일은 한 번만 변경할 수 있습니다."); return; } nextInfo.birthDateChanged = true; } if (nextInfo.country !== currentInfo.country) { if (currentInfo.countryChanged) { alert("국가는 한 번만 변경할 수 있습니다."); return; } nextInfo.countryChanged = true; } updateUser(prev => ({ ...prev, userInfo: nextInfo })); setShowProfile(false); alert("프로필이 저장되었습니다."); };
-  const handleDeleteAccount = async () => { if (confirm(TRANSLATIONS[lang].delete_confirm)) { if (isSupabaseConfigured) await supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); localStorage.removeItem('tarot_device_id'); const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME }; setUser(cleanUser); setAppState(AppState.WELCOME); setShowProfile(false); } };
+  const handleDeleteAccount = async () => { if (confirm(TRANSLATIONS[lang].delete_confirm)) { if (isSupabaseConfigured) await supabase.auth.signOut(); localStorage.removeItem('black_tarot_user'); localStorage.removeItem('tarot_device_id'); const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [] }; setUser(cleanUser); setAppState(AppState.WELCOME); setShowProfile(false); } };
   const initiatePayment = (amount: number, coins: number) => { if (user.email === 'Guest') { alert("Please login to purchase coins."); return; } setPendingPackage({ amount, coins }); setShopStep('METHOD'); };
   const processPayment = () => { if (!pendingPackage) return; setTimeout(() => { alert(`Payment Successful via ${selectedPaymentMethod}!`); updateUser(prev => ({ ...prev, coins: prev.coins + pendingPackage.coins, totalSpent: prev.totalSpent + pendingPackage.amount, })); setPendingPackage(null); setShopStep('AMOUNT'); setShowShop(false); }, 1500); };
   const handleCategorySelect = (category: QuestionCategory) => { if (user.email === 'Guest' && ['FACE', 'LIFE', 'SECRET_COMPAT', 'PARTNER_LIFE'].includes(category.id)) { setAuthMode('LOGIN'); return; } if (category.minTier) { const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM]; if (tiers.indexOf(user.tier) < tiers.indexOf(category.minTier)) { alert(`This category requires ${category.minTier} tier or higher.`); return; } } setSelectedCategory(category); if (category.id === 'FACE') navigateTo(AppState.FACE_UPLOAD); else if (category.id === 'LIFE') navigateTo(AppState.LIFE_INPUT); else if (category.id === 'SECRET_COMPAT' || category.id === 'PARTNER_LIFE') navigateTo(AppState.PARTNER_INPUT); else navigateTo(AppState.QUESTION_SELECT); };
@@ -1166,7 +1193,17 @@ const App: React.FC = () => {
                              )}
                              <div>
                                  <label className="block text-sm text-purple-200 mb-2 font-serif">{TRANSLATIONS[lang].bgm_control}</label>
-                                 <input type="range" min="0" max="1" step="0.01" value={bgmVolume} onChange={e => setBgmVolume(parseFloat(e.target.value))} className="w-full accent-purple-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer" />
+                                 <input 
+                                    type="range" 
+                                    min="0" 
+                                    max="1" 
+                                    step="0.01" 
+                                    value={bgmVolume} 
+                                    onChange={e => setBgmVolume(parseFloat(e.target.value))} 
+                                    onMouseUp={() => updateUser(prev => ({...prev, bgmVolume}))}
+                                    onTouchEnd={() => updateUser(prev => ({...prev, bgmVolume}))}
+                                    className="w-full accent-purple-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer" 
+                                />
                                  <div className="flex justify-between mt-2"><button onClick={() => setBgmStopped(!bgmStopped)} className="text-xs text-purple-300 border border-purple-500/30 px-3 py-1 rounded-lg hover:bg-purple-500/20 transition-all">{bgmStopped ? 'PLAY' : 'STOP'}</button><span className="text-xs text-gray-500">{currentBgm.name}</span></div>
                              </div>
                              <div className="border-t border-purple-500/20 pt-6 space-y-3">
