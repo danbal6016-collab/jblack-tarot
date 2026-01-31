@@ -120,7 +120,6 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Prioritize faster, stable models to prevent timeouts and cutoffs
 const MODEL_FALLBACK_CHAIN = [
-    'gemini-2.5-flash',
     'gemini-3-flash-preview',
     'gemini-flash-latest'
 ];
@@ -145,9 +144,9 @@ async function retryOperation<T>(
     throw lastError;
 }
 
-// Global Timeout Wrapper to enforce strict 50s limit
-async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.5-flash', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const GLOBAL_TIMEOUT = 50000; // 50 seconds strict limit
+// Global Timeout Wrapper to enforce strict 60s limit (increased from 50s)
+async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
+    const GLOBAL_TIMEOUT = 60000; // 60 seconds strict limit
 
     // The actual generation logic wrapped in a function
     const generationTask = async () => {
@@ -205,7 +204,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         if (imageParts) body.imageParts = imageParts;
 
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 40000); // 40s fetch limit
+                        const timeoutId = setTimeout(() => controller.abort(), 50000); // 50s fetch limit
 
                         try {
                             const constEqRes = await fetch('/api/gemini', {
@@ -243,7 +242,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
     // The timeout race
     const timeoutTask = new Promise<string>((resolve) => {
         setTimeout(() => {
-            console.error("Global API Timeout (50s reached). Returning fallback to prevent stuck screen.");
+            console.error("Global API Timeout (60s reached). Returning fallback to prevent stuck screen.");
             resolve(EMERGENCY_FALLBACK_RESPONSE);
         }, GLOBAL_TIMEOUT);
     });
@@ -281,7 +280,7 @@ export const getTarotReading = async (
     maxOutputTokens: 4096, 
   };
 
-  return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
+  return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
 export const getCompatibilityReading = async (
@@ -306,11 +305,14 @@ export const getCompatibilityReading = async (
           [Physical Chemistry]
           (Talk about their physical fit and bedroom chemistry explicitly. How good is it?)
           
-          [Hidden Desires]
-          (What does he/she secretly want to do? Fetishes? Be bold.)
+          [What are they holding back?]
+          (What urges or thoughts are they suppressing right now? Be specific about their restraint.)
           
           [Verdict]
           (Final verdict. Should you go for it tonight?)
+
+          [Their Taste]
+          (Specific preferences, styles, or types they are really into. What turns them on?)
         `;
     } else {
         prompt = `
@@ -329,16 +331,19 @@ export const getCompatibilityReading = async (
           [속궁합 분석]
           (Talk about their physical fit, energy, and bedroom chemistry explicitly and provocatively. How good is he/she?)
           
-          [숨겨진 욕망]
-          (What does he secretly want to do to you? What is his fetish? Be bold.)
+          [그 사람 지금 뭘 참고 있을까?]
+          (What urges is he/she holding back right now? Is he suppressing a desire to touch you or do something specific? Be descriptive.)
           
           [결론 및 조언]
           (Final verdict. Should you sleep with him tonight? Best position?)
+
+          [그 사람의 취향]
+          (What is their specific taste or preference? What kind of style or behavior turns them on? Be detailed.)
         `;
     }
 
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 4096 };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
 export const getPartnerLifeReading = async (partnerBirth: string, lang: Language = 'ko'): Promise<string> => {
@@ -351,9 +356,12 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
           Analyze 'COMPLETE LIFE PATH' for birthdate: ${partnerBirth}.
           Tone: Cynical, Realistic, Sharp. Brutal honesty.
           STRICTLY NO ASTERISKS (*).
-          MINIMUM 20 SENTENCES.
+          MINIMUM 25 SENTENCES.
 
           Structure:
+          [Born Destiny]
+          (Analyze the innate destiny/fortune based on their birthdate. What kind of life were they born to live?)
+
           [Early Life]
           (Analyze youth and foundation.)
 
@@ -372,9 +380,12 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
           Analyze 'COMPLETE LIFE PATH SAJU' for birthdate: ${partnerBirth}.
           Tone: Cynical, Realistic, Sharp.
           STRICTLY NO ASTERISKS (*).
-          MINIMUM 20 SENTENCES.
+          MINIMUM 25 SENTENCES.
 
           Structure:
+          [타고난 팔자 (Born Destiny)]
+          (Analyze the innate destiny and fortune based on Saju/birthdate. What kind of fate were they born with? Is it a lucky fate or a hard one?)
+
           [초년운 (Early Life)]
           (Analyze their youth, foundation, and early struggles/successes.)
 
@@ -389,8 +400,9 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
         `;
     }
 
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 4096 };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
+    // Slightly lower temperature for stability in long generation, remove complex configs
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 4096 };
+    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -463,7 +475,9 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
 
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 4096 };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', [imagePart], lang);
+    // Image generation still uses older vision model or gemini-2.5-flash if capable, but for stability sticking to what works for vision
+    // gemini-2.5-flash is good for vision
+    return await callGenAI(prompt, config, 'gemini-3-flash-preview', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -535,7 +549,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
     }
 
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 4096 };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
 export const getFallbackTarotImage = (cardId: number): string => {
