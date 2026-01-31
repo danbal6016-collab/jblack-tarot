@@ -374,7 +374,10 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
           (Analyze final years and reputation.)
 
           [Advice for Fans]
-          (How to support this person. Reality check for fans.)
+          (PROVIDE HIGHLY SPECIFIC, STRATEGIC ADVICE based on their Saju/Astrology.
+           Do not give generic support advice. 
+           Tell fans specifically what to do to complement the celebrity's missing elements or luck flow.
+           E.g., "They lack fire, wear red to concerts" or "In 2026, rumors will rise, do not react.")
         `;
     } else {
         prompt = `
@@ -398,12 +401,14 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
           (Analyze their later years, wealth accumulation, and final reputation.)
 
           [덕질 조언 (Fandom Advice)]
-          (How to support this person based on their destiny. What fans should know.)
+          (이 사람의 사주에 부족한 기운이나 운의 흐름에 맞춰 팬들이 해야 할 '구체적이고 전략적인' 행동 지침을 제시하세요. 
+           뻔한 응원 문구 절대 금지.
+           예: "이 시기엔 구설수가 있으니 무대응해라", "화(火) 기운이 부족하니 공연장에서 빨간색을 흔들어라", "돈 복이 들어오니 조공보다는 앨범을 사줘라" 등 사주 풀이에 근거한, 팬들만이 할 수 있는 실질적이고 독특한 조언 필수.)
         `;
     }
 
     // Slightly lower temperature for stability in long generation, remove complex configs
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 8192 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
