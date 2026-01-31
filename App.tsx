@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from "./src/lib/supabase";
 import { GoogleContinueButton } from "./components/AuthModal";
-import LoginForm from './components/LoginForm';
 import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult, UserTier, Country, BGM, Skin, ChatMessage, CustomSkin, CustomFrame } from './types';
 import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTENDANCE_REWARDS, RESULT_FRAMES, RESULT_BACKGROUNDS, DEFAULT_STICKERS } from './constants';
 import Background from './components/Background';
@@ -423,6 +422,129 @@ const ChatView: React.FC<{
                     </div>
                 </div>
             )}
+        </div>
+    );
+};
+
+const AuthForm: React.FC<{ onClose: () => void; onLoginSuccess: () => void; onSwitchToSignup: () => void }> = ({ onClose, onLoginSuccess, onSwitchToSignup }) => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleLogin = async () => {
+        if (!email || !password) return alert("Please fill in all fields.");
+        setLoading(true);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        setLoading(false);
+        
+        if (error) {
+            alert(error.message);
+        } else {
+            onLoginSuccess();
+        }
+    };
+
+    return (
+        <div className="flex flex-col gap-4 w-full text-left">
+            <div>
+                <label className="text-xs text-gray-400 mb-1 block">Email</label>
+                <input 
+                    type="email" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    className="w-full p-3 bg-gray-800 rounded border border-gray-700 text-white focus:border-purple-500 outline-none" 
+                    placeholder="Enter your email" 
+                />
+            </div>
+            <div>
+                <label className="text-xs text-gray-400 mb-1 block">Password</label>
+                <input 
+                    type="password" 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    className="w-full p-3 bg-gray-800 rounded border border-gray-700 text-white focus:border-purple-500 outline-none" 
+                    placeholder="Enter password" 
+                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                />
+            </div>
+            
+            <button onClick={handleLogin} disabled={loading} className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded shadow-[0_0_15px_rgba(147,51,234,0.4)] transition-all">
+                {loading ? 'Logging in...' : 'Log In'}
+            </button>
+            
+            <div className="flex justify-center text-xs text-gray-400">
+                <button onClick={onSwitchToSignup} className="hover:text-white underline">Need an account? Sign Up</button>
+            </div>
+
+            <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-gray-700"></div>
+                <span className="flex-shrink-0 mx-4 text-gray-500 text-xs">OR</span>
+                <div className="flex-grow border-t border-gray-700"></div>
+            </div>
+            
+            <GoogleContinueButton />
+        </div>
+    );
+};
+
+const SignUpForm: React.FC<{ onClose: () => void; onSwitchToLogin: () => void }> = ({ onClose, onSwitchToLogin }) => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSignUp = async () => {
+        if (!email || !password) return alert("Please fill in all fields.");
+        setLoading(true);
+        const { error } = await supabase.auth.signUp({ email, password });
+        setLoading(false);
+        
+        if (error) {
+            alert(error.message);
+        } else {
+            alert("Sign up successful! Please check your email for confirmation.");
+            onSwitchToLogin();
+        }
+    };
+
+    return (
+        <div className="flex flex-col gap-4 w-full text-left">
+            <div>
+                <label className="text-xs text-gray-400 mb-1 block">Email</label>
+                <input 
+                    type="email" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    className="w-full p-3 bg-gray-800 rounded border border-gray-700 text-white focus:border-purple-500 outline-none" 
+                    placeholder="Enter your email" 
+                />
+            </div>
+            <div>
+                <label className="text-xs text-gray-400 mb-1 block">Password</label>
+                <input 
+                    type="password" 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    className="w-full p-3 bg-gray-800 rounded border border-gray-700 text-white focus:border-purple-500 outline-none" 
+                    placeholder="Create password" 
+                    onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
+                />
+            </div>
+            
+            <button onClick={handleSignUp} disabled={loading} className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded shadow-[0_0_15px_rgba(147,51,234,0.4)] transition-all">
+                {loading ? 'Signing Up...' : 'Sign Up'}
+            </button>
+            
+            <div className="flex justify-center text-xs text-gray-400">
+                <button onClick={onSwitchToLogin} className="hover:text-white underline">Already have an account? Log In</button>
+            </div>
+            
+            <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-gray-700"></div>
+                <span className="flex-shrink-0 mx-4 text-gray-500 text-xs">OR</span>
+                <div className="flex-grow border-t border-gray-700"></div>
+            </div>
+            
+            <GoogleContinueButton />
         </div>
     );
 };
@@ -928,7 +1050,7 @@ const ResultView: React.FC<{
                                 {solution && (
                                     <div className="mt-4 pt-4 border-t border-white/10 relative">
                                         <div className={`p-4 rounded-xl transition-all duration-700 ${isSolutionUnlocked ? 'bg-purple-900/20 border border-purple-500/30' : 'bg-black/40 border-gray-700 select-none'}`}>
-                                            <div className={`text-base leading-relaxed whitespace-pre-line font-bold font-sans ${isSolutionUnlocked ? 'text-white' : 'text-transparent blur-md opacity-50'}`}>
+                                            <div className={`text-base leading-relaxed whitespace-pre-line font-bold font-sans ${isSolutionUnlocked ? 'text-white' : 'text-white/50 blur-[5px] select-none'}`}>
                                                 {solution}
                                             </div>
                                         </div>
@@ -991,72 +1113,7 @@ const ResultView: React.FC<{
     );
 };
 
-const AuthForm: React.FC<{ onClose: () => void; onLoginSuccess: () => void }> = ({ onClose, onLoginSuccess }) => {
-    const [isLogin, setIsLogin] = useState(true);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        if (isLogin) {
-            const { error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error) {
-                alert("Login Failed: " + error.message);
-            } else {
-                onLoginSuccess();
-            }
-        } else {
-            const { error } = await supabase.auth.signUp({ email, password });
-            if (error) {
-                alert("Sign Up Failed: " + error.message);
-            } else {
-                alert("Check your email for the confirmation link!");
-                setIsLogin(true);
-            }
-        }
-        setLoading(false);
-    };
-
-    return (
-        <div className="w-full">
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <input 
-                    type="email" 
-                    value={email} 
-                    onChange={e => setEmail(e.target.value)} 
-                    placeholder="Email" 
-                    className="p-3 bg-black/50 border border-gray-700 rounded text-white focus:border-purple-500 outline-none"
-                    required 
-                />
-                <input 
-                    type="password" 
-                    value={password} 
-                    onChange={e => setPassword(e.target.value)} 
-                    placeholder="Password" 
-                    className="p-3 bg-black/50 border border-gray-700 rounded text-white focus:border-purple-500 outline-none"
-                    required 
-                />
-                <button type="submit" disabled={loading} className="w-full py-3 bg-purple-600 hover:bg-purple-700 rounded text-white font-bold transition-all shadow-lg">
-                    {loading ? "Loading..." : (isLogin ? "Log In" : "Sign Up")}
-                </button>
-            </form>
-            
-            <div className="mt-4 flex flex-col gap-3">
-                <GoogleContinueButton />
-                
-                <button onClick={() => setIsLogin(!isLogin)} className="text-sm text-gray-400 hover:text-white underline">
-                    {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Log In"}
-                </button>
-            </div>
-        </div>
-    );
-};
-
-// ---------------------------------------------------------------------------
-// MAIN APP
-// ---------------------------------------------------------------------------
+// --- MAIN APP COMPONENT ---
 
 const RK_COLORS = [
     { name: 'Default Purple', color: '#2e0b49' },
@@ -1655,7 +1712,7 @@ const App: React.FC = () => {
       navigateTo(AppState.RESULT);
       setSelectedQuestion(TRANSLATIONS[lang].life_reading_title);
       setSelectedCards([]);
-      setReadingPromise(getLifeReading(finalUserInfo, lang));
+      setReadingPromise(getLifeReading(finalUserInfo, lang)); 
       updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1}));
   };
 
@@ -1822,9 +1879,9 @@ const App: React.FC = () => {
                       <button onClick={() => setAuthMode(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">✕</button>
                       <h2 className="text-2xl font-bold text-white mb-6">Login / Sign Up</h2>
                       {authMode === 'LOGIN' ? (
-                          <AuthForm onClose={() => setAuthMode(null)} onLoginSuccess={() => { setAuthMode(null); checkUser(); }} />
+                          <AuthForm onClose={() => setAuthMode(null)} onLoginSuccess={() => { setAuthMode(null); checkUser(); }} onSwitchToSignup={() => setAuthMode('SIGNUP')} />
                       ) : (
-                          <div className="text-white">Sign Up Logic Here</div> 
+                          <SignUpForm onClose={() => setAuthMode(null)} onSwitchToLogin={() => setAuthMode('LOGIN')} />
                       )}
                   </div>
               </div>
