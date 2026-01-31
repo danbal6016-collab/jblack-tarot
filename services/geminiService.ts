@@ -18,6 +18,7 @@ IMPORTANT ADJUSTMENT:
 - ANSWER THE USER'S QUESTION DIRECTLY.
 - Be helpful but cut the fluff.
 - Use modern, sharp language.
+- ENSURE THE RESPONSE IS COMPLETE. Do not cut off mid-sentence.
 
 STRICT RULES:
 1. NO EMOJIS in main text (unless necessary for context).
@@ -39,6 +40,7 @@ IMPORTANT ADJUSTMENT:
 - Be helpful and constructive.
 - Be professional and mystical.
 - Use appropriate slang. Use clear, modern language.
+- ENSURE THE RESPONSE IS COMPLETE. Do not cut off mid-sentence.
 
 STRICT RULES:
 1. NO EMOJIS in main text (unless strictly necessary for context).
@@ -154,9 +156,9 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
         const chainSet = new Set([preferredModel, ...MODEL_FALLBACK_CHAIN]);
         const modelsToTry = Array.from(chainSet);
 
-        // Reduce max tokens per request to ensure speed
+        // Increase max tokens per request to ensure completeness
         const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-        if (!config.maxOutputTokens) config.maxOutputTokens = 2048; 
+        if (!config.maxOutputTokens) config.maxOutputTokens = 8192; // Ensure sufficient tokens
         if (config.thinkingConfig) delete config.thinkingConfig;
 
         for (const model of modelsToTry) {
@@ -277,7 +279,7 @@ export const getTarotReading = async (
   const config = {
     systemInstruction: getBaseInstruction(lang),
     temperature: 0.9, 
-    maxOutputTokens: 4096, 
+    maxOutputTokens: 8192, 
   };
 
   return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
@@ -342,7 +344,7 @@ export const getCompatibilityReading = async (
         `;
     }
 
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 4096 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
@@ -401,7 +403,7 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
     }
 
     // Slightly lower temperature for stability in long generation, remove complex configs
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 4096 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.7, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
@@ -474,7 +476,7 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     }
 
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 4096 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
     // Image generation still uses older vision model or gemini-2.5-flash if capable, but for stability sticking to what works for vision
     // gemini-2.5-flash is good for vision
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', [imagePart], lang);
@@ -548,7 +550,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
         `;
     }
 
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 4096 };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
 
