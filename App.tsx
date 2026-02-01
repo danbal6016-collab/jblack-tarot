@@ -240,101 +240,94 @@ const ChatView: React.FC<{
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const channelRef = useRef<RealtimeChannel | null>(null);
 
-  const getChatUserId = () => {
-  // 로그인 유저도 email 대신 랜덤/uuid(또는 authUser.id) 추천
-  let id = sessionStorage.getItem('chat_uid');
-  if (!id) {
-    id = crypto.randomUUID();
-    sessionStorage.setItem('chat_uid', id);
-  }
-  return id;
-};
-
+    const getChatUserId = () => {
+        let id = sessionStorage.getItem('chat_uid');
+        if (!id) {
+            id = crypto.randomUUID();
+            sessionStorage.setItem('chat_uid', id);
+        }
+        return id;
+    };
 
     const chatUserId = getChatUserId();
 
+    const handleSendMessage = async () => {
+        const text = inputText.trim();
+        if (!text) return;
 
-  useEffect(() => {
-  if (!isSupabaseConfigured) {
-    setMessages([{
-      id: 'system',
-      userId: 'system',
-      nickname: 'System',
-      text: 'Chat is unavailable in demo mode (Backend not configured).',
-      timestamp: Date.now(),
-      tier: UserTier.PLATINUM,
-      avatarUrl: ''
-    }]);
-    return;
-  }
-const handleSendMessage = async () => {
-  const text = inputText.trim();
-  if (!text) return;
+        const channel = channelRef.current;
+        if (!channel) return;
 
-  const channel = channelRef.current;
-  if (!channel) return;
+        const payload: ChatMessage = {
+            id: crypto.randomUUID(),
+            userId: chatUserId,
+            nickname: (user.userInfo?.name || "Anonymous").slice(0, 20),
+            text: text.slice(0, 300),
+            timestamp: Date.now(),
+            tier: user.tier || UserTier.BRONZE,
+            avatarUrl: user.userInfo?.profileImage || "",
+            bio: user.userInfo?.bio ? user.userInfo.bio.slice(0, 200) : undefined,
+        };
 
-  const payload: ChatMessage = {
-    id: crypto.randomUUID(),
-    userId: chatUserId,
-    nickname: (user.userInfo?.name || "Anonymous").slice(0, 20),
-    text: text.slice(0, 300),
-    timestamp: Date.now(),
-    tier: user.tier || UserTier.BRONZE,
-    avatarUrl: user.userInfo?.profileImage || "",
-    bio: user.userInfo?.bio ? user.userInfo.bio.slice(0, 200) : undefined,
-  };
-
-  await channel.send({ type: "broadcast", event: "chat", payload });
-  setInputText("");
-};
-
-  const channel = supabase.channel('black-tarot-global', {
-    config: { presence: { key: chatUserId } }
-  });
-
-  channelRef.current = channel;
-
-  channel
-    .on('broadcast', { event: 'chat' }, ({ payload }) => {
-      const safePayload: ChatMessage = {
-        ...payload,
-        id: String(payload?.id ?? crypto.randomUUID()),
-        userId: String(payload?.userId ?? 'unknown'),
-        nickname: String(payload?.nickname ?? 'Anonymous').slice(0, 20),
-        text: String(payload?.text ?? '').slice(0, 300),
-        timestamp: Number(payload?.timestamp ?? Date.now()),
-        tier: (payload?.tier && Object.values(UserTier).includes(payload.tier))
-          ? payload.tier
-          : UserTier.BRONZE,
-        avatarUrl: String(payload?.avatarUrl ?? ''),
-        bio: typeof payload?.bio === 'string' ? payload.bio.slice(0, 200) : undefined,
-      };
-
-      setMessages(prev => [...prev, safePayload].slice(-50));
-    })
-    .on('presence', { event: 'sync' }, () => {
-      const state = channel.presenceState();
-      setPresenceCount(Object.keys(state).length);
-    })
-    .subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await channel.track({
-          user: user.userInfo?.name || 'Anonymous',
-          online_at: new Date().toISOString(),
-        });
-      }
-    });
-
-  return () => {
-    channel.unsubscribe();
-  };
-}, [chatUserId, user.userInfo?.name]);
-
-
-        }
-        setInputText('');
+        await channel.send({ type: "broadcast", event: "chat", payload });
+        setInputText("");
     };
+
+    useEffect(() => {
+        if (!isSupabaseConfigured) {
+            setMessages([{
+                id: 'system',
+                userId: 'system',
+                nickname: 'System',
+                text: 'Chat is unavailable in demo mode (Backend not configured).',
+                timestamp: Date.now(),
+                tier: UserTier.PLATINUM,
+                avatarUrl: ''
+            }]);
+            return;
+        }
+
+        const channel = supabase.channel('black-tarot-global', {
+            config: { presence: { key: chatUserId } }
+        });
+
+        channelRef.current = channel;
+
+        channel
+            .on('broadcast', { event: 'chat' }, ({ payload }) => {
+                const safePayload: ChatMessage = {
+                    ...payload,
+                    id: String(payload?.id ?? crypto.randomUUID()),
+                    userId: String(payload?.userId ?? 'unknown'),
+                    nickname: String(payload?.nickname ?? 'Anonymous').slice(0, 20),
+                    text: String(payload?.text ?? '').slice(0, 300),
+                    timestamp: Number(payload?.timestamp ?? Date.now()),
+                    tier: (payload?.tier && Object.values(UserTier).includes(payload.tier))
+                        ? payload.tier
+                        : UserTier.BRONZE,
+                    avatarUrl: String(payload?.avatarUrl ?? ''),
+                    bio: typeof payload?.bio === 'string' ? payload.bio.slice(0, 200) : undefined,
+                };
+
+                setMessages(prev => [...prev, safePayload].slice(-50));
+            })
+            .on('presence', { event: 'sync' }, () => {
+                const state = channel.presenceState();
+                setPresenceCount(Object.keys(state).length);
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.track({
+                        user: user.userInfo?.name || 'Anonymous',
+                        online_at: new Date().toISOString(),
+                    });
+                }
+            });
+
+        return () => {
+            channel.unsubscribe();
+        };
+    }, [chatUserId, user.userInfo?.name]);
 
     return (
         <div className="flex flex-col h-screen bg-black/90 relative pt-16">
@@ -762,62 +755,40 @@ const ResultView: React.FC<{
         setActiveStickers([...activeStickers, newSticker]);
     };
 
+    const handleDragStart = (e: React.MouseEvent | React.TouchEvent, id: number) => {
+        const target = e.currentTarget as HTMLElement;
+        const container = contentRef.current;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        
+        // Use requestAnimationFrame for smooth throttling
+        let animationFrameId: number | null = null;
 
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent, id: number) => {
-  const container = contentRef.current;
-  if (!container) return;
+        const onMove = (mv: MouseEvent | TouchEvent) => {
+            if (animationFrameId !== null) return; // Throttle
 
-  const rect = container.getBoundingClientRect();
-  let raf: number | null = null;
-
-  const onMove = (mv: MouseEvent | TouchEvent) => {
-    if ("touches" in mv) mv.preventDefault();
-
-    if (raf !== null) return;
-    raf = requestAnimationFrame(() => {
-      const clientX = "touches" in mv ? mv.touches[0].clientX : mv.clientX;
-      const clientY = "touches" in mv ? mv.touches[0].clientY : mv.clientY;
-
-      const newX = ((clientX - rect.left) / rect.width) * 100;
-      const newY = ((clientY - rect.top) / rect.height) * 100;
-
-      setActiveStickers(prev =>
-        prev.map(s => (s.id === id ? { ...s, x: newX, y: newY } : s))
-      );
-
-      raf = null;
-    });
-  };
-
-  const onUp = () => {
-    if (raf !== null) cancelAnimationFrame(raf);
-    window.removeEventListener("mousemove", onMove as any);
-    window.removeEventListener("mouseup", onUp);
-    window.removeEventListener("touchmove", onMove as any);
-    window.removeEventListener("touchend", onUp);
-  };
-
-  window.addEventListener("mousemove", onMove as any);
-  window.addEventListener("mouseup", onUp);
-  window.addEventListener("touchmove", onMove as any, { passive: false });
-  window.addEventListener("touchend", onUp);
-};
-
-  const onUp = () => {
-    if (raf !== null) cancelAnimationFrame(raf);
-    window.removeEventListener('mousemove', onMove as any);
-    window.removeEventListener('mouseup', onUp);
-    window.removeEventListener('touchmove', onMove as any);
-    window.removeEventListener('touchend', onUp);
-  };
-
-  window.addEventListener('mousemove', onMove as any);
-  window.addEventListener('mouseup', onUp);
-  window.addEventListener('touchmove', onMove as any, { passive: false });
-  window.addEventListener('touchend', onUp);
-};
-
-
+            animationFrameId = requestAnimationFrame(() => {
+                const clientX = 'clientX' in mv ? (mv as MouseEvent).clientX : (mv as TouchEvent).touches[0].clientX;
+                const clientY = 'clientY' in mv ? (mv as MouseEvent).clientY : (mv as TouchEvent).touches[0].clientY;
+                
+                let newX = ((clientX - rect.left) / rect.width) * 100;
+                let newY = ((clientY - rect.top) / rect.height) * 100;
+                
+                setActiveStickers(prev => prev.map(s => s.id === id ? { ...s, x: newX, y: newY } : s));
+                animationFrameId = null;
+            });
+        };
+        
+        const onUp = () => {
+            if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('touchend', onUp);
+        };
+        
+        // Passive false is important for touchmove to prevent scrolling
+        window.addEventListener('mousemove', onMove, { passive: false });
         window.addEventListener('mouseup', onUp);
         window.addEventListener('touchmove', onMove, { passive: false });
         window.addEventListener('touchend', onUp);
@@ -963,32 +934,8 @@ const App: React.FC = () => {
           supabase.from('user_profiles').upsert(payload, { onConflict: 'id' }).then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
       }
   }, []);
-const userRef = useRef(user);
-useEffect(() => { userRef.current = user; }, [user]);
-
-const navigateTo = (newState: AppState) => {
-  setAppState(newState);
-  saveUserState(userRef.current, newState); // ✅ 항상 최신 user
-};
-
-  const appStateRef = useRef(appState);
-useEffect(() => { appStateRef.current = appState; }, [appState]);
-
-const saveTimerRef = useRef<number | null>(null);
-
-const updateUser = (updater: (prev: User) => User) => {
-  setUser(prev => {
-    const next = updater(prev);
-
-    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = window.setTimeout(() => {
-      saveUserState(next, appStateRef.current);
-    }, 800); // ✅ 0.8초 debounce
-
-    return next;
-  });
-};
-
+  const navigateTo = (newState: AppState) => { setAppState(newState); saveUserState(user, newState); };
+  const updateUser = (updater: (prev: User) => User) => { setUser(prev => { const newUser = updater(prev); saveUserState(newUser, appState); return newUser; }); };
   const handleReadingComplete = useCallback((text: string) => { 
       updateUser((prev) => {
           if (prev.history.length > 0) {
@@ -1000,87 +947,20 @@ const updateUser = (updater: (prev: User) => User) => {
       }); 
   }, [selectedQuestion, selectedCards]); 
 
-const checkLockRef = useRef(false);
+  // ✅ New Logic: userRef to handle stale closures
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
 
-// ✅ checkUser 먼저
-const checkUser = useCallback(async (isLoginInit = false) => {
-  try {
-    let localUser: User | null = null;
-    try {
-      const stored = localStorage.getItem('black_tarot_user');
-      if (stored) localUser = JSON.parse(stored);
-    } catch (e) {}
-
-    // ✅ 여기 1줄만 바꿔: { ...user } -> { ...userRef.current }
-    let currentUser = localUser || { ...userRef.current, email: "Guest" };
-
-    // ... (나머지 checkUser 내용은 그대로)
-    
-    setUser(currentUser);
-    setIsDataLoaded(true);
-    saveUserState(
-      currentUser,
-      isLoginInit ? AppState.CATEGORY_SELECT : (currentUser.lastAppState || AppState.WELCOME)
-    );
-  } catch (error) {
-    console.error("Critical error in checkUser:", error);
-  }
-}, [saveUserState]); // ✅ deps는 이걸로
-
-// ✅ 그 다음 safeCheckUser
-const checkLockRef = useRef(false);
-
-const safeCheckUser = useCallback(async (isLoginInit = false) => {
-  if (checkLockRef.current) return;
-  checkLockRef.current = true;
-  try {
-    await checkUser(isLoginInit);
-  } finally {
-    checkLockRef.current = false;
-  }
-}, [checkUser]);
-
-// ✅ onAuthStateChange는 safeCheckUser 사용
-useEffect(() => {
-  if (!isSupabaseConfigured) return;
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
-      safeCheckUser(false);
-    }
-  });
-
-  return () => subscription.unsubscribe();
-}, [safeCheckUser]);
-
-
-useEffect(() => {
-  if (!isSupabaseConfigured) return;
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
-      safeCheckUser(false);
-    }
-  });
-
-  return () => subscription.unsubscribe();
-}, [safeCheckUser]);
-
-
-  useEffect(() => {
-      // Prevent saving incomplete data
-      if (!isDataLoaded) return;
-      const timeoutId = setTimeout(() => {
-          updateUser(prev => ({ ...prev, currentSession: { appState: appState, selectedCategoryId: selectedCategory?.id, selectedQuestion: selectedQuestion, customQuestion: customQuestion, selectedCards: selectedCards, readingResult: undefined, faceImage: faceImage || undefined, birthTime: birthTime, partnerBirth: partnerBirth } }));
-      }, 1000); 
-      return () => clearTimeout(timeoutId);
-  }, [appState, selectedCategory, selectedQuestion, customQuestion, selectedCards, faceImage, birthTime, partnerBirth, isDataLoaded]);
+  const checkLockRef = useRef(false);
 
   const checkUser = useCallback(async (isLoginInit = false) => {
     try {
         let localUser: User | null = null;
         try { const stored = localStorage.getItem('black_tarot_user'); if (stored) localUser = JSON.parse(stored); } catch (e) {}
-        let currentUser = localUser || { ...user, email: "Guest" };
+        
+        // ✅ Use userRef.current
+        let currentUser = localUser || { ...userRef.current, email: "Guest" };
+        
         if (isSupabaseConfigured) {
             try {
                 const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -1100,7 +980,7 @@ useEffect(() => {
                              if (localUser && localUser.email === email) {
                                  currentUser = { ...localUser, email };
                              } else {
-                                 currentUser = { ...user, email };
+                                 currentUser = { ...userRef.current, email };
                              }
                         }
                         
@@ -1115,7 +995,7 @@ useEffect(() => {
                     }
                     if (currentUser.email !== email) currentUser.email = email;
                 } else {
-                   if (!localUser || localUser.email !== 'Guest') currentUser = { ...user, email: "Guest", tier: UserTier.BRONZE }; 
+                   if (!localUser || localUser.email !== 'Guest') currentUser = { ...userRef.current, email: "Guest", tier: UserTier.BRONZE }; 
                    if (!localStorage.getItem('tarot_device_id')) localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
                 }
             } catch (error) { console.error(error); }
@@ -1123,10 +1003,8 @@ useEffect(() => {
              if (!localStorage.getItem('tarot_device_id')) localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
         }
         
-        // --- FIXED: ATTENDANCE LOGIC (Login Only + Country Based) ---
-        // Determine user's current date based on their country/timezone
         const userTimezone = currentUser.userInfo?.timezone || 'Asia/Seoul';
-        const today = new Date().toLocaleDateString('en-CA', { timeZone: userTimezone }); // Returns YYYY-MM-DD in user's zone
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: userTimezone });
 
         if (currentUser.email !== 'Guest') {
             if (currentUser.lastAttendance !== today) {
@@ -1165,7 +1043,40 @@ useEffect(() => {
         setIsDataLoaded(true); 
         saveUserState(currentUser, isLoginInit ? AppState.CATEGORY_SELECT : (currentUser.lastAppState || AppState.WELCOME));
     } catch (error) { console.error("Critical error in checkUser:", error); }
-  }, []);
+  }, []); // Intentionally empty dependency to rely on ref
+
+  // ✅ safeCheckUser
+  const safeCheckUser = useCallback(async (isLoginInit = false) => {
+    if (checkLockRef.current) return;
+    checkLockRef.current = true;
+    try {
+      await checkUser(isLoginInit);
+    } finally {
+      checkLockRef.current = false;
+    }
+  }, [checkUser]);
+
+  // ✅ One Consolidated onAuthStateChange
+  useEffect(() => {
+      if (!isSupabaseConfigured) return;
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => { 
+          if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) { 
+              safeCheckUser(false); 
+          } 
+      });
+      
+      return () => { subscription.unsubscribe(); };
+  }, [safeCheckUser]);
+
+  useEffect(() => {
+      // Prevent saving incomplete data
+      if (!isDataLoaded) return;
+      const timeoutId = setTimeout(() => {
+          updateUser(prev => ({ ...prev, currentSession: { appState: appState, selectedCategoryId: selectedCategory?.id, selectedQuestion: selectedQuestion, customQuestion: customQuestion, selectedCards: selectedCards, readingResult: undefined, faceImage: faceImage || undefined, birthTime: birthTime, partnerBirth: partnerBirth } }));
+      }, 1000); 
+      return () => clearTimeout(timeoutId);
+  }, [appState, selectedCategory, selectedQuestion, customQuestion, selectedCards, faceImage, birthTime, partnerBirth, isDataLoaded]);
 
   const initRef = useRef(false);
   useEffect(() => { if (!initRef.current) { initRef.current = true; checkUser(); } }, [checkUser]);
@@ -1246,17 +1157,15 @@ useEffect(() => {
   };
 
   const initiatePayment = (amount: number, coins: number) => { if (user.email === 'Guest') { alert("Please login to purchase coins."); return; } setPendingPackage({ amount, coins }); setShopStep('METHOD'); };
-  // FIX: Removed totalSpent update from payment process. Tier progress only increases when coins are SPENT, not bought.
+  
+  // FIX: Payment process modified to show demand alert instead of awarding coins
   const processPayment = () => {
-  if (!pendingPackage) return;
-
-  alert("결제는 수요가 올라가면 열립니다.");
-  // 코인 지급 절대 금지
-  setPendingPackage(null);
-  setShopStep('AMOUNT');
-  setShowShop(false);
-};
-
+    if (!pendingPackage) return;
+    alert("수요가 많으면 오픈합니다.");
+    setPendingPackage(null);
+    setShopStep('AMOUNT');
+    setShowShop(false);
+  };
   
   const handleCategorySelect = (category: QuestionCategory) => { if (user.email === 'Guest' && ['FACE', 'LIFE', 'SECRET_COMPAT', 'PARTNER_LIFE'].includes(category.id)) { setAuthMode('LOGIN'); return; } if (category.minTier) { const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM]; if (tiers.indexOf(user.tier) < tiers.indexOf(category.minTier)) { alert(`This category requires ${category.minTier} tier or higher.`); return; } } setSelectedCategory(category); if (category.id === 'FACE') navigateTo(AppState.FACE_UPLOAD); else if (category.id === 'LIFE') navigateTo(AppState.LIFE_INPUT); else if (category.id === 'SECRET_COMPAT' || category.id === 'PARTNER_LIFE') navigateTo(AppState.PARTNER_INPUT); else navigateTo(AppState.QUESTION_SELECT); };
   const handleEnterChat = async () => { if (!spendCoins(20)) return; navigateTo(AppState.CHAT_ROOM); };
