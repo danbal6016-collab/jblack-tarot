@@ -240,74 +240,98 @@ const ChatView: React.FC<{
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const channelRef = useRef<RealtimeChannel | null>(null);
 
-    const getChatUserId = () => {
-        if (user.email !== 'Guest') return user.email;
-        let guestId = sessionStorage.getItem('guest_chat_id');
-        if (!guestId) {
-            guestId = 'Guest-' + Math.random().toString(36).substring(2, 9);
-            sessionStorage.setItem('guest_chat_id', guestId);
-        }
-        return guestId;
-    };
+  const getChatUserId = () => {
+  // 로그인 유저도 email 대신 랜덤/uuid(또는 authUser.id) 추천
+  let id = sessionStorage.getItem('chat_uid');
+  if (!id) {
+    id = crypto.randomUUID();
+    sessionStorage.setItem('chat_uid', id);
+  }
+  return id;
+};
+
 
     const chatUserId = getChatUserId();
 
-    useEffect(() => {
-        if (!isSupabaseConfigured) {
-            setMessages([{
-                id: 'system', userId: 'system', nickname: 'System', 
-                text: 'Chat is unavailable in demo mode (Backend not configured).', 
-                timestamp: Date.now(), tier: UserTier.PLATINUM, avatarUrl: ''
-            }]);
-            return;
-        }
 
-        const channel = supabase.channel('black-tarot-global', {
-            config: { presence: { key: chatUserId } }
+  useEffect(() => {
+  if (!isSupabaseConfigured) {
+    setMessages([{
+      id: 'system',
+      userId: 'system',
+      nickname: 'System',
+      text: 'Chat is unavailable in demo mode (Backend not configured).',
+      timestamp: Date.now(),
+      tier: UserTier.PLATINUM,
+      avatarUrl: ''
+    }]);
+    return;
+  }
+const handleSendMessage = async () => {
+  const text = inputText.trim();
+  if (!text) return;
+
+  const channel = channelRef.current;
+  if (!channel) return;
+
+  const payload: ChatMessage = {
+    id: crypto.randomUUID(),
+    userId: chatUserId,
+    nickname: (user.userInfo?.name || "Anonymous").slice(0, 20),
+    text: text.slice(0, 300),
+    timestamp: Date.now(),
+    tier: user.tier || UserTier.BRONZE,
+    avatarUrl: user.userInfo?.profileImage || "",
+    bio: user.userInfo?.bio ? user.userInfo.bio.slice(0, 200) : undefined,
+  };
+
+  await channel.send({ type: "broadcast", event: "chat", payload });
+  setInputText("");
+};
+
+  const channel = supabase.channel('black-tarot-global', {
+    config: { presence: { key: chatUserId } }
+  });
+
+  channelRef.current = channel;
+
+  channel
+    .on('broadcast', { event: 'chat' }, ({ payload }) => {
+      const safePayload: ChatMessage = {
+        ...payload,
+        id: String(payload?.id ?? crypto.randomUUID()),
+        userId: String(payload?.userId ?? 'unknown'),
+        nickname: String(payload?.nickname ?? 'Anonymous').slice(0, 20),
+        text: String(payload?.text ?? '').slice(0, 300),
+        timestamp: Number(payload?.timestamp ?? Date.now()),
+        tier: (payload?.tier && Object.values(UserTier).includes(payload.tier))
+          ? payload.tier
+          : UserTier.BRONZE,
+        avatarUrl: String(payload?.avatarUrl ?? ''),
+        bio: typeof payload?.bio === 'string' ? payload.bio.slice(0, 200) : undefined,
+      };
+
+      setMessages(prev => [...prev, safePayload].slice(-50));
+    })
+    .on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState();
+      setPresenceCount(Object.keys(state).length);
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({
+          user: user.userInfo?.name || 'Anonymous',
+          online_at: new Date().toISOString(),
         });
+      }
+    });
 
-        channelRef.current = channel;
+  return () => {
+    channel.unsubscribe();
+  };
+}, [chatUserId, user.userInfo?.name]);
 
-        channel
-            .on('broadcast', { event: 'chat' }, ({ payload }) => {
-                setMessages(prev => {
-                    const newMessages = [...prev, payload];
-                    return newMessages.slice(-50);
-                });
-            })
-            .on('presence', { event: 'sync' }, () => {
-                const state = channel.presenceState();
-                setPresenceCount(Object.keys(state).length);
-            })
-            .subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    await channel.track({
-                        user: user.userInfo?.name || 'Anonymous',
-                        online_at: new Date().toISOString(),
-                    });
-                }
-            });
 
-        return () => { channel.unsubscribe(); };
-    }, []);
-
-    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-
-    const handleSendMessage = async () => {
-        if (!inputText.trim()) return;
-        const msg: ChatMessage = {
-            id: Math.random().toString(36).substring(2),
-            userId: chatUserId,
-            nickname: user.userInfo?.name || 'Anonymous',
-            avatarUrl: user.userInfo?.profileImage,
-            bio: user.userInfo?.bio || '',
-            text: inputText,
-            timestamp: Date.now(),
-            tier: user.tier
-        };
-        setMessages(prev => [...prev, msg].slice(-50)); 
-        if (isSupabaseConfigured) {
-            await channelRef.current?.send({ type: 'broadcast', event: 'chat', payload: msg });
         }
         setInputText('');
     };
@@ -738,40 +762,62 @@ const ResultView: React.FC<{
         setActiveStickers([...activeStickers, newSticker]);
     };
 
-    const handleDragStart = (e: React.MouseEvent | React.TouchEvent, id: number) => {
-        const target = e.currentTarget as HTMLElement;
-        const container = contentRef.current;
-        if (!container) return;
-        const rect = container.getBoundingClientRect();
-        
-        // Use requestAnimationFrame for smooth throttling
-        let animationFrameId: number | null = null;
 
-        const onMove = (mv: MouseEvent | TouchEvent) => {
-            if (animationFrameId !== null) return; // Throttle
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent, id: number) => {
+  const container = contentRef.current;
+  if (!container) return;
 
-            animationFrameId = requestAnimationFrame(() => {
-                const clientX = 'clientX' in mv ? (mv as MouseEvent).clientX : (mv as TouchEvent).touches[0].clientX;
-                const clientY = 'clientY' in mv ? (mv as MouseEvent).clientY : (mv as TouchEvent).touches[0].clientY;
-                
-                let newX = ((clientX - rect.left) / rect.width) * 100;
-                let newY = ((clientY - rect.top) / rect.height) * 100;
-                
-                setActiveStickers(prev => prev.map(s => s.id === id ? { ...s, x: newX, y: newY } : s));
-                animationFrameId = null;
-            });
-        };
-        
-        const onUp = () => {
-            if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onUp);
-            window.removeEventListener('touchmove', onMove);
-            window.removeEventListener('touchend', onUp);
-        };
-        
-        // Passive false is important for touchmove to prevent scrolling
-        window.addEventListener('mousemove', onMove, { passive: false });
+  const rect = container.getBoundingClientRect();
+  let raf: number | null = null;
+
+  const onMove = (mv: MouseEvent | TouchEvent) => {
+    if ("touches" in mv) mv.preventDefault();
+
+    if (raf !== null) return;
+    raf = requestAnimationFrame(() => {
+      const clientX = "touches" in mv ? mv.touches[0].clientX : mv.clientX;
+      const clientY = "touches" in mv ? mv.touches[0].clientY : mv.clientY;
+
+      const newX = ((clientX - rect.left) / rect.width) * 100;
+      const newY = ((clientY - rect.top) / rect.height) * 100;
+
+      setActiveStickers(prev =>
+        prev.map(s => (s.id === id ? { ...s, x: newX, y: newY } : s))
+      );
+
+      raf = null;
+    });
+  };
+
+  const onUp = () => {
+    if (raf !== null) cancelAnimationFrame(raf);
+    window.removeEventListener("mousemove", onMove as any);
+    window.removeEventListener("mouseup", onUp);
+    window.removeEventListener("touchmove", onMove as any);
+    window.removeEventListener("touchend", onUp);
+  };
+
+  window.addEventListener("mousemove", onMove as any);
+  window.addEventListener("mouseup", onUp);
+  window.addEventListener("touchmove", onMove as any, { passive: false });
+  window.addEventListener("touchend", onUp);
+};
+
+  const onUp = () => {
+    if (raf !== null) cancelAnimationFrame(raf);
+    window.removeEventListener('mousemove', onMove as any);
+    window.removeEventListener('mouseup', onUp);
+    window.removeEventListener('touchmove', onMove as any);
+    window.removeEventListener('touchend', onUp);
+  };
+
+  window.addEventListener('mousemove', onMove as any);
+  window.addEventListener('mouseup', onUp);
+  window.addEventListener('touchmove', onMove as any, { passive: false });
+  window.addEventListener('touchend', onUp);
+};
+
+
         window.addEventListener('mouseup', onUp);
         window.addEventListener('touchmove', onMove, { passive: false });
         window.addEventListener('touchend', onUp);
@@ -917,8 +963,32 @@ const App: React.FC = () => {
           supabase.from('user_profiles').upsert(payload, { onConflict: 'id' }).then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
       }
   }, []);
-  const navigateTo = (newState: AppState) => { setAppState(newState); saveUserState(user, newState); };
-  const updateUser = (updater: (prev: User) => User) => { setUser(prev => { const newUser = updater(prev); saveUserState(newUser, appState); return newUser; }); };
+const userRef = useRef(user);
+useEffect(() => { userRef.current = user; }, [user]);
+
+const navigateTo = (newState: AppState) => {
+  setAppState(newState);
+  saveUserState(userRef.current, newState); // ✅ 항상 최신 user
+};
+
+  const appStateRef = useRef(appState);
+useEffect(() => { appStateRef.current = appState; }, [appState]);
+
+const saveTimerRef = useRef<number | null>(null);
+
+const updateUser = (updater: (prev: User) => User) => {
+  setUser(prev => {
+    const next = updater(prev);
+
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      saveUserState(next, appStateRef.current);
+    }, 800); // ✅ 0.8초 debounce
+
+    return next;
+  });
+};
+
   const handleReadingComplete = useCallback((text: string) => { 
       updateUser((prev) => {
           if (prev.history.length > 0) {
@@ -930,14 +1000,72 @@ const App: React.FC = () => {
       }); 
   }, [selectedQuestion, selectedCards]); 
 
-  useEffect(() => {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => { if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') { if (session?.user) checkUser(); } });
-      let channel: RealtimeChannel | null = null;
-      if (isSupabaseConfigured && user.email !== 'Guest') {
-          channel = supabase.channel(`user_profiles:${user.email}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_profiles', filter: `email=eq.${user.email}`, }, (payload) => { if (payload.new && payload.new.data) { setUser(prev => ({ ...prev, ...payload.new.data })); } }).subscribe();
-      }
-      return () => { subscription.unsubscribe(); if (channel) supabase.removeChannel(channel); };
-  }, [user.email]);
+const checkLockRef = useRef(false);
+
+// ✅ checkUser 먼저
+const checkUser = useCallback(async (isLoginInit = false) => {
+  try {
+    let localUser: User | null = null;
+    try {
+      const stored = localStorage.getItem('black_tarot_user');
+      if (stored) localUser = JSON.parse(stored);
+    } catch (e) {}
+
+    // ✅ 여기 1줄만 바꿔: { ...user } -> { ...userRef.current }
+    let currentUser = localUser || { ...userRef.current, email: "Guest" };
+
+    // ... (나머지 checkUser 내용은 그대로)
+    
+    setUser(currentUser);
+    setIsDataLoaded(true);
+    saveUserState(
+      currentUser,
+      isLoginInit ? AppState.CATEGORY_SELECT : (currentUser.lastAppState || AppState.WELCOME)
+    );
+  } catch (error) {
+    console.error("Critical error in checkUser:", error);
+  }
+}, [saveUserState]); // ✅ deps는 이걸로
+
+// ✅ 그 다음 safeCheckUser
+const checkLockRef = useRef(false);
+
+const safeCheckUser = useCallback(async (isLoginInit = false) => {
+  if (checkLockRef.current) return;
+  checkLockRef.current = true;
+  try {
+    await checkUser(isLoginInit);
+  } finally {
+    checkLockRef.current = false;
+  }
+}, [checkUser]);
+
+// ✅ onAuthStateChange는 safeCheckUser 사용
+useEffect(() => {
+  if (!isSupabaseConfigured) return;
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+      safeCheckUser(false);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, [safeCheckUser]);
+
+
+useEffect(() => {
+  if (!isSupabaseConfigured) return;
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+      safeCheckUser(false);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, [safeCheckUser]);
+
 
   useEffect(() => {
       // Prevent saving incomplete data
@@ -1119,7 +1247,16 @@ const App: React.FC = () => {
 
   const initiatePayment = (amount: number, coins: number) => { if (user.email === 'Guest') { alert("Please login to purchase coins."); return; } setPendingPackage({ amount, coins }); setShopStep('METHOD'); };
   // FIX: Removed totalSpent update from payment process. Tier progress only increases when coins are SPENT, not bought.
-  const processPayment = () => { if (!pendingPackage) return; setTimeout(() => { alert(`Payment Successful via ${selectedPaymentMethod}!`); updateUser(prev => ({ ...prev, coins: prev.coins + pendingPackage.coins })); setPendingPackage(null); setShopStep('AMOUNT'); setShowShop(false); }, 1500); };
+  const processPayment = () => {
+  if (!pendingPackage) return;
+
+  alert("결제는 수요가 올라가면 열립니다.");
+  // 코인 지급 절대 금지
+  setPendingPackage(null);
+  setShopStep('AMOUNT');
+  setShowShop(false);
+};
+
   
   const handleCategorySelect = (category: QuestionCategory) => { if (user.email === 'Guest' && ['FACE', 'LIFE', 'SECRET_COMPAT', 'PARTNER_LIFE'].includes(category.id)) { setAuthMode('LOGIN'); return; } if (category.minTier) { const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM]; if (tiers.indexOf(user.tier) < tiers.indexOf(category.minTier)) { alert(`This category requires ${category.minTier} tier or higher.`); return; } } setSelectedCategory(category); if (category.id === 'FACE') navigateTo(AppState.FACE_UPLOAD); else if (category.id === 'LIFE') navigateTo(AppState.LIFE_INPUT); else if (category.id === 'SECRET_COMPAT' || category.id === 'PARTNER_LIFE') navigateTo(AppState.PARTNER_INPUT); else navigateTo(AppState.QUESTION_SELECT); };
   const handleEnterChat = async () => { if (!spendCoins(20)) return; navigateTo(AppState.CHAT_ROOM); };
