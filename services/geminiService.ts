@@ -120,16 +120,20 @@ const SAFETY_SETTINGS = [
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Prioritize faster, stable models to prevent timeouts and cutoffs
+// Prioritize stability. If the preview model is unstable, fall back to flash-latest immediately.
 const MODEL_FALLBACK_CHAIN = [
-    'gemini-3-flash-preview',
-    'gemini-flash-latest'
+    'gemini-2.5-flash-latest', // New stable fast model
+    'gemini-flash-latest',     // Reliable fallback
+    'gemini-3-flash-preview'   // Try cutting edge last if others fail/busy (or first if preferred, but for stability sticking to established ones)
 ];
+
+// For critical stability, re-order: Try 3-flash first for quality, but fall back aggressively.
+const MODELS_TO_TRY = ['gemini-3-flash-preview', 'gemini-2.5-flash-latest', 'gemini-flash-latest'];
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
     maxAttempts: number = 3, 
-    baseDelay: number = 500
+    baseDelay: number = 1000 // Increased base delay
 ): Promise<T> {
     let lastError: any;
     
@@ -139,29 +143,29 @@ async function retryOperation<T>(
         } catch (error: any) {
             lastError = error;
             console.warn(`Attempt ${i + 1} failed:`, error.message);
-            // Exponential backoff
-            await wait(baseDelay * Math.pow(2, i));
+            // Exponential backoff with jitter
+            const delay = baseDelay * Math.pow(2, i) + Math.random() * 500;
+            await wait(delay);
         }
     }
     throw lastError;
 }
 
-// Global Timeout Wrapper to enforce strict 60s limit (increased from 50s)
+// Global Timeout Wrapper
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const GLOBAL_TIMEOUT = 60000; // 60 seconds strict limit
+    const GLOBAL_TIMEOUT = 80000; // Increased to 80 seconds
 
-    // The actual generation logic wrapped in a function
     const generationTask = async () => {
-        let lastErrorMessage = "";
-        const chainSet = new Set([preferredModel, ...MODEL_FALLBACK_CHAIN]);
-        const modelsToTry = Array.from(chainSet);
+        // Construct the chain: Preferred -> Fallbacks
+        // Filter out duplicates
+        const chain = [preferredModel, ...MODELS_TO_TRY].filter((v, i, a) => a.indexOf(v) === i);
 
         // Increase max tokens per request to ensure completeness
         const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-        if (!config.maxOutputTokens) config.maxOutputTokens = 8192; // Ensure sufficient tokens
+        if (!config.maxOutputTokens) config.maxOutputTokens = 8192; 
         if (config.thinkingConfig) delete config.thinkingConfig;
 
-        for (const model of modelsToTry) {
+        for (const model of chain) {
             try {
                 console.log(`Attempting generation with model: ${model}`);
                 let responseText = "";
@@ -191,7 +195,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                             });
                             if (response.text) return response.text;
                             throw new Error("No text generated from model.");
-                        }, 2, 500); // Fast retry
+                        }, 2, 800); // 2 retries per model via SDK
 
                         if (responseText) return responseText;
                     } catch (e: any) {
@@ -206,7 +210,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         if (imageParts) body.imageParts = imageParts;
 
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 50000); // 50s fetch limit
+                        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s fetch limit
 
                         try {
                             const constEqRes = await fetch('/api/gemini', {
@@ -224,12 +228,11 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                             clearTimeout(timeoutId);
                             throw fetchErr;
                         }
-                    }, 2, 500);
+                    }, 2, 800); // 2 retries per model via Proxy
 
                     if (responseText) return responseText;
                 } catch (proxyError: any) {
                     console.error(`Proxy failed for ${model}:`, proxyError);
-                    lastErrorMessage = proxyError.message;
                 }
 
             } catch (modelError: any) {
@@ -244,7 +247,7 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
     // The timeout race
     const timeoutTask = new Promise<string>((resolve) => {
         setTimeout(() => {
-            console.error("Global API Timeout (60s reached). Returning fallback to prevent stuck screen.");
+            console.error("Global API Timeout. Returning fallback.");
             resolve(EMERGENCY_FALLBACK_RESPONSE);
         }, GLOBAL_TIMEOUT);
     });
@@ -272,10 +275,10 @@ export const getTarotReading = async (
       Birthdate: ${userInfo.birthDate}
       
       INSTRUCTION:
-      1. **Internally** calculate the User's Saju (Four Pillars) and dominant Element (e.g., Fire, Water) based on the birthdate.
+      1. **Internally** calculate the User's Saju (Four Pillars) and dominant Element based on the birthdate.
       2. Interpret the Tarot Cards (${cardNames}) *through the lens* of this user's specific energy/destiny.
       3. **CRITICAL CONSTRAINT**: Do NOT use technical Saju terms (like "Ilju", "Day Pillar", "Wood Element") in the final output.
-      4. Instead, describe the *traits* naturally. (e.g., if they are Fire, talk about their "innate passion" or "tendency to burn out", not "Because you are Fire...").
+      4. Instead, describe the *traits* naturally (e.g., talk about "innate passion" instead of "Fire Element").
       `;
   }
 
@@ -316,28 +319,28 @@ export const getCompatibilityReading = async (
           Partner: Born ${partnerBirth}
           
           CRITICAL TASK:
-          1. Internally calculate Saju (Day Pillars) for BOTH people to understand their true dynamic (Harmony/Clash).
-          2. Provide an 'INTENSE 19+ PHYSICAL ANALYSIS' rooted in this specific energy interaction.
+          1. Internally calculate Saju (Day Pillars) for BOTH to understand dynamic (Harmony/Clash).
+          2. Provide an 'INTENSE 19+ PHYSICAL ANALYSIS' rooted in this energy interaction.
           3. **CONSTRAINT**: DO NOT explicitly mention "Saju", "Elements", or "Pillars" in the text. 
-          4. Describe the *sensation* and *chemistry* vividly instead of the mechanics.
+          4. Describe the *sensation* and *chemistry* vividly instead.
           
-          ROLEPLAY: You are the user's best friend (gossiping in private).
-          TONE: Explicit, spicy, brutally honest, exciting. Use slang like 'OMG', 'Wild', 'Hot'.
+          ROLEPLAY: Best friend gossiping.
+          TONE: Explicit, spicy, brutally honest.
           STRICTLY NO ASTERISKS (*).
           MINIMUM 20 SENTENCES.
           
           Structure:
           [Physical Chemistry]
-          (Talk about their physical fit and bedroom chemistry explicitly. Describe the heat/cold/conflict/harmony vividly.)
+          (Bedroom chemistry description based on internal calculation.)
           
           [What are they holding back?]
-          (What urges or thoughts are they suppressing right now? Be specific about their restraint based on their hidden nature.)
+          (Suppressed urges based on their nature.)
           
           [Verdict]
-          (Final verdict. Should you go for it tonight?)
+          (Go for it?)
 
           [Their Taste]
-          (Specific preferences, styles, or types they are really into. What turns them on?)
+          (Preferences.)
         `;
     } else {
         prompt = `
@@ -347,29 +350,29 @@ export const getCompatibilityReading = async (
           상대방: 생년월일 ${partnerBirth}
           
           핵심 과제:
-          1. 두 사람의 생년월일을 바탕으로 **내부적으로** 사주(일주, 오행)를 계산하여 실제 궁합(합/충/원진 등)을 파악하세요.
-          2. 이 계산된 에너지를 바탕으로, 두 사람만이 가질 수 있는 독특하고 적나라한 19금 속궁합을 묘사하세요.
-          3. **절대 금지**: "사주에 따르면", "물과 불이라서", "무슨 무슨 일주라서" 같은 사주 용어를 겉으로 드러내지 마세요.
-          4. 대신 그 *느낌*과 *현상*을 구체적으로 서술하세요. (예: "서로 미친듯이 끌리지만 만나면 피 터지게 싸우는 에너지가 있어..." 등)
+          1. 두 사람의 생년월일을 바탕으로 **내부적으로** 사주(일주, 오행)를 계산하여 실제 궁합을 파악하세요.
+          2. 이 계산된 에너지를 바탕으로, 독특하고 적나라한 19금 속궁합을 묘사하세요.
+          3. **절대 금지**: "사주에 따르면", "물과 불이라서", "무슨 일주라서" 같은 용어를 겉으로 드러내지 마세요.
+          4. 대신 그 *느낌*과 *현상*을 구체적으로 서술하세요. (예: "서로 미친듯이 끌리지만 만나면 싸우는 에너지...")
           
-          ROLEPLAY: 친한 친구(약간 변태적이고 솔직한)와 비밀 이야기 중.
-          TONE: 19금, 화끈하고, 자극적이며, 적나라하게. '얘기해줄게', '미쳤어', '완전 쩔어' 같은 말투 사용.
+          ROLEPLAY: 친한 친구(솔직한)와 비밀 이야기.
+          TONE: 19금, 화끈하고, 자극적이며, 적나라하게.
           별표(*) 사용 금지.
           
           최소 20문장 이상.
           
           구조:
           [속궁합 분석]
-          (두 사람의 에너지 충돌이나 조화를 바탕으로 신체적 궁합을 적나라하게 묘사하세요.)
+          (에너지 충돌/조화를 바탕으로 한 신체적 궁합 묘사)
           
           [그 사람 지금 뭘 참고 있을까?]
-          (상대방이 본능적으로 억누르고 있는 욕망을 꿰뚫어 보고 설명하세요.)
+          (본능적으로 억누르고 있는 욕망)
           
           [결론 및 조언]
-          (오늘 밤 승부를 봐도 될지, 어떤 분위기가 좋은지 조언하세요.)
+          (오늘 밤 승부?)
 
           [그 사람의 취향]
-          (그 사람의 은밀한 성적 취향이나 이성 스타일을 구체적으로 까발리세요.)
+          (은밀한 취향)
         `;
     }
 
@@ -388,30 +391,30 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
           Target Birthdate: ${partnerBirth}
 
           CRITICAL TASK:
-          1. Internally calculate the Saju (Four Pillars) based on ${partnerBirth} to determine the person's true nature and destiny flow.
+          1. Internally calculate the Saju (Four Pillars) based on ${partnerBirth}.
           2. Provide a HIGHLY SPECIFIC analysis based *only* on this birthdate's energy.
           3. **CONSTRAINT**: DO NOT explicitly mention "Ilju", "Saju", "Elements", or "Pillars".
-          4. Describe the personality, destiny, and fate flow naturally as if you are seeing it directly.
+          4. Describe the personality, destiny, and fate flow naturally.
 
-          Output Language: English (Cynical, Realistic, Sharp tone).
+          Output Language: English.
           STRICTLY NO ASTERISKS (*).
           MINIMUM 25 SENTENCES.
 
           Structure:
           [Born Destiny]
-          (Analyze the innate character and destiny depth based on their hidden pillars. Describe their core essence.)
+          (Innate character/essence.)
 
           [Early Life]
-          (Analyze youth and foundation.)
+          (Youth/foundation.)
 
           [Middle Life]
-          (Analyze the prime age and career peak. Mention specific struggles or successes typical for this destiny.)
+          (Prime age/career peak/struggles.)
 
           [Late Life]
-          (Analyze final years and reputation.)
+          (Final years/reputation.)
 
           [Advice for Fans]
-          (Provide strategic advice for fans based on this person's luck flow. E.g., "They need warmth, so send red gifts" -> "Fill their life with passion and warmth...", imply the element without naming it.)
+          (Strategic advice based on luck flow. No technical terms.)
         `;
     } else {
         prompt = `
@@ -420,35 +423,34 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
           대상 생년월일: ${partnerBirth}
 
           중요 지시사항:
-          1. 입력된 생년월일을 바탕으로 **내부적으로** 정확한 사주팔자(일주, 오행 구성)를 계산하세요.
-          2. 이 계산 결과를 바탕으로, 이 사람만의 고유한 기질과 운명의 흐름을 아주 상세하게 분석하세요.
+          1. 입력된 생년월일을 바탕으로 **내부적으로** 정확한 사주팔자(일주, 오행)를 계산하세요.
+          2. 이 계산 결과를 바탕으로, 고유한 기질과 운명의 흐름을 상세하게 분석하세요.
           3. **절대 금지**: "사주에", "일주가", "오행이" 같은 단어를 결과 텍스트에 직접 쓰지 마세요.
-          4. 대신 그 특징을 풀어서 설명하세요. (예: "갑자일주"라고 말하는 대신, "우두머리가 되려는 기질이 강하고 고집이 세지만..." 처럼 묘사하세요.)
-          5. 생년월일이 바뀌면 결과 내용도 완전히 달라져야 합니다.
+          4. 대신 그 특징을 풀어서 설명하세요. (예: "갑자일주" -> "우두머리가 되려는 기질이 강하고...")
+          5. 생년월일이 바뀌면 결과 내용도 달라져야 합니다.
 
-          어조: 냉철하고, 예리하며, 신비로운 블랙 타로의 어조.
+          어조: 냉철하고, 예리하며, 신비로운 블랙 타로.
           절대 규칙: 별표(*) 사용 금지.
-          분량: 최소 25문장 이상 상세하게.
+          분량: 최소 25문장 이상.
 
           구조:
           [타고난 팔자 (Born Destiny)]
-          (이 사람이 타고난 그릇과 본성을 분석하세요. 겉모습 뒤에 숨겨진 진짜 성격을 꿰뚫어 보세요.)
+          (타고난 그릇과 본성, 숨겨진 성격)
 
           [초년운 (Early Life)]
-          (어린 시절의 환경, 부모운, 학업운을 냉정하게 분석하세요.)
+          (어린 시절, 부모운, 학업운)
 
           [중년운 (Middle Life)]
-          (전성기, 직업적 성취, 재물운의 흐름, 그리고 겪게 될 인생의 파도를 설명하세요.)
+          (전성기, 직업, 재물, 인생의 파도)
 
           [말년운 (Late Life)]
-          (말년의 명예, 고독, 혹은 평안함을 예측하세요.)
+          (말년의 명예, 고독, 평안함)
 
           [덕질 조언 (Fandom Advice)]
-          (이 사람에게 부족한 기운이나 운의 흐름에 맞춰 팬들이 해야 할 '구체적이고 전략적인' 행동 지침을 제시하세요. 사주 용어는 쓰지 말고 실질적인 조언으로 바꾸세요.)
+          (부족한 기운이나 운의 흐름에 맞춘 구체적 행동 지침. 사주 용어 없이 실질적 조언으로.)
         `;
     }
 
-    // Slightly lower temperature for stability in long generation, remove complex configs
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
 };
@@ -462,28 +464,27 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
         prompt = `
             ${randomSeed}
             [SYSTEM: FACE READER MODE ACTIVATED]
-            Perform a 'BRUTAL PHYSIOGNOMY ANALYSIS' on this person.
+            Perform a 'BRUTAL PHYSIOGNOMY ANALYSIS'.
             
             TASK:
             1. **Physiognomy**: Interpret features for destiny, wealth, love.
             2. **Appearance Evaluation**: Be WITTY and slightly ROASTING. Honest but charming.
             3. **Length**: AT LEAST 20 SENTENCES.
             
-            TONE:
-            - Sharp, observant, brutally honest.
+            TONE: Sharp, observant, brutally honest.
             
             STRUCTURE:
             [Overall Vibe & Rating]
-            (Give a harsh but fair rating of the face. Is it a wealthy face? A lonely face?)
+            (Harsh but fair rating. Wealthy face? Lonely face?)
             
             [Detailed Feature Analysis]
-            (Eyes, nose, mouth details. What do they signify in destiny?)
+            (Eyes, nose, mouth. Significance in destiny?)
             
             [Charm Point]
             (Witty commentary on attractiveness.)
             
             [Destiny Advice]
-            (Final verdict on life path based on face.)
+            (Final verdict on life path.)
             
             STRICTLY NO ASTERISKS (*).
         `;
@@ -491,31 +492,28 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
         prompt = `
             ${randomSeed}
             [SYSTEM: FACE READER MODE ACTIVATED]
-            Perform a comprehensive 'KOREAN PHYSIOGNOMY (Gwansang/관상) & DETAILED APPEARANCE EVALUATION' on the person in this image.
+            Perform 'KOREAN PHYSIOGNOMY (Gwansang) & DETAILED APPEARANCE EVALUATION'.
             
             TASK:
-            1. **Image Detection**: Identify the person's key facial features, expression, and vibe.
-            2. **Physiognomy Analysis**: Interpret their eyes, nose, mouth, and face shape to reveal their innate destiny, wealth luck, and love luck.
-            3. **Detailed Appearance Evaluation (얼평)**: Provide a very specific, witty, honest, and engaging evaluation of their looks. Don't hold back on the details. Evaluate their vibe, attractiveness, and first impression.
-            4. **Length**: YOU MUST WRITE AT LEAST 20 SENTENCES. This is a hard requirement. The answer must be long and detailed.
+            1. **Image Detection**: Identify key facial features/expression.
+            2. **Physiognomy Analysis**: Interpret eyes, nose, mouth for destiny/wealth/love.
+            3. **Detailed Appearance Evaluation (얼평)**: Specific, witty, honest, engaging evaluation. Don't hold back.
+            4. **Length**: AT LEAST 20 SENTENCES.
             
-            TONE:
-            - Mystical yet modern.
-            - Witty, slightly cynical but ultimately insightful.
-            - Use Korean honorifics (존댓말).
+            TONE: Mystical yet modern. Witty, slightly cynical but insightful. Use Korean honorifics.
             
             STRUCTURE:
             [관상 및 외모 총평]
-            (Describe the face and general energy. Give a detailed evaluation of their looks. Is it a "wealthy" face? A "lonely" face?)
+            (얼굴과 기운 묘사. 귀한 관상인가? 고독한 관상인가?)
             
             [이목구비 정밀 분석]
-            (Analyze specific features deeply. E.g., "Eyes like a fox," "Nose that leaks money." Explain what each feature means for their destiny.)
+            (눈, 코, 입 정밀 분석과 운명적 의미. 예: "여우 같은 눈매", "재물이 새는 코")
             
             [매력 포인트 및 호감도]
-            (Witty commentary on their appearance. What makes them attractive or unique? How do others perceive them?)
+            (외모에 대한 위트 있는 평가. 남들이 보는 이미지.)
             
             [운명적 조언]
-            (Final verdict and advice based on their face reading regarding future success and love.)
+            (관상에 기반한 미래 조언.)
             
             STRICTLY NO ASTERISKS (*).
         `;
@@ -523,9 +521,8 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
 
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
-    // Image generation still uses older vision model or gemini-2.5-flash if capable, but for stability sticking to what works for vision
-    // gemini-2.5-flash is good for vision
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', [imagePart], lang);
+    // Vision works best with standard flash
+    return await callGenAI(prompt, config, 'gemini-2.5-flash-latest', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -541,9 +538,9 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
             Time: ${userInfo.birthTime}
             
             TASK:
-            1. Internally calculate the EXACT Four Pillars (Year, Month, Day, Hour) based on the input.
+            1. Internally calculate the EXACT Four Pillars based on input.
             2. Provide a brutal, realistic analysis based SOLELY on this calculation.
-            3. **CONSTRAINT**: DO NOT explicitly mention "Saju", "Ilju", or "Daewoon" in the text.
+            3. **CONSTRAINT**: DO NOT explicitly mention "Saju", "Ilju", or "Daewoon".
             4. Describe the destiny flow, luck timing, and personality traits as direct insights.
             
             Tone: Fast, Direct, Cynical, Brutally Honest.
@@ -552,25 +549,25 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
 
             Structure:
             [Wealth Luck: When and How?]
-            (Specific timing, method of wealth accumulation based on their luck flow.)
+            (Specific timing/method based on luck flow.)
 
             [Genius Talent & Hidden Potential]
-            (Talents derived from their strongest energy.)
+            (Talents from strongest energy.)
 
             [Golden Age of Life]
             (Exact age range of peak success.)
 
             [Future Spouse Detailed Analysis]
-            (Height, Looks, Vibe, Occupation, Personality based on the spouse palace.)
+            (Height, Looks, Vibe, Occupation, Personality.)
 
             [Noble Person (Gui-in)]
-            (Who is the key person? Describe their characteristics.)
+            (Key person characteristics.)
 
             [Innate Personality & Nature]
-            (Deep dive into their true self.)
+            (Deep dive into true self.)
 
             [Cautionary Points]
-            (Critical advice based on their risks.)
+            (Critical advice based on risks.)
         `;
     } else {
         prompt = `
@@ -583,33 +580,33 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
             지시사항:
             1. 위 정보를 바탕으로 **내부적으로** 정확한 사주팔자(년/월/일/시주)를 계산하세요.
             2. 이 계산된 운명을 바탕으로 날카로운 독설과 조언을 하세요.
-            3. **절대 금지**: "사주에 따르면", "무슨 무슨 일주라서", "대운이" 같은 사주 용어를 직접적으로 쓰지 마세요.
-            4. 대신 운명의 흐름을 이야기하듯 자연스럽게 서술하세요. (예: "30대 중반에 큰 물이 들어오듯 기회가..." 등)
+            3. **절대 금지**: "사주에 따르면", "무슨 일주라서", "대운이" 같은 사주 용어를 직접적으로 쓰지 마세요.
+            4. 대신 운명의 흐름을 이야기하듯 자연스럽게 서술하세요. (예: "30대 중반에 큰 물이 들어오듯 기회가...")
             5. 절대 별표(*)를 쓰지 마세요.
             
             분량: 최소 20문장 이상.
 
             구조:
             [재물운: 언제, 무엇으로 떼돈을 버는가?]
-            (구체적인 시기와 돈 버는 수단을 분석하세요.)
+            (구체적인 시기와 수단 분석)
 
             [천재적 재능과 숨겨진 잠재력]
-            (가장 발달한 기운을 바탕으로 숨겨진 무기를 설명하세요.)
+            (가장 발달한 기운을 바탕으로 한 무기)
 
             [인생의 황금기]
-            (운의 흐름이 가장 좋을 때의 정확한 나이대를 예측하세요.)
+            (운의 흐름이 가장 좋을 때의 나이대)
 
             [미래 배우자 상세 분석]
-            (배우자 자리의 기운을 해석하여 외모, 능력, 성격을 구체적으로 묘사하세요.)
+            (외모, 능력, 성격 묘사)
 
             [내 인생의 귀인]
-            (나에게 부족한 기운을 채워줄 귀인의 특징을 설명하세요.)
+            (나에게 필요한 기운을 가진 사람의 특징)
 
             [타고난 성격과 성향]
-            (본인도 모르는 깊은 내면을 파헤치세요.)
+            (깊은 내면 파헤치기)
 
             [인생에서 주의해야 할 점]
-            (조심해야 할 사고, 사람, 시기를 경고하세요.)
+            (조심해야 할 사고, 사람, 시기)
         `;
     }
 
