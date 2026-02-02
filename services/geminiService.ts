@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 
@@ -153,7 +154,7 @@ async function retryOperation<T>(
 
 // Global Timeout Wrapper
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const GLOBAL_TIMEOUT = 80000; // Increased to 80 seconds
+    const GLOBAL_TIMEOUT = 180000; // Increased to 180 seconds (3 minutes)
 
     const generationTask = async () => {
         // Construct the chain: Preferred -> Fallbacks
@@ -210,7 +211,8 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         if (imageParts) body.imageParts = imageParts;
 
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s fetch limit
+                        // Fail fast on individual proxy requests to allow rotation
+                        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s fetch limit per attempt
 
                         try {
                             const constEqRes = await fetch('/api/gemini', {
