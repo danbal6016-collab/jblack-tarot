@@ -1032,13 +1032,22 @@ const App: React.FC = () => {
             setBgmVolume(currentUser.bgmVolume);
         }
 
-        // FORCE CATEGORY SELECT UPON LOGIN TO AVOID LOADING SCREEN
-        setAppState(AppState.CATEGORY_SELECT);
+        // Sanitize session to prevent stuck loading
         currentUser.lastAppState = AppState.CATEGORY_SELECT;
-        
+        if (currentUser.currentSession) {
+             currentUser.currentSession.appState = AppState.CATEGORY_SELECT;
+             currentUser.currentSession.readingResult = undefined;
+        }
+
         setUser(currentUser); 
         setIsDataLoaded(true); 
         saveUserState(currentUser, AppState.CATEGORY_SELECT);
+
+        // Only navigate if this is an explicit login action.
+        // Otherwise, stay on WELCOME screen (default init state).
+        if (isLoginInit) {
+             setAppState(AppState.CATEGORY_SELECT);
+        }
     } catch (error) { console.error("Critical error in checkUser:", error); }
   }, []); // Intentionally empty dependency to rely on ref
 
