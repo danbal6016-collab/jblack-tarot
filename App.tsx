@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from "./src/lib/supabase";
 import { GoogleContinueButton } from "./components/AuthModal";
@@ -1031,17 +1032,13 @@ const App: React.FC = () => {
             setBgmVolume(currentUser.bgmVolume);
         }
 
-        if (isLoginInit) {
-            setAppState(AppState.CATEGORY_SELECT);
-            currentUser.lastAppState = AppState.CATEGORY_SELECT;
-            currentUser.currentSession = undefined;
-        } else {
-            if (currentUser.currentSession) { const session = currentUser.currentSession; if (session.appState) setAppState(session.appState); if (session.selectedCategoryId) setSelectedCategory(CATEGORIES.find(c => c.id === session.selectedCategoryId) || null); if (session.selectedQuestion) setSelectedQuestion(session.selectedQuestion); if (session.customQuestion) setCustomQuestion(session.customQuestion); if (session.selectedCards) setSelectedCards(session.selectedCards); if (session.faceImage) setFaceImage(session.faceImage); if (session.birthTime) setBirthTime(session.birthTime); if (session.partnerBirth) setPartnerBirth(session.partnerBirth); } else if (currentUser.lastAppState) { setAppState(currentUser.lastAppState); }
-        }
+        // FORCE CATEGORY SELECT UPON LOGIN TO AVOID LOADING SCREEN
+        setAppState(AppState.CATEGORY_SELECT);
+        currentUser.lastAppState = AppState.CATEGORY_SELECT;
         
         setUser(currentUser); 
         setIsDataLoaded(true); 
-        saveUserState(currentUser, isLoginInit ? AppState.CATEGORY_SELECT : (currentUser.lastAppState || AppState.WELCOME));
+        saveUserState(currentUser, AppState.CATEGORY_SELECT);
     } catch (error) { console.error("Critical error in checkUser:", error); }
   }, []); // Intentionally empty dependency to rely on ref
 

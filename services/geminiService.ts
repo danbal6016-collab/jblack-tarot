@@ -154,7 +154,7 @@ async function retryOperation<T>(
 
 // Global Timeout Wrapper
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const GLOBAL_TIMEOUT = 180000; // Increased to 180 seconds (3 minutes)
+    const GLOBAL_TIMEOUT = 300000; // Increased to 300 seconds (5 minutes)
 
     const generationTask = async () => {
         // Construct the chain: Preferred -> Fallbacks
