@@ -1167,7 +1167,7 @@ const App: React.FC = () => {
   // FIX: Payment process modified to show demand alert instead of awarding coins
   const processPayment = () => {
     if (!pendingPackage) return;
-    alert("수요가 많으면 오픈합니다.");
+    alert("댓글이 100개가 넘으면 오픈합니다.");
     setPendingPackage(null);
     setShopStep('AMOUNT');
     setShowShop(false);
