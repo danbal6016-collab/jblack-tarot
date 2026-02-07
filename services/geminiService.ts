@@ -589,8 +589,8 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
             분량: 최소 20문장 이상.
 
             구조:
-            [재물운: 언제, 무엇으로 떼돈을 버는가?]
-            (구체적인 시기와 수단 분석)
+            [재물운]
+            (언제, 무엇으로 떼돈을 버는지 구체적인 시기와 수단 분석 및 재물운 흐름 분석)
 
             [천재적 재능과 숨겨진 잠재력]
             (가장 발달한 기운을 바탕으로 한 무기)
@@ -599,7 +599,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
             (운의 흐름이 가장 좋을 때의 나이대)
 
             [미래 배우자 상세 분석]
-            (외모, 능력, 성격 묘사)
+            (능력, 키, 직업, 얼굴, 몸, 성격 묘사)
 
             [내 인생의 귀인]
             (나에게 필요한 기운을 가진 사람의 특징)
