@@ -121,20 +121,13 @@ const SAFETY_SETTINGS = [
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Prioritize stability. If the preview model is unstable, fall back to flash-latest immediately.
-const MODEL_FALLBACK_CHAIN = [
-    'gemini-2.5-flash-latest', // New stable fast model
-    'gemini-flash-latest',     // Reliable fallback
-    'gemini-3-flash-preview'   // Try cutting edge last if others fail/busy (or first if preferred, but for stability sticking to established ones)
-];
-
-// For critical stability, re-order: Try 3-flash first for quality, but fall back aggressively.
-const MODELS_TO_TRY = ['gemini-3-flash-preview', 'gemini-2.5-flash-latest', 'gemini-flash-latest'];
+// Prioritize stability. Use the most stable and fast models first.
+const MODELS_TO_TRY = ['gemini-2.5-flash-latest', 'gemini-flash-latest', 'gemini-3-flash-preview'];
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
     maxAttempts: number = 3, 
-    baseDelay: number = 1000 // Increased base delay
+    baseDelay: number = 1000 
 ): Promise<T> {
     let lastError: any;
     
@@ -153,12 +146,11 @@ async function retryOperation<T>(
 }
 
 // Global Timeout Wrapper
-async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-3-flash-preview', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const GLOBAL_TIMEOUT = 300000; // Increased to 300 seconds (5 minutes)
+async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.5-flash-latest', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
+    const GLOBAL_TIMEOUT = 300000; // 5 minutes
 
     const generationTask = async () => {
         // Construct the chain: Preferred -> Fallbacks
-        // Filter out duplicates
         const chain = [preferredModel, ...MODELS_TO_TRY].filter((v, i, a) => a.indexOf(v) === i);
 
         // Increase max tokens per request to ensure completeness
@@ -211,8 +203,8 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         if (imageParts) body.imageParts = imageParts;
 
                         const controller = new AbortController();
-                        // Fail fast on individual proxy requests to allow rotation
-                        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s fetch limit per attempt
+                        // Increased individual request timeout to 50s to avoid cutting off long responses
+                        const timeoutId = setTimeout(() => controller.abort(), 50000); 
 
                         try {
                             const constEqRes = await fetch('/api/gemini', {
@@ -302,7 +294,8 @@ export const getTarotReading = async (
     maxOutputTokens: 8192, 
   };
 
-  return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+  // Use 2.5 flash latest for stability and speed
+  return await callGenAI(prompt, config, 'gemini-2.5-flash-latest', undefined, lang);
 };
 
 export const getCompatibilityReading = async (
@@ -379,7 +372,7 @@ export const getCompatibilityReading = async (
     }
 
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.5-flash-latest', undefined, lang);
 };
 
 export const getPartnerLifeReading = async (partnerBirth: string, lang: Language = 'ko'): Promise<string> => {
@@ -454,7 +447,7 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
     }
 
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.5-flash-latest', undefined, lang);
 };
 
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -613,7 +606,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
     }
 
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-3-flash-preview', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.5-flash-latest', undefined, lang);
 };
 
 export const getFallbackTarotImage = (cardId: number): string => {
