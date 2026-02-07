@@ -122,7 +122,7 @@ const SAFETY_SETTINGS = [
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Prioritize stability. Use the most stable and fast models first.
-const MODELS_TO_TRY = ['gemini-2.5-flash-latest', 'gemini-flash-latest', 'gemini-3-flash-preview'];
+const MODELS_TO_TRY = ['gemini-2.5-flash-latest', 'gemini-flash-latest'];
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
@@ -147,7 +147,8 @@ async function retryOperation<T>(
 
 // Global Timeout Wrapper
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.5-flash-latest', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const GLOBAL_TIMEOUT = 300000; // 5 minutes
+    // Increased Global Timeout to 5 minutes to accommodate serverless cold starts or heavy load
+    const GLOBAL_TIMEOUT = 300000; 
 
     const generationTask = async () => {
         // Construct the chain: Preferred -> Fallbacks
@@ -202,27 +203,22 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         const body: any = { prompt, config, model };
                         if (imageParts) body.imageParts = imageParts;
 
-                        const controller = new AbortController();
-                        // Increased individual request timeout to 50s to avoid cutting off long responses
-                        const timeoutId = setTimeout(() => controller.abort(), 50000); 
-
-                        try {
-                            const constEqRes = await fetch('/api/gemini', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(body),
-                                signal: controller.signal
-                            });
-                            clearTimeout(timeoutId);
-                            if (!constEqRes.ok) throw new Error(`Proxy error: ${constEqRes.status}`);
-                            const data = await constEqRes.json();
-                            if (!data.text) throw new Error("Empty response from proxy");
-                            return data.text as string;
-                        } catch (fetchErr: any) {
-                            clearTimeout(timeoutId);
-                            throw fetchErr;
+                        // Removed aggressive fetch timeout. Rely on global timeout.
+                        const constEqRes = await fetch('/api/gemini', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        });
+                        
+                        if (!constEqRes.ok) {
+                            const errText = await constEqRes.text();
+                            throw new Error(`Proxy error: ${constEqRes.status} ${errText}`);
                         }
-                    }, 2, 800); // 2 retries per model via Proxy
+                        
+                        const data = await constEqRes.json();
+                        if (!data.text) throw new Error("Empty response from proxy");
+                        return data.text as string;
+                    }, 3, 1000); // 3 retries per model via Proxy
 
                     if (responseText) return responseText;
                 } catch (proxyError: any) {
