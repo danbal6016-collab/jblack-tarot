@@ -36,7 +36,7 @@ const TRANSLATIONS = {
     bgm_control: "배경음악 설정",
     language_control: "언어 (Language)",
     tier_info: "나의 등급",
-    attendance: "출석체크",
+    attendance: "출석체크 현황",
     skin_shop: "카드 스킨",
     profile_edit: "프로필 수정",
     logout: "로그아웃",
@@ -131,7 +131,7 @@ const TRANSLATIONS = {
     bgm_control: "BGM",
     language_control: "Language",
     tier_info: "My Tier",
-    attendance: "Attendance",
+    attendance: "Attendance Status",
     skin_shop: "Card Skins",
     profile_edit: "Edit Profile",
     logout: "Logout",
@@ -531,7 +531,7 @@ const Header: React.FC<{
     <div className="flex items-center gap-4 pointer-events-auto">
       {user.email === 'Guest' && (<button onClick={onLogin} className="text-xs bg-purple-900 border border-purple-500 px-3 py-1 rounded text-white animate-pulse">Login / Join</button>)}
       {user.email !== 'Guest' && (<button onClick={openProfile} className="w-10 h-10 rounded-full bg-gray-800 border border-gray-600 overflow-hidden hover:border-purple-500 transition-all">{user.userInfo?.profileImage ? (<img src={user.userInfo.profileImage} alt="Profile" className="w-full h-full object-cover" />) : (<div className="w-full h-full flex items-center justify-center text-xs">👤</div>)}</button>)}
-      <button onClick={onOpenSettings} className="text-gray-400 hover:text-purple-400 transition-colors p-2 cursor-pointer z-50">
+      <button onClick={onOpenSettings} className="text-gray-400 hover:text-purple-400 transition-colors p-2 cursor-pointer z-50 shrink-0">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
           <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1344,7 +1344,7 @@ const App: React.FC = () => {
 
           {showSettings && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
-              <div className="bg-[#0f0518] border border-purple-500 rounded-lg max-w-md w-full p-6 relative max-h-[80vh] flex flex-col shadow-[0_0_50px_rgba(88,28,135,0.5)] overflow-hidden">
+              <div className="bg-[#1a0b2e] border border-purple-500 rounded-lg max-w-md w-full p-6 relative max-h-[80vh] flex flex-col shadow-[0_0_50px_rgba(88,28,135,0.5)] overflow-hidden">
                 <button onClick={() => { setShowSettings(false); setSettingsMode('MAIN'); }} className="absolute top-4 right-4 text-purple-300 hover:text-white text-xl z-20">✕</button>
                 <h2 className="text-2xl font-occult text-purple-100 mb-6 text-center">{TRANSLATIONS[lang].settings_title}</h2>
                 
@@ -1367,6 +1367,20 @@ const App: React.FC = () => {
                       <button onClick={() => setBgmStopped(!bgmStopped)} className={`w-full py-2 mt-2 rounded border transition-all ${bgmStopped ? 'bg-red-900/30 border-red-800 text-red-200 hover:bg-red-900/50' : 'bg-purple-600 border-purple-400 text-white hover:bg-purple-500'}`}>{bgmStopped ? 'Play BGM' : 'Stop BGM'}</button>
                     </div>
 
+                    {/* Attendance Status for Logged-in Users */}
+                    {user.email !== 'Guest' && (
+                        <div className="bg-[#2d1b4e]/50 p-4 rounded border border-purple-500/30">
+                            <h3 className="text-sm font-bold text-purple-200 mb-2">{TRANSLATIONS[lang].attendance}</h3>
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-gray-300">Current Streak</span>
+                                <span className="text-lg font-bold text-yellow-400">Day {user.attendanceDay}</span>
+                            </div>
+                            <div className="w-full bg-gray-700 h-2 rounded-full mt-2 overflow-hidden">
+                                <div className="bg-yellow-500 h-full transition-all duration-1000 ease-out" style={{ width: `${(user.attendanceDay / 10) * 100}%` }}></div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* VIP Features - Styled */}
                     {['SKIN', 'FRAME', 'RESULT_BG', 'STICKER'].map((mode) => (
                         <button key={mode} onClick={() => handleSettingsClick(mode as any)} className="w-full py-4 bg-[#2d1b4e] hover:bg-gradient-to-r hover:from-purple-800 hover:to-indigo-800 active:from-purple-600 active:to-indigo-600 rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
@@ -1380,17 +1394,21 @@ const App: React.FC = () => {
                         </button>
                     ))}
                     
-                    {/* Gold+ Features */}
-                    <button onClick={() => handleSettingsClick('RUG')} className="w-full py-4 bg-[#2d1b4e] hover:bg-gradient-to-r hover:from-purple-800 hover:to-indigo-800 active:from-purple-600 active:to-indigo-600 rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
-                        <span className="text-yellow-200 font-bold">{TRANSLATIONS[lang].rug_shop}</span>
-                        <span className="text-yellow-500 group-hover:text-white">→</span>
-                    </button>
+                    {/* Gold+ Features - Changed text color to white as requested */}
+                    {(user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) && (
+                         <button onClick={() => handleSettingsClick('RUG')} className="w-full py-4 bg-[#2d1b4e] hover:bg-gradient-to-r hover:from-purple-800 hover:to-indigo-800 active:from-purple-600 active:to-indigo-600 rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
+                             <span className="text-white font-bold">{TRANSLATIONS[lang].rug_shop}</span>
+                             <span className="text-yellow-500 group-hover:text-white">→</span>
+                         </button>
+                    )}
                      
                     {/* Platinum Features */}
-                    <button onClick={() => handleSettingsClick('BGM')} className="w-full py-4 bg-[#2d1b4e] hover:bg-gradient-to-r hover:from-purple-800 hover:to-indigo-800 active:from-purple-600 active:to-indigo-600 rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
-                        <span className="text-purple-200 font-bold">{TRANSLATIONS[lang].bgm_upload}</span>
-                        <span className="text-purple-500 group-hover:text-white">→</span>
-                    </button>
+                    {user.tier === UserTier.PLATINUM && (
+                         <button onClick={() => handleSettingsClick('BGM')} className="w-full py-4 bg-[#2d1b4e] hover:bg-gradient-to-r hover:from-purple-800 hover:to-indigo-800 active:from-purple-600 active:to-indigo-600 rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
+                             <span className="text-purple-200 font-bold">{TRANSLATIONS[lang].bgm_upload}</span>
+                             <span className="text-purple-500 group-hover:text-white">→</span>
+                         </button>
+                    )}
 
                     <div className="pt-4 border-t border-purple-900/50">
                         <button onClick={() => handleSettingsClick('HISTORY')} className="w-full py-3 bg-[#2d1b4e] hover:bg-purple-800 rounded text-purple-200 mb-2 border border-purple-500/30">{TRANSLATIONS[lang].history}</button>
@@ -1586,6 +1604,52 @@ const App: React.FC = () => {
                 )}
               </div>
             </div>
+          )}
+          
+          {showShop && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
+                  <div className="bg-[#0a0a0a] border border-purple-900/50 rounded-xl max-w-sm w-full p-0 relative shadow-[0_0_40px_rgba(88,28,135,0.4)] overflow-hidden">
+                      <button onClick={() => { setShowShop(false); setPendingPackage(null); setShopStep('AMOUNT'); }} className="absolute top-4 right-4 text-purple-400 hover:text-white text-xl z-20">✕</button>
+                      <div className="bg-gradient-to-b from-purple-900/20 to-transparent p-6 text-center border-b border-purple-900/30">
+                          <h2 className="text-2xl font-occult text-purple-100 mb-1 tracking-widest">{TRANSLATIONS[lang].shop_title}</h2>
+                          <p className="text-xs text-purple-400/60 uppercase tracking-[0.2em]">{TRANSLATIONS[lang].shop_subtitle}</p>
+                      </div>
+                      
+                      <div className="p-6">
+                        {shopStep === 'AMOUNT' ? (
+                            <div className="space-y-3">
+                                <button onClick={() => initiatePayment(4900, 60)} className="w-full py-5 bg-[#120b1f] hover:bg-[#1d1130] border border-purple-900/30 hover:border-purple-500/70 rounded-sm flex items-center justify-between px-4 transition-all duration-300 group">
+                                    <div className="flex items-center gap-3"><span className="text-lg font-serif text-gray-300 group-hover:text-purple-100">{TRANSLATIONS[lang].shop_pkg_1}</span></div>
+                                    <span className="text-gray-500 group-hover:text-purple-300">→</span>
+                                </button>
+                                <button onClick={() => initiatePayment(7900, 110)} className="w-full py-5 bg-[#120b1f] hover:bg-[#1d1130] border border-purple-900/30 hover:border-purple-500/70 rounded-sm flex items-center justify-between px-4 transition-all duration-300 group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 bg-purple-600 text-white text-[9px] px-2 py-0.5 font-bold tracking-wider">BEST</div>
+                                    <div className="flex items-center gap-3"><span className="text-lg font-serif text-gray-300 group-hover:text-purple-100">{TRANSLATIONS[lang].shop_pkg_2}</span></div>
+                                    <span className="text-gray-500 group-hover:text-purple-300">→</span>
+                                </button>
+                                <button onClick={() => initiatePayment(15500, 220)} className="w-full py-5 bg-[#120b1f] hover:bg-[#1d1130] border border-purple-900/30 hover:border-purple-500/70 rounded-sm flex items-center justify-between px-4 transition-all duration-300 group">
+                                    <div className="flex items-center gap-3"><span className="text-lg font-serif text-gray-300 group-hover:text-purple-100">{TRANSLATIONS[lang].shop_pkg_3}</span></div>
+                                    <span className="text-gray-500 group-hover:text-purple-300">→</span>
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4 animate-fade-in">
+                                <h3 className="text-center text-purple-200 mb-6 font-bold tracking-wide text-sm uppercase">{TRANSLATIONS[lang].pay_title}</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button onClick={() => setSelectedPaymentMethod('TOSS')} className={`p-4 rounded-sm border flex items-center justify-center font-bold text-sm transition-all duration-300 ${selectedPaymentMethod === 'TOSS' ? 'bg-purple-900/40 border-purple-500 text-white' : 'bg-[#120b1f] border-gray-800 text-gray-400 hover:border-purple-500/50'}`}>Toss Pay</button>
+                                    <button onClick={() => setSelectedPaymentMethod('KAKAO')} className={`p-4 rounded-sm border flex items-center justify-center font-bold text-sm transition-all duration-300 ${selectedPaymentMethod === 'KAKAO' ? 'bg-purple-900/40 border-purple-500 text-white' : 'bg-[#120b1f] border-gray-800 text-gray-400 hover:border-purple-500/50'}`}>Kakao Pay</button>
+                                    <button onClick={() => setSelectedPaymentMethod('APPLE')} className={`p-4 rounded-sm border flex items-center justify-center font-bold text-sm transition-all duration-300 ${selectedPaymentMethod === 'APPLE' ? 'bg-purple-900/40 border-purple-500 text-white' : 'bg-[#120b1f] border-gray-800 text-gray-400 hover:border-purple-500/50'}`}>Apple Pay</button>
+                                    <button onClick={() => setSelectedPaymentMethod('PAYPAL')} className={`p-4 rounded-sm border flex items-center justify-center font-bold text-sm transition-all duration-300 ${selectedPaymentMethod === 'PAYPAL' ? 'bg-purple-900/40 border-purple-500 text-white' : 'bg-[#120b1f] border-gray-800 text-gray-400 hover:border-purple-500/50'}`}>PayPal</button>
+                                </div>
+                                <div className="flex gap-3 mt-8">
+                                    <button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-black hover:bg-gray-900 text-gray-500 hover:text-gray-300 rounded-sm font-bold border border-gray-800 transition-colors">{TRANSLATIONS[lang].pay_cancel}</button>
+                                    <button onClick={processPayment} className="flex-[2] py-3 bg-purple-900 hover:bg-purple-800 text-white font-bold rounded-sm border border-purple-700 shadow-[0_0_15px_rgba(88,28,135,0.3)] transition-all transform active:scale-95">{TRANSLATIONS[lang].pay_confirm}</button>
+                                </div>
+                            </div>
+                        )}
+                      </div>
+                  </div>
+              </div>
           )}
       </div>
   );
