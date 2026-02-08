@@ -952,6 +952,7 @@ const App: React.FC = () => {
           const userId = session?.user?.id;
           if (!userId) return;
           const payload: any = { id: userId, email: u.email, data: { ...u, lastAppState: state }, updated_at: new Date().toISOString() };
+          // Upsert is correct here as we want to save the latest state for the logged-in user
           supabase.from('user_profiles').upsert(payload, { onConflict: 'id' }).then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
       }
   }, []);
@@ -974,6 +975,21 @@ const App: React.FC = () => {
 
   const checkLockRef = useRef(false);
 
+  // Strict Logout on Refresh Logic
+  useEffect(() => {
+    const navEntries = performance.getEntriesByType("navigation");
+    if (navEntries.length > 0 && (navEntries[0] as PerformanceNavigationTiming).type === 'reload') {
+        console.log("Reload detected, ensuring strict logout.");
+        supabase.auth.signOut().then(() => {
+            // Also clear any persistent local storage for user data to avoid leaks
+            localStorage.removeItem('black_tarot_user');
+            // Reset to clean guest state
+            const cleanGuest: User = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 };
+            setUser(cleanGuest);
+        });
+    }
+  }, []);
+
   const checkUser = useCallback(async (isLoginInit = false) => {
     try {
         let localUser: User | null = null;
@@ -994,10 +1010,15 @@ const App: React.FC = () => {
                             return; 
                         }
                         if (existingProfile && existingProfile.data) {
+                             // Load existing data strictly, do not overwrite with local/guest state
                              currentUser = { ...existingProfile.data, email };
                         } else {
+                             // Initialize new profile safely
                              const profilePayload = { id: authUser.id, email: authUser.email ?? null, full_name: (authUser.user_metadata?.full_name ?? authUser.user_metadata?.name) ?? null, avatar_url: authUser.user_metadata?.avatar_url ?? null, updated_at: new Date().toISOString() };
-                             await supabase.from("user_profiles").upsert(profilePayload, { onConflict: "id" });
+                             // Use ignoreDuplicates logic conceptually (though onConflict='id' updates, the 'if exists' check above prevents overwrite).
+                             // Adding ignoreDuplicates: true explicitly for safety if supported by library version
+                             await supabase.from("user_profiles").upsert(profilePayload, { onConflict: "id", ignoreDuplicates: true });
+                             
                              if (localUser && localUser.email === email) {
                                  currentUser = { ...localUser, email };
                              } else {
@@ -1016,7 +1037,11 @@ const App: React.FC = () => {
                     }
                     if (currentUser.email !== email) currentUser.email = email;
                 } else {
-                   if (!localUser || localUser.email !== 'Guest') currentUser = { ...userRef.current, email: "Guest", tier: UserTier.BRONZE }; 
+                   // If no auth user (e.g. after refresh/logout), ensure strict guest mode
+                   if (!localUser || localUser.email !== 'Guest') {
+                        // Wipe any previous user data from state if we are now Guest
+                        currentUser = { ...userRef.current, email: "Guest", tier: UserTier.BRONZE, coins: 0, history: [] }; 
+                   }
                    if (!localStorage.getItem('tarot_device_id')) localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
                 }
             } catch (error) { console.error(error); }

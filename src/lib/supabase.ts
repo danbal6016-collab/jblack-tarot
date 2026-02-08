@@ -1,3 +1,4 @@
+
 // src/lib/supabase.ts
 import { createClient } from "@supabase/supabase-js";
 
@@ -33,4 +34,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Helper to check if we are in a valid configuration
 export const isSupabaseConfigured = !!supabaseUrl && !!supabaseAnonKey && supabaseUrl !== "https://placeholder.supabase.co";
 
-export const supabase = createClient(safeUrl, safeKey);
+export const supabase = createClient(safeUrl, safeKey, {
+  auth: {
+    storage: typeof window !== "undefined" ? window.sessionStorage : undefined, // Volatile session (cleared on tab close)
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});
