@@ -949,7 +949,8 @@ const App: React.FC = () => {
   const [isRedirectHandling, setIsRedirectHandling] = useState(
     typeof window !== 'undefined' && (
       new URL(window.location.href).searchParams.has('code') || 
-      new URL(window.location.href).hash.includes('access_token')
+      new URL(window.location.href).hash.includes('access_token') ||
+      new URL(window.location.href).hash.includes('error') 
     )
   );
 
@@ -1103,8 +1104,35 @@ const App: React.FC = () => {
     }
   }, [checkUser]);
 
+  // Safety Timeout for Redirect Handling to prevent infinite loading loop
   useEffect(() => {
-      if (!isSupabaseConfigured) return;
+    if (isRedirectHandling) {
+        const timer = setTimeout(() => {
+            console.warn("Redirect handling timed out. forcing app load.");
+            setIsRedirectHandling(false);
+            // Clean URL just in case
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }, 8000); // 8 seconds timeout
+        return () => clearTimeout(timer);
+    }
+  }, [isRedirectHandling]);
+
+  useEffect(() => {
+      if (!isSupabaseConfigured) {
+          if (isRedirectHandling) setIsRedirectHandling(false);
+          return;
+      }
+
+      // Immediate check in case event fired before mount
+      supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) {
+              if (isRedirectHandling) {
+                  setIsRedirectHandling(false);
+                  window.history.replaceState({}, document.title, window.location.pathname);
+              }
+              safeCheckUser(false);
+          }
+      });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => { 
           // Handle redirect cleanup when session is established
@@ -1220,7 +1248,10 @@ const App: React.FC = () => {
   };
   const isFirstPurchase = user.totalSpent === 0 && user.email !== 'Guest';
   const isGuest = user.email === 'Guest';
-  const handleSettingsClick = (mode: 'SKIN' | 'FRAME' | 'RUG' | 'BGM' | 'HISTORY' | 'RESULT_BG' | 'STICKER') => { if (user.email === 'Guest') { alert("로그인이 필요한 기능입니다."); setAuthMode('LOGIN'); return; } setSettingsMode(mode); };
+  const handleSettingsClick = (mode: 'SKIN' | 'FRAME' | 'RUG' | 'BGM' | 'HISTORY' | 'RESULT_BG' | 'STICKER') => { 
+      if (user.email === 'Guest') { setAuthMode('LOGIN'); return; }
+      setSettingsMode(mode); 
+  };
 
   if (isRedirectHandling) {
       return (
@@ -1313,55 +1344,66 @@ const App: React.FC = () => {
 
           {showSettings && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
-              <div className="bg-gray-900 border border-purple-500 rounded-lg max-w-md w-full p-6 relative h-[80vh] flex flex-col">
-                <button onClick={() => { setShowSettings(false); setSettingsMode('MAIN'); }} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">✕</button>
-                <h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{TRANSLATIONS[lang].settings_title}</h2>
+              <div className="bg-[#0f0518] border border-purple-500 rounded-lg max-w-md w-full p-6 relative max-h-[80vh] flex flex-col shadow-[0_0_50px_rgba(88,28,135,0.5)] overflow-hidden">
+                <button onClick={() => { setShowSettings(false); setSettingsMode('MAIN'); }} className="absolute top-4 right-4 text-purple-300 hover:text-white text-xl z-20">✕</button>
+                <h2 className="text-2xl font-occult text-purple-100 mb-6 text-center">{TRANSLATIONS[lang].settings_title}</h2>
                 
                 {settingsMode === 'MAIN' && (
-                  <div className="space-y-4 overflow-y-auto flex-1 pb-4">
-                    {user.email === 'Guest' && <p className="text-xs text-red-400 text-center mb-4">{TRANSLATIONS[lang].settings_login_only}</p>}
+                  <div className="space-y-4 overflow-y-auto flex-1 pb-4 pr-1 scrollbar-thin scrollbar-thumb-purple-700">
                     
                     {/* Common Settings */}
-                    <div className="bg-black/40 p-4 rounded border border-gray-800">
-                      <h3 className="text-sm font-bold text-gray-300 mb-3">{TRANSLATIONS[lang].language_control}</h3>
-                      <div className="flex gap-2"><button onClick={() => setLang('ko')} className={`flex-1 py-2 rounded border ${lang === 'ko' ? 'bg-purple-900 border-purple-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>한국어</button><button onClick={() => setLang('en')} className={`flex-1 py-2 rounded border ${lang === 'en' ? 'bg-purple-900 border-purple-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>English</button></div>
+                    <div className="bg-[#2d1b4e]/50 p-4 rounded border border-purple-500/30">
+                      <h3 className="text-sm font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].language_control}</h3>
+                      <div className="flex gap-2">
+                          <button onClick={() => setLang('ko')} className={`flex-1 py-2 rounded border transition-all ${lang === 'ko' ? 'bg-purple-600 border-purple-400 text-white shadow-lg' : 'bg-[#1a0b2e] border-purple-900 text-purple-400 hover:bg-purple-900/50'}`}>한국어</button>
+                          <button onClick={() => setLang('en')} className={`flex-1 py-2 rounded border transition-all ${lang === 'en' ? 'bg-purple-600 border-purple-400 text-white shadow-lg' : 'bg-[#1a0b2e] border-purple-900 text-purple-400 hover:bg-purple-900/50'}`}>English</button>
+                      </div>
                     </div>
 
-                    <div className="bg-black/40 p-4 rounded border border-gray-800">
-                      <h3 className="text-sm font-bold text-gray-300 mb-3">{TRANSLATIONS[lang].bgm_control}</h3>
-                      <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={(e) => { const v = parseFloat(e.target.value); setBgmVolume(v); updateUser(prev => ({ ...prev, bgmVolume: v })); }} className="w-full accent-purple-500 mb-2" />
-                      <div className="flex justify-between text-xs text-gray-500"><span>Mute</span><span>Max</span></div>
-                      <button onClick={() => setBgmStopped(!bgmStopped)} className={`w-full py-2 mt-2 rounded border ${bgmStopped ? 'bg-red-900/50 border-red-800 text-red-200' : 'bg-green-900/50 border-green-800 text-green-200'}`}>{bgmStopped ? 'Play BGM' : 'Stop BGM'}</button>
+                    <div className="bg-[#2d1b4e]/50 p-4 rounded border border-purple-500/30">
+                      <h3 className="text-sm font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].bgm_control}</h3>
+                      <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={(e) => { const v = parseFloat(e.target.value); setBgmVolume(v); updateUser(prev => ({ ...prev, bgmVolume: v })); }} className="w-full accent-purple-500 mb-2 bg-purple-900" />
+                      <div className="flex justify-between text-xs text-purple-400"><span>Mute</span><span>Max</span></div>
+                      <button onClick={() => setBgmStopped(!bgmStopped)} className={`w-full py-2 mt-2 rounded border transition-all ${bgmStopped ? 'bg-red-900/30 border-red-800 text-red-200 hover:bg-red-900/50' : 'bg-purple-600 border-purple-400 text-white hover:bg-purple-500'}`}>{bgmStopped ? 'Play BGM' : 'Stop BGM'}</button>
                     </div>
 
-                    {/* VIP Features */}
-                    <button onClick={() => handleSettingsClick('SKIN')} className="w-full py-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-purple-900 hover:to-indigo-900 rounded border border-gray-700 hover:border-purple-500 text-left px-4 flex justify-between items-center group"><span>🎨 {TRANSLATIONS[lang].skin_shop}</span><span className="text-gray-500 group-hover:text-white">→</span></button>
-                    <button onClick={() => handleSettingsClick('FRAME')} className="w-full py-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-purple-900 hover:to-indigo-900 rounded border border-gray-700 hover:border-purple-500 text-left px-4 flex justify-between items-center group"><span>🖼️ {TRANSLATIONS[lang].frame_shop}</span><span className="text-gray-500 group-hover:text-white">→</span></button>
-                    <button onClick={() => handleSettingsClick('RESULT_BG')} className="w-full py-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-purple-900 hover:to-indigo-900 rounded border border-gray-700 hover:border-purple-500 text-left px-4 flex justify-between items-center group"><span>🌃 {TRANSLATIONS[lang].result_bg_shop}</span><span className="text-gray-500 group-hover:text-white">→</span></button>
-                    <button onClick={() => handleSettingsClick('STICKER')} className="w-full py-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-purple-900 hover:to-indigo-900 rounded border border-gray-700 hover:border-purple-500 text-left px-4 flex justify-between items-center group"><span>✨ {TRANSLATIONS[lang].sticker_shop}</span><span className="text-gray-500 group-hover:text-white">→</span></button>
+                    {/* VIP Features - Styled */}
+                    {['SKIN', 'FRAME', 'RESULT_BG', 'STICKER'].map((mode) => (
+                        <button key={mode} onClick={() => handleSettingsClick(mode as any)} className="w-full py-4 bg-[#2d1b4e] hover:bg-gradient-to-r hover:from-purple-800 hover:to-indigo-800 active:from-purple-600 active:to-indigo-600 rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
+                            <span className="text-purple-100 font-bold">
+                                {mode === 'SKIN' ? TRANSLATIONS[lang].skin_shop : 
+                                 mode === 'FRAME' ? TRANSLATIONS[lang].frame_shop : 
+                                 mode === 'RESULT_BG' ? TRANSLATIONS[lang].result_bg_shop : 
+                                 TRANSLATIONS[lang].sticker_shop}
+                            </span>
+                            <span className="text-purple-400 group-hover:text-white">→</span>
+                        </button>
+                    ))}
                     
                     {/* Gold+ Features */}
-                    {(user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) && (
-                         <button onClick={() => handleSettingsClick('RUG')} className="w-full py-4 bg-gradient-to-r from-yellow-900/20 to-yellow-800/20 hover:bg-yellow-900/40 rounded border border-yellow-700/50 text-left px-4 flex justify-between items-center group"><span className="text-yellow-200">🧶 {TRANSLATIONS[lang].rug_shop}</span><span className="text-yellow-500">→</span></button>
-                    )}
+                    <button onClick={() => handleSettingsClick('RUG')} className="w-full py-4 bg-[#2d1b4e] hover:bg-gradient-to-r hover:from-purple-800 hover:to-indigo-800 active:from-purple-600 active:to-indigo-600 rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
+                        <span className="text-yellow-200 font-bold">{TRANSLATIONS[lang].rug_shop}</span>
+                        <span className="text-yellow-500 group-hover:text-white">→</span>
+                    </button>
                      
                     {/* Platinum Features */}
-                    {user.tier === UserTier.PLATINUM && (
-                         <button onClick={() => handleSettingsClick('BGM')} className="w-full py-4 bg-gradient-to-r from-purple-900/20 to-indigo-900/20 hover:bg-purple-900/40 rounded border border-purple-500/50 text-left px-4 flex justify-between items-center group"><span className="text-purple-200">🎵 {TRANSLATIONS[lang].bgm_upload}</span><span className="text-purple-500">→</span></button>
-                    )}
+                    <button onClick={() => handleSettingsClick('BGM')} className="w-full py-4 bg-[#2d1b4e] hover:bg-gradient-to-r hover:from-purple-800 hover:to-indigo-800 active:from-purple-600 active:to-indigo-600 rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
+                        <span className="text-purple-200 font-bold">{TRANSLATIONS[lang].bgm_upload}</span>
+                        <span className="text-purple-500 group-hover:text-white">→</span>
+                    </button>
 
-                    <div className="pt-4 border-t border-gray-800">
-                        <button onClick={() => handleSettingsClick('HISTORY')} className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded text-gray-300 mb-2">📜 {TRANSLATIONS[lang].history}</button>
+                    <div className="pt-4 border-t border-purple-900/50">
+                        <button onClick={() => handleSettingsClick('HISTORY')} className="w-full py-3 bg-[#2d1b4e] hover:bg-purple-800 rounded text-purple-200 mb-2 border border-purple-500/30">{TRANSLATIONS[lang].history}</button>
                         {user.email !== 'Guest' && <button onClick={handleLogout} className="w-full py-3 bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded border border-red-900/50">{TRANSLATIONS[lang].logout}</button>}
                     </div>
                   </div>
                 )}
 
                 {settingsMode === 'SKIN' && (
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col h-full overflow-hidden">
                         <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
                         <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].skin_shop}</h3>
-                        <div className="flex-1 overflow-y-auto space-y-4 p-1">
+                        <div className="flex-1 overflow-y-auto space-y-4 p-1 scrollbar-thin scrollbar-thumb-purple-700">
                              <div className="grid grid-cols-2 gap-3">
                                  {SKINS.map(skin => (
                                      <div key={skin.id} onClick={() => buySkin(skin)} className={`p-3 rounded border cursor-pointer relative overflow-hidden ${user.currentSkin === skin.id && !user.activeCustomSkin ? 'border-green-500 bg-green-900/20' : 'border-gray-700 bg-gray-800'}`}>
@@ -1418,21 +1460,29 @@ const App: React.FC = () => {
                 )}
                 
                 {settingsMode === 'RUG' && (
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col h-full overflow-hidden">
                          <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
                          <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].rug_shop}</h3>
-                         <div className="grid grid-cols-3 gap-3">
+                         <div className="grid grid-cols-3 gap-3 mb-4">
                              {RK_COLORS.map(c => (
                                  <div key={c.name} onClick={() => handleRugChange(c.color)} className={`aspect-square rounded-full cursor-pointer border-2 shadow-lg flex items-center justify-center ${user.rugColor === c.color ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`} style={{ backgroundColor: c.color }}>
                                      {user.rugColor === c.color && <span className="text-white font-bold">✓</span>}
                                  </div>
                              ))}
                          </div>
+                         {/* Custom Color Input - Restored and verified */}
+                         <div className="pt-4 border-t border-gray-700">
+                             <label className="block text-xs text-gray-400 mb-2">Custom Color Picker</label>
+                             <div className="flex gap-3 items-center bg-gray-800 p-3 rounded border border-gray-700">
+                                 <input type="color" value={user.rugColor || '#2e0b49'} onChange={(e) => handleRugChange(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-none bg-transparent p-0" />
+                                 <span className="text-xs text-gray-300 font-mono">{user.rugColor || '#2e0b49'}</span>
+                             </div>
+                         </div>
                     </div>
                 )}
                 
                 {settingsMode === 'BGM' && (
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col h-full overflow-hidden">
                          <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
                          <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].bgm_upload} (Platinum)</h3>
                          <label className="block w-full p-4 border-2 border-dashed border-gray-600 rounded text-center cursor-pointer hover:border-purple-500 hover:text-purple-400 transition-colors">
@@ -1444,13 +1494,13 @@ const App: React.FC = () => {
                 )}
 
                 {settingsMode === 'FRAME' && (
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col h-full overflow-hidden">
                         <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
                         <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].frame_shop}</h3>
                         <div className="grid grid-cols-2 gap-3 mb-4">
                             {RESULT_FRAMES.map(frame => (
                                 <div key={frame.id} onClick={() => updateUser(prev => ({...prev, resultFrame: frame.id}))} className={`h-24 border rounded cursor-pointer relative flex items-center justify-center ${user.resultFrame === frame.id ? 'bg-purple-900/30 ring-2 ring-purple-500' : 'bg-gray-800 border-gray-700'}`}>
-                                    <div className="w-16 h-20 bg-gray-900" style={{ cssText: frame.css }}></div>
+                                    <div className="w-16 h-20 bg-gray-900" ref={(el) => { if (el) el.style.cssText = frame.css; }}></div>
                                     <span className="absolute bottom-1 text-[9px] text-gray-400">{frame.name}</span>
                                 </div>
                             ))}
@@ -1469,7 +1519,7 @@ const App: React.FC = () => {
                 )}
 
                 {settingsMode === 'RESULT_BG' && (
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col h-full overflow-hidden">
                         <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
                         <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].result_bg_shop}</h3>
                         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -1490,7 +1540,7 @@ const App: React.FC = () => {
                 )}
                 
                 {settingsMode === 'STICKER' && (
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col h-full overflow-hidden">
                         <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
                         <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].sticker_shop}</h3>
                         <div className="flex flex-wrap gap-2 mb-4">
@@ -1513,7 +1563,7 @@ const App: React.FC = () => {
                 )}
 
                 {settingsMode === 'HISTORY' && (
-                     <div className="flex flex-col h-full">
+                     <div className="flex flex-col h-full overflow-hidden">
                          <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
                          <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].history}</h3>
                          <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin scrollbar-thumb-purple-700">
@@ -1536,52 +1586,6 @@ const App: React.FC = () => {
                 )}
               </div>
             </div>
-          )}
-          
-          {showShop && (
-              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
-                  <div className="bg-gradient-to-br from-[#1a103c] to-[#000000] border border-yellow-500/30 rounded-xl max-w-sm w-full p-0 relative shadow-[0_0_50px_rgba(234,179,8,0.2)] overflow-hidden">
-                      <button onClick={() => { setShowShop(false); setPendingPackage(null); setShopStep('AMOUNT'); }} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl z-20">✕</button>
-                      <div className="bg-yellow-900/20 p-6 text-center border-b border-yellow-500/20">
-                          <h2 className="text-2xl font-occult text-yellow-100 mb-1">{TRANSLATIONS[lang].shop_title}</h2>
-                          <p className="text-xs text-yellow-500/70 uppercase tracking-widest">{TRANSLATIONS[lang].shop_subtitle}</p>
-                      </div>
-                      
-                      <div className="p-6">
-                        {shopStep === 'AMOUNT' ? (
-                            <div className="space-y-3">
-                                <button onClick={() => initiatePayment(4900, 60)} className="w-full py-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-yellow-500 rounded-lg flex items-center justify-between px-4 transition-all group">
-                                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-yellow-900/30 flex items-center justify-center border border-yellow-700 text-xl">💰</div><span className="text-lg font-bold text-white group-hover:text-yellow-200">{TRANSLATIONS[lang].shop_pkg_1}</span></div>
-                                    <span className="text-gray-400 group-hover:text-white">→</span>
-                                </button>
-                                <button onClick={() => initiatePayment(7900, 110)} className="w-full py-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-yellow-500 rounded-lg flex items-center justify-between px-4 transition-all group relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 bg-red-600 text-white text-[9px] px-2 py-0.5 rounded-bl font-bold">HOT</div>
-                                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-yellow-900/30 flex items-center justify-center border border-yellow-700 text-xl">💰</div><span className="text-lg font-bold text-white group-hover:text-yellow-200">{TRANSLATIONS[lang].shop_pkg_2}</span></div>
-                                    <span className="text-gray-400 group-hover:text-white">→</span>
-                                </button>
-                                <button onClick={() => initiatePayment(15500, 220)} className="w-full py-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-yellow-500 rounded-lg flex items-center justify-between px-4 transition-all group">
-                                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-yellow-900/30 flex items-center justify-center border border-yellow-700 text-xl">💰</div><span className="text-lg font-bold text-white group-hover:text-yellow-200">{TRANSLATIONS[lang].shop_pkg_3}</span></div>
-                                    <span className="text-gray-400 group-hover:text-white">→</span>
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="space-y-4 animate-fade-in">
-                                <h3 className="text-center text-white mb-4 font-bold">{TRANSLATIONS[lang].pay_title}</h3>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button onClick={() => setSelectedPaymentMethod('TOSS')} className={`p-3 rounded border flex flex-col items-center gap-2 ${selectedPaymentMethod === 'TOSS' ? 'bg-blue-900/30 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}><span className="text-xl">🔵</span><span className="text-xs font-bold">Toss Pay</span></button>
-                                    <button onClick={() => setSelectedPaymentMethod('KAKAO')} className={`p-3 rounded border flex flex-col items-center gap-2 ${selectedPaymentMethod === 'KAKAO' ? 'bg-yellow-900/30 border-yellow-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}><span className="text-xl">🟡</span><span className="text-xs font-bold">Kakao Pay</span></button>
-                                    <button onClick={() => setSelectedPaymentMethod('APPLE')} className={`p-3 rounded border flex flex-col items-center gap-2 ${selectedPaymentMethod === 'APPLE' ? 'bg-gray-700 border-white text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}><span className="text-xl">🍎</span><span className="text-xs font-bold">Apple Pay</span></button>
-                                    <button onClick={() => setSelectedPaymentMethod('PAYPAL')} className={`p-3 rounded border flex flex-col items-center gap-2 ${selectedPaymentMethod === 'PAYPAL' ? 'bg-indigo-900/30 border-indigo-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}><span className="text-xl">🅿️</span><span className="text-xs font-bold">PayPal</span></button>
-                                </div>
-                                <div className="flex gap-3 mt-6">
-                                    <button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded font-bold">{TRANSLATIONS[lang].pay_cancel}</button>
-                                    <button onClick={processPayment} className="flex-[2] py-3 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-extrabold rounded shadow-[0_0_15px_rgba(234,179,8,0.5)] transform active:scale-95 transition-all">{TRANSLATIONS[lang].pay_confirm}</button>
-                                </div>
-                            </div>
-                        )}
-                      </div>
-                  </div>
-              </div>
           )}
       </div>
   );
