@@ -6,6 +6,16 @@ export default function AuthCallback() {
   useEffect(() => {
     (async () => {
       try {
+          // 1. Check if Supabase client has already detected a session from the URL (Hash flow)
+          // The Supabase client in ../src/lib/supabase.ts is configured with detectSessionInUrl: true
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session) {
+              // Session found (likely Implicit flow or persisted session), redirect to home
+              window.location.replace("/");
+              return;
+          }
+
           const url = new URL(window.location.href);
           const code = url.searchParams.get("code");
           const error = url.searchParams.get("error");
@@ -19,16 +29,25 @@ export default function AuthCallback() {
               return;
           }
 
-          if (!code) {
-            // No code found, redirect to home
-            window.location.replace("/");
-            return;
+          // 2. Handle PKCE Code Flow
+          if (code) {
+              const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+              if (sessionError) throw sessionError;
+              
+              // Successful exchange, redirect to home
+              window.location.replace("/");
+              return;
           }
 
-          const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
-          if (sessionError) throw sessionError;
+          // 3. Fallback for Hash Fragment manual handling if getSession didn't catch it
+          // This usually happens if the component mounts before Supabase parses the hash
+          if (window.location.hash && window.location.hash.includes('access_token')) {
+             // Redirect to root *with* the hash so App.tsx or Supabase client there can catch it
+             window.location.replace("/" + window.location.hash);
+             return;
+          }
 
-          // Successful exchange, redirect to home
+          // No auth code or session found, just go home
           window.location.replace("/");
       } catch(e: any) {
           console.error("Auth callback exception:", e);
