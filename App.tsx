@@ -1344,7 +1344,7 @@ const App: React.FC = () => {
 
           {showSettings && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
-              <div className="bg-[#1a0b2e] border border-purple-500 rounded-lg max-w-md w-full p-6 relative max-h-[80vh] flex flex-col shadow-[0_0_50px_rgba(88,28,135,0.5)] overflow-hidden">
+              <div className="bg-[#0f0518] border border-purple-500 rounded-lg max-w-md w-full p-6 relative max-h-[80vh] flex flex-col shadow-[0_0_50px_rgba(88,28,135,0.5)] overflow-hidden">
                 <button onClick={() => { setShowSettings(false); setSettingsMode('MAIN'); }} className="absolute top-4 right-4 text-purple-300 hover:text-white text-xl z-20">✕</button>
                 <h2 className="text-2xl font-occult text-purple-100 mb-6 text-center">{TRANSLATIONS[lang].settings_title}</h2>
                 
@@ -1352,7 +1352,7 @@ const App: React.FC = () => {
                   <div className="space-y-4 overflow-y-auto flex-1 pb-4 pr-1 scrollbar-thin scrollbar-thumb-purple-700">
                     
                     {/* Common Settings */}
-                    <div className="bg-[#2d1b4e]/50 p-4 rounded border border-purple-500/30">
+                    <div className="bg-[#1a0b2e]/50 p-4 rounded border border-purple-500/30">
                       <h3 className="text-sm font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].language_control}</h3>
                       <div className="flex gap-2">
                           <button onClick={() => setLang('ko')} className={`flex-1 py-2 rounded border transition-all ${lang === 'ko' ? 'bg-purple-600 border-purple-400 text-white shadow-lg' : 'bg-[#1a0b2e] border-purple-900 text-purple-400 hover:bg-purple-900/50'}`}>한국어</button>
@@ -1360,7 +1360,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="bg-[#2d1b4e]/50 p-4 rounded border border-purple-500/30">
+                    <div className="bg-[#1a0b2e]/50 p-4 rounded border border-purple-500/30">
                       <h3 className="text-sm font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].bgm_control}</h3>
                       <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={(e) => { const v = parseFloat(e.target.value); setBgmVolume(v); updateUser(prev => ({ ...prev, bgmVolume: v })); }} className="w-full accent-purple-500 mb-2 bg-purple-900" />
                       <div className="flex justify-between text-xs text-purple-400"><span>Mute</span><span>Max</span></div>
@@ -1369,7 +1369,7 @@ const App: React.FC = () => {
 
                     {/* Attendance Status for Logged-in Users */}
                     {user.email !== 'Guest' && (
-                        <div className="bg-[#2d1b4e]/50 p-4 rounded border border-purple-500/30">
+                        <div className="bg-[#1a0b2e]/50 p-4 rounded border border-purple-500/30">
                             <h3 className="text-sm font-bold text-purple-200 mb-2">{TRANSLATIONS[lang].attendance}</h3>
                             <div className="flex items-center justify-between">
                                 <span className="text-xs text-gray-300">Current Streak</span>
@@ -1381,9 +1381,9 @@ const App: React.FC = () => {
                         </div>
                     )}
 
-                    {/* VIP Features - Styled */}
+                    {/* VIP Features - Styled with Dark Gradient Animation */}
                     {['SKIN', 'FRAME', 'RESULT_BG', 'STICKER'].map((mode) => (
-                        <button key={mode} onClick={() => handleSettingsClick(mode as any)} className="w-full py-4 bg-[#2d1b4e] hover:bg-gradient-to-r hover:from-purple-800 hover:to-indigo-800 active:from-purple-600 active:to-indigo-600 rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
+                        <button key={mode} onClick={() => handleSettingsClick(mode as any)} className="w-full py-4 bg-[#1a0b2e] hover:bg-gradient-to-r hover:from-[#2e1065] hover:to-[#0f172a] active:bg-black rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
                             <span className="text-purple-100 font-bold">
                                 {mode === 'SKIN' ? TRANSLATIONS[lang].skin_shop : 
                                  mode === 'FRAME' ? TRANSLATIONS[lang].frame_shop : 
@@ -1394,24 +1394,20 @@ const App: React.FC = () => {
                         </button>
                     ))}
                     
-                    {/* Gold+ Features - Changed text color to white as requested */}
-                    {(user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) && (
-                         <button onClick={() => handleSettingsClick('RUG')} className="w-full py-4 bg-[#2d1b4e] hover:bg-gradient-to-r hover:from-purple-800 hover:to-indigo-800 active:from-purple-600 active:to-indigo-600 rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
-                             <span className="text-white font-bold">{TRANSLATIONS[lang].rug_shop}</span>
-                             <span className="text-yellow-500 group-hover:text-white">→</span>
-                         </button>
-                    )}
+                    {/* Gold+ Features - Restored visibility */}
+                    <button onClick={() => handleSettingsClick('RUG')} className="w-full py-4 bg-[#1a0b2e] hover:bg-gradient-to-r hover:from-[#2e1065] hover:to-[#0f172a] active:bg-black rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
+                        <span className="text-white font-bold">{TRANSLATIONS[lang].rug_shop}</span>
+                        <span className="text-yellow-500 group-hover:text-white">→</span>
+                    </button>
                      
-                    {/* Platinum Features */}
-                    {user.tier === UserTier.PLATINUM && (
-                         <button onClick={() => handleSettingsClick('BGM')} className="w-full py-4 bg-[#2d1b4e] hover:bg-gradient-to-r hover:from-purple-800 hover:to-indigo-800 active:from-purple-600 active:to-indigo-600 rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
-                             <span className="text-purple-200 font-bold">{TRANSLATIONS[lang].bgm_upload}</span>
-                             <span className="text-purple-500 group-hover:text-white">→</span>
-                         </button>
-                    )}
+                    {/* Platinum Features - Restored visibility */}
+                    <button onClick={() => handleSettingsClick('BGM')} className="w-full py-4 bg-[#1a0b2e] hover:bg-gradient-to-r hover:from-[#2e1065] hover:to-[#0f172a] active:bg-black rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
+                        <span className="text-purple-200 font-bold">{TRANSLATIONS[lang].bgm_upload}</span>
+                        <span className="text-purple-500 group-hover:text-white">→</span>
+                    </button>
 
                     <div className="pt-4 border-t border-purple-900/50">
-                        <button onClick={() => handleSettingsClick('HISTORY')} className="w-full py-3 bg-[#2d1b4e] hover:bg-purple-800 rounded text-purple-200 mb-2 border border-purple-500/30">{TRANSLATIONS[lang].history}</button>
+                        <button onClick={() => handleSettingsClick('HISTORY')} className="w-full py-3 bg-[#1a0b2e] hover:bg-purple-800 rounded text-purple-200 mb-2 border border-purple-500/30">{TRANSLATIONS[lang].history}</button>
                         {user.email !== 'Guest' && <button onClick={handleLogout} className="w-full py-3 bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded border border-red-900/50">{TRANSLATIONS[lang].logout}</button>}
                     </div>
                   </div>
