@@ -15,8 +15,10 @@ export function GoogleContinueButton() {
 
     try {
         const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
-        // Explicitly point to the callback route to ensure index.tsx routes to AuthCallback
-        const redirectTo = `${origin}/auth/callback`;
+        
+        // Use root origin as redirect URL to ensure it matches the allowed Redirect URLs in Supabase Dashboard.
+        // App.tsx handles the session detection via 'detectSessionInUrl: true'.
+        const redirectTo = origin;
 
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",

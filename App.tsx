@@ -945,6 +945,14 @@ const App: React.FC = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'TOSS' | 'PAYPAL' | 'APPLE' | 'KAKAO'>('TOSS');
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+  // New state to detect and handle redirect loop/loading
+  const [isRedirectHandling, setIsRedirectHandling] = useState(
+    typeof window !== 'undefined' && (
+      new URL(window.location.href).searchParams.has('code') || 
+      new URL(window.location.href).hash.includes('access_token')
+    )
+  );
+
   const saveUserState = useCallback(async (u: User, state: AppState) => {
       try { localStorage.setItem('black_tarot_user', JSON.stringify({ ...u, lastAppState: state })); } catch (e) { console.error(e); }
       if (u.email !== 'Guest' && isSupabaseConfigured) {
@@ -952,7 +960,6 @@ const App: React.FC = () => {
           const userId = session?.user?.id;
           if (!userId) return;
           const payload: any = { id: userId, email: u.email, data: { ...u, lastAppState: state }, updated_at: new Date().toISOString() };
-          // Upsert is correct here as we want to save the latest state for the logged-in user
           supabase.from('user_profiles').upsert(payload, { onConflict: 'id' }).then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
       }
   }, []);
@@ -969,7 +976,6 @@ const App: React.FC = () => {
       }); 
   }, [selectedQuestion, selectedCards]); 
 
-  // ✅ New Logic: userRef to handle stale closures
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
 
@@ -979,23 +985,23 @@ const App: React.FC = () => {
   useEffect(() => {
     const navEntries = performance.getEntriesByType("navigation");
     if (navEntries.length > 0 && (navEntries[0] as PerformanceNavigationTiming).type === 'reload') {
-        console.log("Reload detected, ensuring strict logout.");
-        supabase.auth.signOut().then(() => {
-            // Also clear any persistent local storage for user data to avoid leaks
-            localStorage.removeItem('black_tarot_user');
-            // Reset to clean guest state
-            const cleanGuest: User = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 };
-            setUser(cleanGuest);
-        });
+        // Only force logout if NOT handling a redirect
+        if (!isRedirectHandling) {
+            console.log("Reload detected, ensuring strict logout.");
+            supabase.auth.signOut().then(() => {
+                localStorage.removeItem('black_tarot_user');
+                const cleanGuest: User = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 };
+                setUser(cleanGuest);
+            });
+        }
     }
-  }, []);
+  }, [isRedirectHandling]);
 
   const checkUser = useCallback(async (isLoginInit = false) => {
     try {
         let localUser: User | null = null;
         try { const stored = localStorage.getItem('black_tarot_user'); if (stored) localUser = JSON.parse(stored); } catch (e) {}
         
-        // ✅ Use userRef.current
         let currentUser = localUser || { ...userRef.current, email: "Guest" };
         
         if (isSupabaseConfigured) {
@@ -1010,13 +1016,9 @@ const App: React.FC = () => {
                             return; 
                         }
                         if (existingProfile && existingProfile.data) {
-                             // Load existing data strictly, do not overwrite with local/guest state
                              currentUser = { ...existingProfile.data, email };
                         } else {
-                             // Initialize new profile safely
                              const profilePayload = { id: authUser.id, email: authUser.email ?? null, full_name: (authUser.user_metadata?.full_name ?? authUser.user_metadata?.name) ?? null, avatar_url: authUser.user_metadata?.avatar_url ?? null, updated_at: new Date().toISOString() };
-                             // Use ignoreDuplicates logic conceptually (though onConflict='id' updates, the 'if exists' check above prevents overwrite).
-                             // Adding ignoreDuplicates: true explicitly for safety if supported by library version
                              await supabase.from("user_profiles").upsert(profilePayload, { onConflict: "id", ignoreDuplicates: true });
                              
                              if (localUser && localUser.email === email) {
@@ -1037,9 +1039,7 @@ const App: React.FC = () => {
                     }
                     if (currentUser.email !== email) currentUser.email = email;
                 } else {
-                   // If no auth user (e.g. after refresh/logout), ensure strict guest mode
                    if (!localUser || localUser.email !== 'Guest') {
-                        // Wipe any previous user data from state if we are now Guest
                         currentUser = { ...userRef.current, email: "Guest", tier: UserTier.BRONZE, coins: 0, history: [] }; 
                    }
                    if (!localStorage.getItem('tarot_device_id')) localStorage.setItem('tarot_device_id', Math.random().toString(36).substring(2));
@@ -1077,7 +1077,6 @@ const App: React.FC = () => {
             setBgmVolume(currentUser.bgmVolume);
         }
 
-        // Sanitize session to prevent stuck loading
         currentUser.lastAppState = AppState.CATEGORY_SELECT;
         if (currentUser.currentSession) {
              currentUser.currentSession.appState = AppState.CATEGORY_SELECT;
@@ -1088,15 +1087,12 @@ const App: React.FC = () => {
         setIsDataLoaded(true); 
         saveUserState(currentUser, AppState.CATEGORY_SELECT);
 
-        // Only navigate if this is an explicit login action.
-        // Otherwise, stay on WELCOME screen (default init state).
         if (isLoginInit) {
              setAppState(AppState.CATEGORY_SELECT);
         }
     } catch (error) { console.error("Critical error in checkUser:", error); }
-  }, []); // Intentionally empty dependency to rely on ref
+  }, []); 
 
-  // ✅ safeCheckUser
   const safeCheckUser = useCallback(async (isLoginInit = false) => {
     if (checkLockRef.current) return;
     checkLockRef.current = true;
@@ -1107,21 +1103,24 @@ const App: React.FC = () => {
     }
   }, [checkUser]);
 
-  // ✅ One Consolidated onAuthStateChange
   useEffect(() => {
       if (!isSupabaseConfigured) return;
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => { 
+          // Handle redirect cleanup when session is established
           if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) { 
+              if (isRedirectHandling) {
+                  setIsRedirectHandling(false);
+                  window.history.replaceState({}, document.title, window.location.pathname);
+              }
               safeCheckUser(false); 
           } 
       });
       
       return () => { subscription.unsubscribe(); };
-  }, [safeCheckUser]);
+  }, [safeCheckUser, isRedirectHandling]);
 
   useEffect(() => {
-      // Prevent saving incomplete data
       if (!isDataLoaded) return;
       const timeoutId = setTimeout(() => {
           updateUser(prev => ({ ...prev, currentSession: { appState: appState, selectedCategoryId: selectedCategory?.id, selectedQuestion: selectedQuestion, customQuestion: customQuestion, selectedCards: selectedCards, readingResult: undefined, faceImage: faceImage || undefined, birthTime: birthTime, partnerBirth: partnerBirth } }));
@@ -1142,29 +1141,18 @@ const App: React.FC = () => {
           if (confirm(TRANSLATIONS[lang].coin_shortage)) { setShowShop(true); setShopStep('AMOUNT'); } 
           return false; 
       } 
-      
-      // Calculate new tier state *before* update to check for changes
       const newTotalSpent = user.totalSpent + amount;
       const newTier = calculateTier(newTotalSpent);
-      
       if (newTier !== user.tier) {
           const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM];
           const oldIndex = tiers.indexOf(user.tier);
           const newIndex = tiers.indexOf(newTier);
-          
           setTierChangeNewTier(newTier);
           setTierChangeDirection(newIndex > oldIndex ? 'UP' : 'DOWN');
           setShowTierChangePopup(true);
       }
-
       updateUser(prev => { 
-          return { 
-              ...prev, 
-              coins: prev.coins - amount, 
-              totalSpent: newTotalSpent, 
-              monthlyCoinsSpent: (prev.monthlyCoinsSpent || 0) + amount,
-              tier: newTier 
-          }; 
+          return { ...prev, coins: prev.coins - amount, totalSpent: newTotalSpent, monthlyCoinsSpent: (prev.monthlyCoinsSpent || 0) + amount, tier: newTier }; 
       }); 
       return true; 
   };
@@ -1209,7 +1197,6 @@ const App: React.FC = () => {
 
   const initiatePayment = (amount: number, coins: number) => { if (user.email === 'Guest') { alert("Please login to purchase coins."); return; } setPendingPackage({ amount, coins }); setShopStep('METHOD'); };
   
-  // FIX: Payment process modified to show demand alert instead of awarding coins
   const processPayment = () => {
     if (!pendingPackage) return;
     alert("댓글이 100개가 넘으면 오픈합니다.");
@@ -1234,6 +1221,15 @@ const App: React.FC = () => {
   const isFirstPurchase = user.totalSpent === 0 && user.email !== 'Guest';
   const isGuest = user.email === 'Guest';
   const handleSettingsClick = (mode: 'SKIN' | 'FRAME' | 'RUG' | 'BGM' | 'HISTORY' | 'RESULT_BG' | 'STICKER') => { if (user.email === 'Guest') { alert("로그인이 필요한 기능입니다."); setAuthMode('LOGIN'); return; } setSettingsMode(mode); };
+
+  if (isRedirectHandling) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
+            <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="font-occult text-lg">Unveiling Destiny...</p>
+        </div>
+      );
+  }
 
   return (
       <div className={`relative min-h-screen text-white font-sans overflow-hidden select-none ${SKINS.find(s=>s.id===user.currentSkin)?.cssClass}`}>
@@ -1310,120 +1306,282 @@ const App: React.FC = () => {
           {appState === AppState.FACE_UPLOAD && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-4">{TRANSLATIONS[lang].face_reading_title}</h2><p className="text-gray-300 mb-6 text-sm md:text-base leading-relaxed break-keep">{TRANSLATIONS[lang].face_reading_desc}</p><div className="mb-6 border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative"><input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onloadend=()=>setFaceImage(r.result as string); r.readAsDataURL(f); } }} className="absolute inset-0 opacity-0 cursor-pointer" />{faceImage ? <img src={faceImage} className="max-h-48 mx-auto rounded" /> : <span className="text-gray-500">{TRANSLATIONS[lang].face_guide}</span>}</div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startFaceReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].face_upload_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-250 Coin)')}</button></div></div></div> )}
           {appState === AppState.LIFE_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{TRANSLATIONS[lang].life_reading_title}</h2><p className="text-gray-300 text-sm mb-6 leading-relaxed break-keep whitespace-pre-wrap">{TRANSLATIONS[lang].life_reading_desc}</p><div className="flex gap-4 justify-center mb-6"><select value={birthTime.h} onChange={e=>setBirthTime({...birthTime, h:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:24}).map((_,i) => <option key={i} value={i.toString()}>{i}시</option>)}</select><select value={birthTime.m} onChange={e=>setBirthTime({...birthTime, m:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:60}).map((_,i) => <option key={i} value={i.toString()}>{i}분</option>)}</select></div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startLifeReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].life_input_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-250 Coin)')}</button></div></div></div> )}
           {appState === AppState.PARTNER_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{selectedCategory?.label}</h2><p className="text-gray-400 mb-6">{selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_desc : TRANSLATIONS[lang].partner_life_desc}</p><input value={partnerBirth} onChange={e=>setPartnerBirth(e.target.value)} placeholder={TRANSLATIONS[lang].partner_birth_ph} className="w-full p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 mb-6 outline-none"/><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startPartnerReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{(selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_btn : TRANSLATIONS[lang].partner_life_btn).replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : selectedCategory?.id === 'SECRET_COMPAT' ? '(-200 Coin)' : '(-250 Coin)')}</button></div></div></div> )}
-          {appState === AppState.QUESTION_SELECT && selectedCategory && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20"><h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{selectedCategory.label}</h2><div className="w-full max-w-xl space-y-3">{selectedCategory.questions.map((q, i) => (<button key={i} onClick={() => handleQuestionSelect(q)} className="w-full p-4 text-left bg-black/60 border border-purple-900/50 rounded hover:bg-purple-900/30 hover:border-purple-500 transition-all text-gray-200 text-sm md:text-base">{q}</button>))}<div className="relative mt-6 pt-4 border-t border-gray-800"><input className="w-full p-4 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 focus:outline-none" placeholder={TRANSLATIONS[lang].custom_q_ph} value={customQuestion} onChange={(e) => setCustomQuestion(e.target.value)} /><button onClick={() => handleQuestionSelect(customQuestion)} className="absolute right-2 top-6 bottom-2 px-4 bg-purple-900 rounded text-xs font-bold hover:bg-purple-700 mt-4 mb-2">OK</button></div><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="w-full mt-6 py-3 bg-gray-800 text-gray-400 hover:text-white rounded border border-gray-700">{TRANSLATIONS[lang].back}</button></div></div> )}
+          {appState === AppState.QUESTION_SELECT && selectedCategory && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20"><h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{selectedCategory.label}</h2><div className="w-full max-w-xl space-y-3">{selectedCategory.questions.map((q, i) => (<button key={i} onClick={() => handleQuestionSelect(q)} className="w-full p-4 text-left bg-black/60 border border-purple-900/50 rounded hover:bg-purple-900/30 hover:border-purple-500 transition-all text-gray-200 text-sm md:text-base">{q}</button>))}<div className="relative mt-6 pt-4 border-t border-gray-800"><input className="w-full p-4 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 outline-none text-sm md:text-base" placeholder={TRANSLATIONS[lang].custom_q_ph} value={customQuestion} onChange={(e) => setCustomQuestion(e.target.value)} /><button onClick={() => { if (!customQuestion) return; handleQuestionSelect(customQuestion); }} className="absolute right-2 top-6 bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded mt-0.5">{TRANSLATIONS[lang].next}</button></div><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="w-full py-3 mt-4 text-gray-500 hover:text-gray-300">{TRANSLATIONS[lang].back}</button></div></div> )}
           {appState === AppState.SHUFFLING && ( <ShufflingAnimation onComplete={() => navigateTo(AppState.CARD_SELECT)} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} rugColor={user.rugColor} /> )}
           {appState === AppState.CARD_SELECT && ( <CardSelection onSelectCards={handleCardSelect} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} rugColor={user.rugColor} /> )}
-          {appState === AppState.RESULT && ( <ResultView question={selectedQuestion} selectedCards={selectedCards} onRetry={() => navigateTo(AppState.CATEGORY_SELECT)} lang={lang} readingPromise={readingPromise} onReadingComplete={handleReadingComplete} user={user} spendCoins={spendCoins} onLogin={() => setAuthMode("LOGIN")} /> )}
+          {appState === AppState.RESULT && ( <ResultView question={selectedQuestion} selectedCards={selectedCards} onRetry={() => { setReadingPromise(null); navigateTo(AppState.CATEGORY_SELECT); }} lang={lang} readingPromise={readingPromise} onReadingComplete={handleReadingComplete} user={user} spendCoins={spendCoins} onLogin={() => setAuthMode("LOGIN")} /> )}
+
+          {showSettings && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
+              <div className="bg-gray-900 border border-purple-500 rounded-lg max-w-md w-full p-6 relative h-[80vh] flex flex-col">
+                <button onClick={() => { setShowSettings(false); setSettingsMode('MAIN'); }} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">✕</button>
+                <h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{TRANSLATIONS[lang].settings_title}</h2>
+                
+                {settingsMode === 'MAIN' && (
+                  <div className="space-y-4 overflow-y-auto flex-1 pb-4">
+                    {user.email === 'Guest' && <p className="text-xs text-red-400 text-center mb-4">{TRANSLATIONS[lang].settings_login_only}</p>}
+                    
+                    {/* Common Settings */}
+                    <div className="bg-black/40 p-4 rounded border border-gray-800">
+                      <h3 className="text-sm font-bold text-gray-300 mb-3">{TRANSLATIONS[lang].language_control}</h3>
+                      <div className="flex gap-2"><button onClick={() => setLang('ko')} className={`flex-1 py-2 rounded border ${lang === 'ko' ? 'bg-purple-900 border-purple-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>한국어</button><button onClick={() => setLang('en')} className={`flex-1 py-2 rounded border ${lang === 'en' ? 'bg-purple-900 border-purple-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>English</button></div>
+                    </div>
+
+                    <div className="bg-black/40 p-4 rounded border border-gray-800">
+                      <h3 className="text-sm font-bold text-gray-300 mb-3">{TRANSLATIONS[lang].bgm_control}</h3>
+                      <input type="range" min="0" max="1" step="0.1" value={bgmVolume} onChange={(e) => { const v = parseFloat(e.target.value); setBgmVolume(v); updateUser(prev => ({ ...prev, bgmVolume: v })); }} className="w-full accent-purple-500 mb-2" />
+                      <div className="flex justify-between text-xs text-gray-500"><span>Mute</span><span>Max</span></div>
+                      <button onClick={() => setBgmStopped(!bgmStopped)} className={`w-full py-2 mt-2 rounded border ${bgmStopped ? 'bg-red-900/50 border-red-800 text-red-200' : 'bg-green-900/50 border-green-800 text-green-200'}`}>{bgmStopped ? 'Play BGM' : 'Stop BGM'}</button>
+                    </div>
+
+                    {/* VIP Features */}
+                    <button onClick={() => handleSettingsClick('SKIN')} className="w-full py-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-purple-900 hover:to-indigo-900 rounded border border-gray-700 hover:border-purple-500 text-left px-4 flex justify-between items-center group"><span>🎨 {TRANSLATIONS[lang].skin_shop}</span><span className="text-gray-500 group-hover:text-white">→</span></button>
+                    <button onClick={() => handleSettingsClick('FRAME')} className="w-full py-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-purple-900 hover:to-indigo-900 rounded border border-gray-700 hover:border-purple-500 text-left px-4 flex justify-between items-center group"><span>🖼️ {TRANSLATIONS[lang].frame_shop}</span><span className="text-gray-500 group-hover:text-white">→</span></button>
+                    <button onClick={() => handleSettingsClick('RESULT_BG')} className="w-full py-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-purple-900 hover:to-indigo-900 rounded border border-gray-700 hover:border-purple-500 text-left px-4 flex justify-between items-center group"><span>🌃 {TRANSLATIONS[lang].result_bg_shop}</span><span className="text-gray-500 group-hover:text-white">→</span></button>
+                    <button onClick={() => handleSettingsClick('STICKER')} className="w-full py-4 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-purple-900 hover:to-indigo-900 rounded border border-gray-700 hover:border-purple-500 text-left px-4 flex justify-between items-center group"><span>✨ {TRANSLATIONS[lang].sticker_shop}</span><span className="text-gray-500 group-hover:text-white">→</span></button>
+                    
+                    {/* Gold+ Features */}
+                    {(user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) && (
+                         <button onClick={() => handleSettingsClick('RUG')} className="w-full py-4 bg-gradient-to-r from-yellow-900/20 to-yellow-800/20 hover:bg-yellow-900/40 rounded border border-yellow-700/50 text-left px-4 flex justify-between items-center group"><span className="text-yellow-200">🧶 {TRANSLATIONS[lang].rug_shop}</span><span className="text-yellow-500">→</span></button>
+                    )}
+                     
+                    {/* Platinum Features */}
+                    {user.tier === UserTier.PLATINUM && (
+                         <button onClick={() => handleSettingsClick('BGM')} className="w-full py-4 bg-gradient-to-r from-purple-900/20 to-indigo-900/20 hover:bg-purple-900/40 rounded border border-purple-500/50 text-left px-4 flex justify-between items-center group"><span className="text-purple-200">🎵 {TRANSLATIONS[lang].bgm_upload}</span><span className="text-purple-500">→</span></button>
+                    )}
+
+                    <div className="pt-4 border-t border-gray-800">
+                        <button onClick={() => handleSettingsClick('HISTORY')} className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded text-gray-300 mb-2">📜 {TRANSLATIONS[lang].history}</button>
+                        {user.email !== 'Guest' && <button onClick={handleLogout} className="w-full py-3 bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded border border-red-900/50">{TRANSLATIONS[lang].logout}</button>}
+                    </div>
+                  </div>
+                )}
+
+                {settingsMode === 'SKIN' && (
+                    <div className="flex flex-col h-full">
+                        <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
+                        <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].skin_shop}</h3>
+                        <div className="flex-1 overflow-y-auto space-y-4 p-1">
+                             <div className="grid grid-cols-2 gap-3">
+                                 {SKINS.map(skin => (
+                                     <div key={skin.id} onClick={() => buySkin(skin)} className={`p-3 rounded border cursor-pointer relative overflow-hidden ${user.currentSkin === skin.id && !user.activeCustomSkin ? 'border-green-500 bg-green-900/20' : 'border-gray-700 bg-gray-800'}`}>
+                                         <div className={`h-24 w-full mb-2 rounded ${skin.cssClass} card-back`}></div>
+                                         <div className="flex justify-between items-end"><span className="text-xs font-bold text-white">{skin.name}</span><span className="text-[10px] text-yellow-400">{skin.cost === 0 ? 'Free' : `${skin.cost} C`}</span></div>
+                                         {user.currentSkin === skin.id && !user.activeCustomSkin && <div className="absolute top-1 right-1 text-green-500 text-xs font-bold">✓</div>}
+                                     </div>
+                                 ))}
+                             </div>
+                             
+                             {/* Custom Skins (Silver+) */}
+                             <div className="mt-6 pt-6 border-t border-gray-700">
+                                 <h4 className="text-sm font-bold text-purple-300 mb-3">{TRANSLATIONS[lang].custom_skin_title} (Silver+)</h4>
+                                 {user.tier === UserTier.BRONZE ? (
+                                     <p className="text-xs text-gray-500">{TRANSLATIONS[lang].bronze_shop_lock}</p>
+                                 ) : (
+                                     <div className="space-y-4">
+                                         <div className="flex gap-2">
+                                             <label className="flex-1 cursor-pointer bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded flex items-center justify-center py-3 text-xs text-gray-300">
+                                                 {TRANSLATIONS[lang].upload_skin}
+                                                 <input type="file" accept="image/*" className="hidden" onChange={handleCustomSkinUpload} />
+                                             </label>
+                                         </div>
+                                         {customSkinImage && (
+                                             <div className="bg-gray-800 p-3 rounded">
+                                                 <img src={customSkinImage} className="w-20 h-32 object-cover mx-auto mb-2 rounded border border-gray-600" />
+                                                 <div className="flex gap-2 text-xs mb-2 justify-center">
+                                                     <button onClick={() => setIsSkinPublic(false)} className={`px-2 py-1 rounded ${!isSkinPublic ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400'}`}>{TRANSLATIONS[lang].private_option}</button>
+                                                     <button onClick={() => setIsSkinPublic(true)} className={`px-2 py-1 rounded ${isSkinPublic ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400'}`}>{TRANSLATIONS[lang].public_option}</button>
+                                                 </div>
+                                                 <button onClick={handleSaveCustomSkin} className="w-full py-2 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded text-xs">Save (-120 Coin)</button>
+                                             </div>
+                                         )}
+                                         <div className="flex gap-2">
+                                             <input value={inputSkinCode} onChange={e => setInputSkinCode(e.target.value)} placeholder={TRANSLATIONS[lang].skin_code_placeholder} className="flex-1 bg-gray-900 border border-gray-700 rounded px-2 text-xs text-white" />
+                                             <button onClick={handleApplySkinCode} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs">{TRANSLATIONS[lang].skin_code_btn}</button>
+                                         </div>
+                                         {/* My Custom Skins List */}
+                                         {user.customSkins && user.customSkins.length > 0 && (
+                                             <div className="grid grid-cols-3 gap-2 mt-2">
+                                                 {user.customSkins.map(skin => (
+                                                     <div key={skin.id} onClick={() => updateUser(prev => ({...prev, activeCustomSkin: skin}))} className={`relative cursor-pointer border rounded p-1 ${user.activeCustomSkin?.id === skin.id ? 'border-green-500' : 'border-gray-700'}`}>
+                                                         <img src={skin.imageUrl} className="w-full h-20 object-cover rounded" />
+                                                         {skin.isPublic && <span className="absolute bottom-0 right-0 bg-blue-600 text-[8px] px-1 text-white">PUB</span>}
+                                                     </div>
+                                                 ))}
+                                             </div>
+                                         )}
+                                     </div>
+                                 )}
+                             </div>
+                        </div>
+                    </div>
+                )}
+                
+                {settingsMode === 'RUG' && (
+                    <div className="flex flex-col h-full">
+                         <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
+                         <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].rug_shop}</h3>
+                         <div className="grid grid-cols-3 gap-3">
+                             {RK_COLORS.map(c => (
+                                 <div key={c.name} onClick={() => handleRugChange(c.color)} className={`aspect-square rounded-full cursor-pointer border-2 shadow-lg flex items-center justify-center ${user.rugColor === c.color ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`} style={{ backgroundColor: c.color }}>
+                                     {user.rugColor === c.color && <span className="text-white font-bold">✓</span>}
+                                 </div>
+                             ))}
+                         </div>
+                    </div>
+                )}
+                
+                {settingsMode === 'BGM' && (
+                    <div className="flex flex-col h-full">
+                         <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
+                         <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].bgm_upload} (Platinum)</h3>
+                         <label className="block w-full p-4 border-2 border-dashed border-gray-600 rounded text-center cursor-pointer hover:border-purple-500 hover:text-purple-400 transition-colors">
+                             <input type="file" accept="audio/*" className="hidden" onChange={handleBgmUpload} />
+                             <span className="text-sm">Click to Upload MP3</span>
+                         </label>
+                         <p className="text-xs text-gray-500 mt-2 text-center">Uploaded music will play only for you.</p>
+                    </div>
+                )}
+
+                {settingsMode === 'FRAME' && (
+                    <div className="flex flex-col h-full">
+                        <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
+                        <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].frame_shop}</h3>
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                            {RESULT_FRAMES.map(frame => (
+                                <div key={frame.id} onClick={() => updateUser(prev => ({...prev, resultFrame: frame.id}))} className={`h-24 border rounded cursor-pointer relative flex items-center justify-center ${user.resultFrame === frame.id ? 'bg-purple-900/30 ring-2 ring-purple-500' : 'bg-gray-800 border-gray-700'}`}>
+                                    <div className="w-16 h-20 bg-gray-900" style={{ cssText: frame.css }}></div>
+                                    <span className="absolute bottom-1 text-[9px] text-gray-400">{frame.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                        {user.tier !== UserTier.BRONZE && (
+                            <div className="border-t border-gray-700 pt-4">
+                                <h4 className="text-sm font-bold text-purple-300 mb-2">{TRANSLATIONS[lang].custom_frame_title}</h4>
+                                <label className="block w-full p-2 bg-gray-800 rounded text-center text-xs text-gray-300 cursor-pointer hover:bg-gray-700 mb-2">
+                                    Upload Frame Image (PNG)
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleCustomFrameUpload} />
+                                </label>
+                                {customFrameImage && <button onClick={handleSaveCustomFrame} className="w-full py-2 bg-purple-600 rounded text-xs font-bold text-white">Save Frame</button>}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {settingsMode === 'RESULT_BG' && (
+                    <div className="flex flex-col h-full">
+                        <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
+                        <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].result_bg_shop}</h3>
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                            {RESULT_BACKGROUNDS.map(bg => (
+                                <div key={bg.id} onClick={() => updateUser(prev => ({...prev, resultBackground: bg.id}))} className={`h-20 rounded cursor-pointer relative ${user.resultBackground === bg.id ? 'ring-2 ring-purple-500' : ''}`} style={{ background: bg.css }}>
+                                    <span className="absolute bottom-1 left-2 text-[10px] text-white/70 shadow-black drop-shadow-md font-bold">{bg.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="border-t border-gray-700 pt-4">
+                             <label className="block w-full p-2 bg-gray-800 rounded text-center text-xs text-gray-300 cursor-pointer hover:bg-gray-700 mb-2">
+                                Upload Custom Background
+                                <input type="file" accept="image/*" className="hidden" onChange={handleCustomBgUpload} />
+                             </label>
+                             {customBgImage && <button onClick={handleSaveCustomBg} className="w-full py-2 bg-purple-600 rounded text-xs font-bold text-white">Save Background</button>}
+                        </div>
+                    </div>
+                )}
+                
+                {settingsMode === 'STICKER' && (
+                    <div className="flex flex-col h-full">
+                        <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
+                        <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].sticker_shop}</h3>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {DEFAULT_STICKERS.map((s, i) => <div key={i} className="text-2xl p-2 bg-gray-800 rounded">{s}</div>)}
+                        </div>
+                        {user.tier !== UserTier.BRONZE && (
+                            <div className="border-t border-gray-700 pt-4">
+                                <h4 className="text-sm font-bold text-purple-300 mb-2">{TRANSLATIONS[lang].sticker_upload}</h4>
+                                <label className="block w-full p-2 bg-gray-800 rounded text-center text-xs text-gray-300 cursor-pointer hover:bg-gray-700 mb-2">
+                                    Upload Sticker (PNG/GIF)
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleCustomStickerUpload} />
+                                </label>
+                                {customStickerImage && <button onClick={handleSaveCustomSticker} className="w-full py-2 bg-purple-600 rounded text-xs font-bold text-white">Add Sticker</button>}
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    {user.customStickers?.map((s, i) => <img key={i} src={s} className="w-10 h-10 object-contain bg-gray-800 rounded p-1" />)}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {settingsMode === 'HISTORY' && (
+                     <div className="flex flex-col h-full">
+                         <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
+                         <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].history}</h3>
+                         <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin scrollbar-thumb-purple-700">
+                             {user.history && user.history.length > 0 ? (
+                                 user.history.map((h, i) => (
+                                     <div key={i} className="bg-gray-800/50 p-3 rounded border border-gray-700/50 hover:bg-gray-800 transition-colors">
+                                         <div className="flex justify-between items-start mb-1">
+                                             <span className="text-xs text-purple-400 font-bold">{new Date(h.date).toLocaleDateString()}</span>
+                                             <span className="text-[10px] text-gray-500">{new Date(h.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                         </div>
+                                         <p className="text-sm font-bold text-white mb-1 line-clamp-1">{h.question}</p>
+                                         <p className="text-xs text-gray-400 line-clamp-2">{h.interpretation}</p>
+                                     </div>
+                                 ))
+                             ) : (
+                                 <div className="text-center text-gray-500 py-10">{TRANSLATIONS[lang].no_history}</div>
+                             )}
+                         </div>
+                     </div>
+                )}
+              </div>
+            </div>
+          )}
           
           {showShop && (
-             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4">
-                 <div className="w-full max-w-lg bg-[#0d001a] border border-[#d4af37] rounded-2xl shadow-[0_0_60px_rgba(139,92,246,0.2)] relative overflow-hidden flex flex-col animate-fade-in">
-                     <button onClick={() => { setShowShop(false); setShopStep('AMOUNT'); }} className="absolute top-4 right-4 text-[#d4af37] hover:text-white z-20"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
-                     {shopStep === 'AMOUNT' ? (
-                        <>
-                            <div className="p-8 pb-4 relative z-10 text-center"><h2 className="text-3xl font-occult text-yellow-500 mb-2">{TRANSLATIONS[lang].shop_title}</h2><p className="text-gray-400 text-sm">{TRANSLATIONS[lang].shop_subtitle}</p>{isFirstPurchase && <p className="text-green-400 font-bold text-xs mt-2 animate-pulse">First Purchase 50% OFF!</p>}</div>
-                            <div className="p-8 pt-0 space-y-4 relative z-10">
-                                <button onClick={() => initiatePayment(isFirstPurchase ? 2450 : 4900, 60)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-gray-700 hover:border-yellow-500 p-4 rounded-xl flex items-center justify-between group transition-all"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-yellow-900/20 flex items-center justify-center text-xs font-bold text-yellow-500">C</div><div className="text-left"><div className="text-yellow-100 font-bold group-hover:text-yellow-400">60 Coins</div><div className="text-gray-500 text-xs">Basic Reading</div></div></div><div className="flex flex-col items-end">{isFirstPurchase && <span className="text-xs text-gray-500 line-through">₩4,900</span>}<span className="text-white font-bold">₩{(isFirstPurchase ? 2450 : 4900).toLocaleString()}</span></div></button>
-                                <button onClick={() => initiatePayment(isFirstPurchase ? 3950 : 7900, 110)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-gray-700 hover:border-yellow-500 p-4 rounded-xl flex items-center justify-between group transition-all"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-yellow-900/20 flex items-center justify-center text-xs font-bold text-yellow-500">C</div><div className="text-left"><div className="text-yellow-100 font-bold group-hover:text-yellow-400">110 Coins</div><div className="text-gray-500 text-xs">Popular Choice</div></div></div><div className="flex flex-col items-end">{isFirstPurchase && <span className="text-xs text-gray-500 line-through">₩7,900</span>}<span className="text-white font-bold">₩{(isFirstPurchase ? 3950 : 7900).toLocaleString()}</span></div></button>
-                                <button onClick={() => initiatePayment(isFirstPurchase ? 7750 : 15500, 220)} className="w-full bg-gradient-to-r from-gray-900 to-black border border-yellow-700/50 hover:border-yellow-400 p-4 rounded-xl flex items-center justify-between group transition-all relative overflow-hidden"><div className="absolute inset-0 bg-yellow-900/10 group-hover:bg-yellow-900/20 transition-colors"></div><div className="flex items-center gap-4 relative z-10"><div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-xs text-black font-bold">VIP</div><div className="text-left"><div className="text-yellow-400 font-bold group-hover:text-yellow-200">220 Coins</div><div className="text-yellow-700 text-xs">Best Value</div></div></div><div className="flex flex-col items-end relative z-10">{isFirstPurchase && <span className="text-xs text-yellow-700 line-through">₩15,500</span>}<span className="text-yellow-400 font-bold">₩{(isFirstPurchase ? 7750 : 15500).toLocaleString()}</span></div></button>
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in p-4">
+                  <div className="bg-gradient-to-br from-[#1a103c] to-[#000000] border border-yellow-500/30 rounded-xl max-w-sm w-full p-0 relative shadow-[0_0_50px_rgba(234,179,8,0.2)] overflow-hidden">
+                      <button onClick={() => { setShowShop(false); setPendingPackage(null); setShopStep('AMOUNT'); }} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl z-20">✕</button>
+                      <div className="bg-yellow-900/20 p-6 text-center border-b border-yellow-500/20">
+                          <h2 className="text-2xl font-occult text-yellow-100 mb-1">{TRANSLATIONS[lang].shop_title}</h2>
+                          <p className="text-xs text-yellow-500/70 uppercase tracking-widest">{TRANSLATIONS[lang].shop_subtitle}</p>
+                      </div>
+                      
+                      <div className="p-6">
+                        {shopStep === 'AMOUNT' ? (
+                            <div className="space-y-3">
+                                <button onClick={() => initiatePayment(4900, 60)} className="w-full py-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-yellow-500 rounded-lg flex items-center justify-between px-4 transition-all group">
+                                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-yellow-900/30 flex items-center justify-center border border-yellow-700 text-xl">💰</div><span className="text-lg font-bold text-white group-hover:text-yellow-200">{TRANSLATIONS[lang].shop_pkg_1}</span></div>
+                                    <span className="text-gray-400 group-hover:text-white">→</span>
+                                </button>
+                                <button onClick={() => initiatePayment(7900, 110)} className="w-full py-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-yellow-500 rounded-lg flex items-center justify-between px-4 transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 bg-red-600 text-white text-[9px] px-2 py-0.5 rounded-bl font-bold">HOT</div>
+                                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-yellow-900/30 flex items-center justify-center border border-yellow-700 text-xl">💰</div><span className="text-lg font-bold text-white group-hover:text-yellow-200">{TRANSLATIONS[lang].shop_pkg_2}</span></div>
+                                    <span className="text-gray-400 group-hover:text-white">→</span>
+                                </button>
+                                <button onClick={() => initiatePayment(15500, 220)} className="w-full py-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-yellow-500 rounded-lg flex items-center justify-between px-4 transition-all group">
+                                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-yellow-900/30 flex items-center justify-center border border-yellow-700 text-xl">💰</div><span className="text-lg font-bold text-white group-hover:text-yellow-200">{TRANSLATIONS[lang].shop_pkg_3}</span></div>
+                                    <span className="text-gray-400 group-hover:text-white">→</span>
+                                </button>
                             </div>
-                        </>
-                     ) : (
-                        <div className="p-8 relative z-10 text-center animate-fade-in">
-                            <h2 className="text-2xl font-bold text-white mb-6">{TRANSLATIONS[lang].pay_title}</h2>
-                            <div className="mb-4"><p className="text-yellow-400 text-xl font-bold">{pendingPackage?.coins} Coins</p><p className="text-white text-lg">₩{pendingPackage?.amount.toLocaleString()}</p></div>
-                            <div className="grid grid-cols-2 gap-4 mb-8">{['TOSS', 'PAYPAL', 'APPLE', 'KAKAO'].map(m => (<button key={m} onClick={() => setSelectedPaymentMethod(m as any)} className={`p-4 rounded-xl border ${selectedPaymentMethod === m ? 'border-yellow-500 bg-yellow-900/20 text-white' : 'border-gray-700 bg-black/50 text-gray-400 hover:border-gray-500'}`}>{m}</button>))}</div>
-                            <div className="flex gap-3"><button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-gray-800 rounded text-gray-300 font-bold">{TRANSLATIONS[lang].pay_cancel}</button><button onClick={processPayment} className="flex-[2] py-3 bg-gradient-to-r from-yellow-600 to-yellow-500 text-black font-bold rounded shadow-[0_0_20px_rgba(234,179,8,0.4)] hover:brightness-110">{TRANSLATIONS[lang].pay_confirm}</button></div>
-                        </div>
-                     )}
-                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-purple-900/20 blur-[100px] pointer-events-none"></div>
-                 </div>
-             </div>
-          )}
-          {showSettings && (
-             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4">
-                 <div className="w-full max-w-md bg-[#0f0518]/95 border border-purple-500/40 rounded-2xl p-6 relative shadow-[0_0_60px_rgba(168,85,247,0.25)] backdrop-blur-xl max-h-[85vh] overflow-y-auto custom-scrollbar">
-                     <button onClick={() => setShowSettings(false)} className="absolute top-4 right-4 text-purple-300/50 hover:text-white transition-colors">✕</button>
-                     <h2 className="text-2xl font-occult text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-purple-100 to-purple-400 mb-8 text-center border-b border-purple-500/20 pb-4 tracking-widest">{TRANSLATIONS[lang].settings_title}</h2>
-                     {settingsMode === 'MAIN' && (
-                         <div className="space-y-6">
-                             <div>
-                                 <label className="block text-sm text-purple-200 mb-2 font-serif">{TRANSLATIONS[lang].language_control}</label>
-                                 <div className="flex bg-[#1a0b2e] rounded-xl border border-purple-500/30 p-1"><button onClick={() => setLang('ko')} className={`flex-1 py-2 rounded-lg text-sm transition-all font-serif ${lang === 'ko' ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)]' : 'text-gray-400 hover:text-white'}`}>한국어</button><button onClick={() => setLang('en')} className={`flex-1 py-2 rounded-lg text-sm transition-all font-serif ${lang === 'en' ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)]' : 'text-gray-400 hover:text-white'}`}>English</button></div>
-                             </div>
-                             {user.email !== 'Guest' && (
-                                <div className="bg-[#1a0b2e] rounded-xl border border-purple-500/30 p-4 mt-2">
-                                    <h4 className="text-sm font-bold text-purple-200 mb-2 font-serif">{TRANSLATIONS[lang].attendance}</h4>
-                                    <div className="flex justify-between text-xs text-gray-400 mb-1"><span>Day {user.attendanceDay}</span><span>Goal: 10</span></div>
-                                    <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden shadow-inner"><div className="bg-gradient-to-r from-yellow-600 to-yellow-300 h-2 rounded-full transition-all duration-1000 ease-out" style={{ width: `${(Math.min(user.attendanceDay, 10) / 10) * 100}%` }}></div></div>
-                                    <p className="text-[10px] text-gray-500 mt-2 text-center italic">Log in daily for bonus coins!</p>
+                        ) : (
+                            <div className="space-y-4 animate-fade-in">
+                                <h3 className="text-center text-white mb-4 font-bold">{TRANSLATIONS[lang].pay_title}</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button onClick={() => setSelectedPaymentMethod('TOSS')} className={`p-3 rounded border flex flex-col items-center gap-2 ${selectedPaymentMethod === 'TOSS' ? 'bg-blue-900/30 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}><span className="text-xl">🔵</span><span className="text-xs font-bold">Toss Pay</span></button>
+                                    <button onClick={() => setSelectedPaymentMethod('KAKAO')} className={`p-3 rounded border flex flex-col items-center gap-2 ${selectedPaymentMethod === 'KAKAO' ? 'bg-yellow-900/30 border-yellow-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}><span className="text-xl">🟡</span><span className="text-xs font-bold">Kakao Pay</span></button>
+                                    <button onClick={() => setSelectedPaymentMethod('APPLE')} className={`p-3 rounded border flex flex-col items-center gap-2 ${selectedPaymentMethod === 'APPLE' ? 'bg-gray-700 border-white text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}><span className="text-xl">🍎</span><span className="text-xs font-bold">Apple Pay</span></button>
+                                    <button onClick={() => setSelectedPaymentMethod('PAYPAL')} className={`p-3 rounded border flex flex-col items-center gap-2 ${selectedPaymentMethod === 'PAYPAL' ? 'bg-indigo-900/30 border-indigo-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'}`}><span className="text-xl">🅿️</span><span className="text-xs font-bold">PayPal</span></button>
                                 </div>
-                             )}
-                             <div>
-                                 <label className="block text-sm text-purple-200 mb-2 font-serif">{TRANSLATIONS[lang].bgm_control}</label>
-                                 <input 
-                                    type="range" 
-                                    min="0" 
-                                    max="1" 
-                                    step="0.01" 
-                                    value={bgmVolume} 
-                                    onInput={e => {
-                                        const newVol = parseFloat((e.target as HTMLInputElement).value);
-                                        setBgmVolume(newVol);
-                                    }}
-                                    onMouseUp={() => updateUser(prev => ({...prev, bgmVolume}))}
-                                    onTouchEnd={() => updateUser(prev => ({...prev, bgmVolume}))}
-                                    className="w-full accent-purple-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer" 
-                                />
-                                 <div className="flex justify-between mt-2"><button onClick={() => setBgmStopped(!bgmStopped)} className="text-xs text-purple-300 border border-purple-500/30 px-3 py-1 rounded-lg hover:bg-purple-500/20 transition-all">{bgmStopped ? 'PLAY' : 'STOP'}</button><span className="text-xs text-gray-500">{currentBgm.name}</span></div>
-                             </div>
-                             <div className="border-t border-purple-500/20 pt-6 space-y-3">
-                                 <button onClick={() => handleSettingsClick('SKIN')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm"><span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].skin_shop}</span></button>
-                                 <button onClick={() => handleSettingsClick('FRAME')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm"><span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].frame_shop}</span></button>
-                                 <button onClick={() => handleSettingsClick('RESULT_BG')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm"><span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].result_bg_shop}</span></button>
-                                 <button onClick={() => handleSettingsClick('STICKER')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm"><span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].sticker_shop}</span></button>
-                                 <button onClick={() => handleSettingsClick('RUG')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm"><span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].rug_shop}</span></button>
-                                 <button onClick={() => handleSettingsClick('BGM')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm"><span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].bgm_upload}</span></button>
-                                 <button onClick={() => handleSettingsClick('HISTORY')} className="w-full py-4 bg-white/5 hover:bg-purple-500/10 rounded-xl border border-white/5 hover:border-purple-500/50 text-left px-4 text-sm text-purple-100 flex justify-between items-center transition-all group backdrop-blur-sm"><span className="font-serif group-hover:text-white transition-colors">{TRANSLATIONS[lang].history}</span></button>
-                             </div>
-                             {user.email !== 'Guest' && (<div className="pt-6 border-t border-purple-500/20 text-center"><button onClick={handleLogout} className="text-xs text-red-400/70 hover:text-red-400 font-serif tracking-widest transition-colors">{TRANSLATIONS[lang].logout}</button></div>)}
-                         </div>
-                     )}
-                     {settingsMode === 'FRAME' && (<div className="space-y-4"><button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Result Frame</h3><div className="grid grid-cols-2 gap-4">{RESULT_FRAMES.map(frame => (<div key={frame.id} onClick={() => { if(checkGuestAction()) return; updateUser(prev => ({...prev, resultFrame: frame.id})); }} className={`aspect-[3/4] border relative cursor-pointer bg-[#050505] flex items-center justify-center rounded-lg transition-all ${user.resultFrame === frame.id ? 'border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]' : 'border-gray-800 hover:border-purple-500/50'}`}><div className="absolute inset-2 z-10 bg-gray-800/50 flex items-center justify-center text-[8px] text-gray-400 rounded">Preview</div><div className="absolute inset-0 z-20 pointer-events-none rounded-lg" style={{ cssText: frame.css } as any}></div><span className="absolute bottom-[-20px] text-[10px] text-gray-400 w-full text-center">{frame.name}</span></div>))}</div><div className="mt-8 pt-4 border-t border-purple-500/20"><h3 className="text-sm font-bold text-purple-200 mb-4">{TRANSLATIONS[lang].custom_frame_title}</h3><div className="border border-dashed border-purple-500/30 rounded-xl p-4 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative"><input type="file" accept="image/*" onChange={handleCustomFrameUpload} className="absolute inset-0 opacity-0 cursor-pointer" />{customFrameImage ? <img src={customFrameImage} className="h-20 mx-auto object-contain rounded" /> : <span className="text-xs text-gray-400">Upload Frame Image</span>}</div>{customFrameImage && <button onClick={handleSaveCustomFrame} className="w-full mt-2 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded-lg transition-colors font-bold shadow-lg">Save Frame</button>}{user.customFrames && user.customFrames.length > 0 && (<div className="grid grid-cols-3 gap-2 mt-4">{user.customFrames.map(cf => (<div key={cf.id} onClick={() => { if(checkGuestAction()) return; updateUser(prev => ({...prev, resultFrame: cf.id})); }} className={`aspect-[3/4] border cursor-pointer bg-black relative rounded-lg ${user.resultFrame === cf.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-gray-800'}`}><div className="absolute inset-0 rounded-lg" style={{ border: '10px solid transparent', borderImage: `url(${cf.imageUrl}) 20 round` }}></div></div>))}</div>)}</div></div>)}
-                     {settingsMode === 'RESULT_BG' && (<div className="space-y-4"><button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Result Background</h3><div className="grid grid-cols-2 gap-4">{RESULT_BACKGROUNDS.map(bg => (<div key={bg.id} onClick={() => updateUser(prev => ({...prev, resultBackground: bg.id}))} className={`aspect-square border cursor-pointer rounded-lg transition-all relative overflow-hidden ${user.resultBackground === bg.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-gray-800'}`}><div className="absolute inset-0" style={{ background: bg.css }}></div><span className="absolute bottom-1 w-full text-center text-[10px] text-white/70 bg-black/30 backdrop-blur-sm">{bg.name}</span></div>))}</div><div className="mt-4 pt-4 border-t border-purple-500/20"><h3 className="text-sm font-bold text-purple-200 mb-4">Custom Background</h3><div className="border border-dashed border-purple-500/30 rounded-xl p-4 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative"><input type="file" accept="image/*" onChange={handleCustomBgUpload} className="absolute inset-0 opacity-0 cursor-pointer" />{customBgImage ? <img src={customBgImage} className="h-20 mx-auto object-cover rounded" /> : <span className="text-xs text-gray-400">Upload Background</span>}</div>{customBgImage && <button onClick={handleSaveCustomBg} className="w-full mt-2 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded-lg font-bold shadow-lg">Set Background</button>}{user.customBackgrounds && user.customBackgrounds.length > 0 && (<div className="grid grid-cols-3 gap-2 mt-4">{user.customBackgrounds.map(bg => (<div key={bg.id} onClick={() => updateUser(prev => ({...prev, resultBackground: bg.imageUrl}))} className={`aspect-square border cursor-pointer relative rounded-lg overflow-hidden ${user.resultBackground === bg.imageUrl ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-gray-800'}`}><div className="absolute inset-0" style={{ backgroundImage: `url(${bg.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div></div>))}</div>)}</div></div>)}
-                     {settingsMode === 'STICKER' && (<div className="space-y-4"><button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Manage Stickers</h3><div className="flex flex-wrap gap-2 mb-4 bg-black/40 p-2 rounded-lg">{user.customStickers?.map((s, i) => (<div key={i} className="w-10 h-10 border border-gray-700 rounded bg-black/60 p-1 relative group"><img src={s} className="w-full h-full object-contain" /><button onClick={() => updateUser(prev => ({...prev, customStickers: prev.customStickers?.filter((_, idx) => idx !== i)}))} className="absolute -top-1 -right-1 bg-red-500 text-white w-4 h-4 rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100">✕</button></div>))}{(!user.customStickers || user.customStickers.length === 0) && <span className="text-xs text-gray-500 w-full text-center py-2">No custom stickers yet.</span>}</div><div className="border border-dashed border-purple-500/30 rounded-xl p-4 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative"><input type="file" accept="image/*" onChange={handleCustomStickerUpload} className="absolute inset-0 opacity-0 cursor-pointer" />{customStickerImage ? <img src={customStickerImage} className="h-20 mx-auto object-contain" /> : <span className="text-xs text-gray-400">{TRANSLATIONS[lang].sticker_upload}</span>}</div>{customStickerImage && <button onClick={handleSaveCustomSticker} className="w-full mt-2 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded-lg font-bold shadow-lg">Add Sticker</button>}</div>)}
-                     {settingsMode === 'SKIN' && (<div className="space-y-4"><button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Card Skin</h3><div className="grid grid-cols-2 gap-4">{SKINS.map(skin => (<div key={skin.id} onClick={() => buySkin(skin)} className={`border rounded-lg p-2 cursor-pointer transition-all ${user.currentSkin === skin.id && !user.activeCustomSkin ? 'border-purple-500 bg-purple-900/20 shadow-[0_0_15px_rgba(168,85,247,0.3)]' : 'border-gray-800 hover:border-purple-500/50'} ${user.tier === UserTier.BRONZE && skin.cost > 0 && !isGuest ? 'opacity-50 grayscale' : ''}`}><div className={`h-24 rounded-md mb-2 w-full card-back ${skin.cssClass}`}></div><div className="flex justify-between items-center"><span className="text-xs text-gray-300 font-serif">{skin.name}</span>{user.ownedSkins.includes(skin.id) ? <span className="text-[10px] bg-green-900/50 text-green-300 px-1.5 py-0.5 rounded border border-green-800">OWNED</span> : <span className={`text-[10px] ${isGuest ? 'text-green-400' : 'text-purple-300'}`}>{isGuest ? 'Free' : skin.cost + ' C'}</span>}</div></div>))}</div><div className="mt-8 pt-4 border-t border-purple-500/20"><h3 className="text-sm font-bold text-purple-200 mb-4">{TRANSLATIONS[lang].custom_skin_title}</h3><div className="space-y-4"><div className="border border-dashed border-purple-500/30 rounded-xl p-4 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative"><input type="file" accept="image/*" onChange={handleCustomSkinUpload} className="absolute inset-0 opacity-0 cursor-pointer" />{customSkinImage ? <img src={customSkinImage} className="h-32 mx-auto object-contain rounded" /> : <span className="text-xs text-gray-400">{TRANSLATIONS[lang].upload_skin}</span>}</div>{customSkinImage && (<div className="flex flex-col gap-2"><div className="flex gap-2 text-xs"><button onClick={() => setIsSkinPublic(false)} className={`flex-1 py-2 rounded-lg border transition-all ${!isSkinPublic ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}>{TRANSLATIONS[lang].private_option}</button><button onClick={() => setIsSkinPublic(true)} className={`flex-1 py-2 rounded-lg border transition-all ${isSkinPublic ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}>{TRANSLATIONS[lang].public_option}</button></div><button onClick={handleSaveCustomSkin} className="w-full py-2.5 bg-white text-black font-bold rounded-lg text-xs hover:bg-gray-200 shadow-lg">Save Custom Skin (-120 Coin)</button></div>)}<div className="mt-4 pt-4 border-t border-purple-500/20"><label className="text-xs text-gray-400 block mb-2">{TRANSLATIONS[lang].skin_code_label}</label><div className="flex gap-2"><input value={inputSkinCode} onChange={e=>setInputSkinCode(e.target.value)} placeholder={TRANSLATIONS[lang].skin_code_placeholder} className="flex-1 bg-black/50 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-purple-500 outline-none" /><button onClick={handleApplySkinCode} className="px-4 py-2 bg-purple-900/50 border border-purple-500/50 text-purple-200 text-xs rounded-lg hover:bg-purple-800 transition-colors font-bold">{TRANSLATIONS[lang].skin_code_btn}</button></div></div>{user.customSkins && user.customSkins.length > 0 && (<div className="grid grid-cols-3 gap-2 mt-4">{user.customSkins.map(cs => (<div key={cs.id} onClick={() => { if(checkGuestAction()) return; updateUser(prev => ({...prev, activeCustomSkin: cs})); }} className={`aspect-[2/3] rounded-lg border cursor-pointer bg-cover bg-center transition-all ${user.activeCustomSkin?.id === cs.id ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)]' : 'border-gray-800 hover:border-purple-500/50'}`} style={{ backgroundImage: `url(${cs.imageUrl})` }}></div>))}<div onClick={() => { if(checkGuestAction()) return; updateUser(prev => ({...prev, activeCustomSkin: null})); }} className="aspect-[2/3] rounded-lg border border-red-900/50 flex items-center justify-center text-red-400 text-xs cursor-pointer hover:bg-red-900/20 hover:border-red-500 transition-all font-bold">Reset</div></div>)}</div></div></div>)}
-                     {settingsMode === 'RUG' && (<div className="space-y-4"><button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Select Rug Color</h3><div className="grid grid-cols-3 gap-4">{RK_COLORS.map(c => (<div key={c.name} onClick={() => handleRugChange(c.color)} className={`aspect-square rounded-full cursor-pointer border-2 transition-transform ${user.rugColor === c.color ? 'border-white shadow-[0_0_15px_white] scale-110' : 'border-transparent hover:scale-105'}`} style={{ backgroundColor: c.color }}></div>))}</div><div className="flex items-center gap-4 mt-4 p-4 bg-white/5 rounded-xl"><span className="text-sm text-gray-300">Custom Color:</span><input type="color" value={user.rugColor || '#2e0b49'} onChange={(e) => handleRugChange(e.target.value)} className="w-10 h-10 rounded cursor-pointer border-none p-0 bg-transparent" /></div></div>)}
-                     {settingsMode === 'BGM' && (<div className="space-y-4"><button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Upload Custom BGM</h3><div className="border border-dashed border-purple-500/30 rounded-xl p-6 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative"><input type="file" accept="audio/*" onChange={handleBgmUpload} className="absolute inset-0 opacity-0 cursor-pointer" /><span className="text-2xl mb-2 block">🎵</span><span className="text-xs text-gray-400">Click to upload MP3/WAV</span></div><p className="text-[10px] text-gray-500 mt-2 text-center">Supported: MP3, WAV. Stored locally.</p></div>)}
-                     {settingsMode === 'HISTORY' && (
-                        <div className="space-y-4">
-                            <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">{TRANSLATIONS[lang].history}</h3>
-                            {(!Array.isArray(user.history) || user.history.length === 0) ? (
-                                <p className="text-gray-500 text-xs text-center py-8">{TRANSLATIONS[lang].no_history}</p>
-                            ) : (
-                                <div className="space-y-3">
-                                    {/* Optimization: Limit to 10 items and ensure safe rendering */}
-                                    {user.history.slice(0, 10).map((h, i) => (
-                                        <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/5 hover:border-purple-500/30 transition-all">
-                                            <div className="flex justify-between text-[10px] text-purple-300 mb-2">
-                                                <span>{new Date(h.date).toLocaleDateString()}</span>
-                                                <span className="font-bold bg-purple-900/50 px-2 py-0.5 rounded">{h.type || 'TAROT'}</span>
-                                            </div>
-                                            <p className="text-xs text-gray-200 font-bold truncate mb-1">{h.question}</p>
-                                            {/* Optimization: Hard truncate string instead of relying on expensive CSS line-clamp */}
-                                            <p className="text-[10px] text-gray-400 leading-relaxed">
-                                                {(h.interpretation || "").length > 100 
-                                                    ? (h.interpretation || "").substring(0, 100) + "..." 
-                                                    : (h.interpretation || "")}
-                                            </p>
-                                        </div>
-                                    ))}
+                                <div className="flex gap-3 mt-6">
+                                    <button onClick={() => setShopStep('AMOUNT')} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded font-bold">{TRANSLATIONS[lang].pay_cancel}</button>
+                                    <button onClick={processPayment} className="flex-[2] py-3 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-extrabold rounded shadow-[0_0_15px_rgba(234,179,8,0.5)] transform active:scale-95 transition-all">{TRANSLATIONS[lang].pay_confirm}</button>
                                 </div>
-                            )}
-                        </div>
-                     )}
-                 </div>
-             </div>
+                            </div>
+                        )}
+                      </div>
+                  </div>
+              </div>
           )}
       </div>
   );
