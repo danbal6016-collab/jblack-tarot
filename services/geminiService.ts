@@ -122,7 +122,7 @@ const SAFETY_SETTINGS = [
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Prioritize stability. Use the most stable and fast models first.
-const MODELS_TO_TRY = ['gemini-2.5-flash-latest', 'gemini-flash-latest'];
+const MODELS_TO_TRY = ['gemini-2.5-flash', 'gemini-flash-latest'];
 
 async function retryOperation<T>(
     operation: () => Promise<T>,
@@ -146,9 +146,9 @@ async function retryOperation<T>(
 }
 
 // Global Timeout Wrapper
-async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.5-flash-latest', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    // Increased Global Timeout to 5 minutes to accommodate serverless cold starts or heavy load
-    const GLOBAL_TIMEOUT = 300000; 
+async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.5-flash', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
+    // Increased Global Timeout to 200 seconds to be safe
+    const GLOBAL_TIMEOUT = 200000; 
 
     const generationTask = async () => {
         // Construct the chain: Preferred -> Fallbacks
@@ -203,21 +203,32 @@ async function callGenAI(prompt: string, baseConfig: any, preferredModel: string
                         const body: any = { prompt, config, model };
                         if (imageParts) body.imageParts = imageParts;
 
-                        // Removed aggressive fetch timeout. Rely on global timeout.
-                        const constEqRes = await fetch('/api/gemini', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(body)
-                        });
-                        
-                        if (!constEqRes.ok) {
-                            const errText = await constEqRes.text();
-                            throw new Error(`Proxy error: ${constEqRes.status} ${errText}`);
+                        const controller = new AbortController();
+                        // CRITICAL FIX: Increased fetch timeout to 120 seconds. 
+                        // Saju calculation + Tarot interpretation is complex and can be slow.
+                        const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+                        try {
+                            const constEqRes = await fetch('/api/gemini', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body),
+                                signal: controller.signal
+                            });
+                            clearTimeout(timeoutId);
+                            
+                            if (!constEqRes.ok) {
+                                const errText = await constEqRes.text();
+                                throw new Error(`Proxy error: ${constEqRes.status} ${errText}`);
+                            }
+                            
+                            const data = await constEqRes.json();
+                            if (!data.text) throw new Error("Empty response from proxy");
+                            return data.text as string;
+                        } catch (fetchErr: any) {
+                            clearTimeout(timeoutId);
+                            throw fetchErr;
                         }
-                        
-                        const data = await constEqRes.json();
-                        if (!data.text) throw new Error("Empty response from proxy");
-                        return data.text as string;
                     }, 3, 1000); // 3 retries per model via Proxy
 
                     if (responseText) return responseText;
@@ -260,15 +271,16 @@ export const getTarotReading = async (
   let userContext = "User: Anonymous (General Reading)";
   if (userInfo) {
       userContext = `
-      [USER DATA INTEGRATION]
+      [MANDATORY USER ANALYSIS]
+      The user has provided their birth details. You MUST use this.
       Name: ${userInfo.name}
       Birthdate: ${userInfo.birthDate}
       
-      INSTRUCTION:
-      1. **Internally** calculate the User's Saju (Four Pillars) and dominant Element based on the birthdate.
-      2. Interpret the Tarot Cards (${cardNames}) *through the lens* of this user's specific energy/destiny.
-      3. **CRITICAL CONSTRAINT**: Do NOT use technical Saju terms (like "Ilju", "Day Pillar", "Wood Element") in the final output.
-      4. Instead, describe the *traits* naturally (e.g., talk about "innate passion" instead of "Fire Element").
+      CRITICAL INSTRUCTION:
+      1. FIRST, calculate the user's "Saju" (Four Pillars of Destiny) based on the birthdate ${userInfo.birthDate}. Identify their Day Master (Ilju) and dominant elements.
+      2. SECOND, interpret the Tarot Cards (${cardNames}) specifically for this person's calculated destiny.
+      3. Combine the Tarot meaning with their Saju energy.
+      4. DO NOT explain the calculation process. Just use the result to inform your advice.
       `;
   }
 
@@ -279,6 +291,8 @@ export const getTarotReading = async (
     ${userContext}
     Q: "${question}"
     Cards: ${cardNames}
+    
+    TASK: Provide a tarot reading based on the cards AND the user's birth energy (Saju).
     FAST RESPONSE REQUIRED.
     STRICTLY NO ASTERISKS (*)
     ${getTarotStructure(lang, tier)}
@@ -290,8 +304,8 @@ export const getTarotReading = async (
     maxOutputTokens: 8192, 
   };
 
-  // Use 2.5 flash latest for stability and speed
-  return await callGenAI(prompt, config, 'gemini-2.5-flash-latest', undefined, lang);
+  // Use 2.5 flash for speed and reliability
+  return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getCompatibilityReading = async (
@@ -368,7 +382,7 @@ export const getCompatibilityReading = async (
     }
 
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash-latest', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getPartnerLifeReading = async (partnerBirth: string, lang: Language = 'ko'): Promise<string> => {
@@ -443,7 +457,7 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
     }
 
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash-latest', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -513,7 +527,7 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
     // Vision works best with standard flash
-    return await callGenAI(prompt, config, 'gemini-2.5-flash-latest', [imagePart], lang);
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
@@ -602,7 +616,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
     }
 
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash-latest', undefined, lang);
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getFallbackTarotImage = (cardId: number): string => {
@@ -640,11 +654,13 @@ export const generateTarotCardImage = async (cardName: string): Promise<string> 
     if (!apiKey) throw new Error("No API Key");
 
     const ai = new GoogleGenAI({ apiKey });
+    
+    // Use gemini-2.5-flash-image for reliable image generation
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: { parts: [{ text: prompt }] },
         config: {
-            // @ts-ignore - Allowing loose config for image generation
+            // @ts-ignore
             imageConfig: {
                 aspectRatio: "9:16"
             }

@@ -270,7 +270,15 @@ const ChatView: React.FC<{
             bio: user.userInfo?.bio ? user.userInfo.bio.slice(0, 200) : undefined,
         };
 
-        await channel.send({ type: "broadcast", event: "chat", payload });
+        // Send broadcast message (Ephemeral)
+        await channel.send({ 
+            type: "broadcast", 
+            event: "chat", 
+            payload 
+        });
+        
+        // Optimistically update UI for sender
+        setMessages(prev => [...prev, payload]);
         setInputText("");
     };
 
@@ -288,14 +296,17 @@ const ChatView: React.FC<{
             return;
         }
 
-        const channel = supabase.channel('black-tarot-global', {
-            config: { presence: { key: chatUserId } }
-        });
-
-        channelRef.current = channel;
+        // Use a consistent channel name for everyone
+        const channel = supabase.channel('black-tarot-global');
 
         channel
             .on('broadcast', { event: 'chat' }, ({ payload }) => {
+                // Ensure payload is safe
+                if (!payload) return;
+                
+                // Don't duplicate self-sent messages (if optimistic update is used)
+                if (payload.userId === chatUserId) return;
+
                 const safePayload: ChatMessage = {
                     ...payload,
                     id: String(payload?.id ?? crypto.randomUUID()),
@@ -310,7 +321,7 @@ const ChatView: React.FC<{
                     bio: typeof payload?.bio === 'string' ? payload.bio.slice(0, 200) : undefined,
                 };
 
-                setMessages(prev => [...prev, safePayload].slice(-50));
+                setMessages(prev => [...prev, safePayload].slice(-50)); // Keep last 50
             })
             .on('presence', { event: 'sync' }, () => {
                 const state = channel.presenceState();
@@ -318,21 +329,30 @@ const ChatView: React.FC<{
             })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
+                    // Track presence
                     await channel.track({
+                        user_id: chatUserId,
                         user: user.userInfo?.name || 'Anonymous',
                         online_at: new Date().toISOString(),
                     });
                 }
             });
 
+        channelRef.current = channel;
+
         return () => {
-            channel.unsubscribe();
+            supabase.removeChannel(channel);
         };
     }, [chatUserId, user.userInfo?.name]);
 
+    // Scroll to bottom on new messages
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
     return (
-        <div className="flex flex-col h-screen bg-black/90 relative pt-16">
-            <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-purple-900/80 to-transparent flex items-center justify-between px-4 z-20 border-b border-purple-500/30">
+        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col h-[100dvh]">
+            <div className="flex-none h-16 bg-gradient-to-b from-purple-900/80 to-transparent flex items-center justify-between px-4 z-20 border-b border-purple-500/30">
                 <div className="flex items-center gap-2">
                     <span className="text-xl">💬</span>
                     <div>
@@ -344,7 +364,7 @@ const ChatView: React.FC<{
                     {TRANSLATIONS[lang].chat_leave}
                 </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 scrollbar-thin scrollbar-thumb-purple-700">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20 scrollbar-thin scrollbar-thumb-purple-700 bg-black/50">
                 {messages.map((msg, i) => {
                     const isMe = msg.userId === chatUserId;
                     return (
@@ -368,7 +388,7 @@ const ChatView: React.FC<{
                 })}
                 <div ref={messagesEndRef} />
             </div>
-            <div className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-purple-900/50 p-4 flex gap-2 items-center z-20">
+            <div className="flex-none bg-gray-900 border-t border-purple-900/50 p-4 pb-safe flex gap-2 items-center z-20">
                 <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.nativeEvent.isComposing) return; if (e.key === 'Enter') handleSendMessage(); }} placeholder={TRANSLATIONS[lang].chat_input_ph} className="flex-1 bg-black/50 border border-gray-700 rounded-full px-4 py-2 text-white focus:border-purple-500 outline-none text-sm" />
                 <button onClick={handleSendMessage} className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shadow-[0_0_10px_rgba(147,51,234,0.5)]">➤</button>
             </div>
@@ -582,7 +602,7 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
                 <div className="grid grid-cols-8 md:grid-cols-12 gap-1 pb-32">
                     {TAROT_DECK.map((cardName, i) => {
                         const isSelected = selected.includes(i);
-                        return (<div key={i} onClick={() => handleCardClick(i)} className={`aspect-[2/3] rounded-sm border border-purple-500/30 cursor-pointer transition-transform duration-200 ease-out card-back ${SKINS.find(s => s.id === skin)?.cssClass} touch-manipulation active:scale-95 will-change-transform ${isSelected ? 'scale-110 border-purple-200 z-50 brightness-125 -translate-y-4' : 'hover:-translate-y-1 hover:scale-105 z-0 hover:z-10'}`} style={{ backgroundSize: 'cover', backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined, boxShadow: isSelected ? '0 0 15px #d946ef' : 'none' }}></div>);
+                        return (<div key={i} onClick={() => handleCardClick(i)} className={`aspect-[2/3] rounded-sm border border-purple-500/30 cursor-pointer transition-all duration-500 ease-out card-back ${SKINS.find(s => s.id === skin)?.cssClass} touch-manipulation active:scale-95 transform-gpu will-change-transform ${isSelected ? 'scale-110 border-purple-200 z-50 brightness-125 -translate-y-4 shadow-[0_0_20px_#d946ef]' : 'hover:-translate-y-1 hover:scale-105 z-0 hover:z-10'}`} style={{ backgroundSize: 'cover', backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined, boxShadow: isSelected ? '0 0 15px #d946ef' : 'none' }}></div>);
                     })}
                 </div>
             </div>
@@ -1322,7 +1342,10 @@ const App: React.FC = () => {
                                     max="1" 
                                     step="0.01" 
                                     value={bgmVolume} 
-                                    onChange={e => setBgmVolume(parseFloat(e.target.value))} 
+                                    onInput={e => {
+                                        const newVol = parseFloat((e.target as HTMLInputElement).value);
+                                        setBgmVolume(newVol);
+                                    }}
                                     onMouseUp={() => updateUser(prev => ({...prev, bgmVolume}))}
                                     onTouchEnd={() => updateUser(prev => ({...prev, bgmVolume}))}
                                     className="w-full accent-purple-500 h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer" 
