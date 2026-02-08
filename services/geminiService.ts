@@ -27,6 +27,7 @@ STRICT RULES:
 3. BE INSIGHTFUL.
 4. ABSOLUTELY NO ASTERISKS (*) OR MARKDOWN BOLDING.
 5. This is for ENTERTAINMENT PURPOSES ONLY.
+6. **NEVER** MENTION "SAJU", "FOUR PILLARS", "ELEMENTS" (Fire, Water, etc used in a technical way), OR "DAY MASTER" DIRECTLY IN THE OUTPUT. USE NATURAL LANGUAGE INSTADS (e.g., "Your innate nature", "You were born with...").
 `;
     }
     return `
@@ -49,6 +50,8 @@ STRICT RULES:
 3. BE HELPFUL & INSIGHTFUL.
 4. ABSOLUTELY NO ASTERISKS (*) OR MARKDOWN BOLDING. Do not use * ever.
 5. This is for ENTERTAINMENT PURPOSES ONLY.
+6. **절대 금지사항**: 결과 텍스트에 "사주", "사주팔자", "일주", "오행", "화기운", "수기운" 등 **사주 명리학 전문 용어**를 절대 직접적으로 언급하지 마세요.
+7. 사주 분석 내용은 "타고난 기질", "운의 흐름", "본능적인 성향" 등 자연스러운 일상 용어로 완벽하게 번역하여 표현하세요.
 `;
 };
 
@@ -277,10 +280,11 @@ export const getTarotReading = async (
       Birthdate: ${userInfo.birthDate}
       
       CRITICAL INSTRUCTION:
-      1. FIRST, calculate the user's "Saju" (Four Pillars of Destiny) based on the birthdate ${userInfo.birthDate}. Identify their Day Master (Ilju) and dominant elements.
+      1. FIRST, **Internally** calculate the user's "Saju" (Four Pillars of Destiny) based on the birthdate ${userInfo.birthDate}. Identify their Day Master (Ilju) and dominant elements.
       2. SECOND, interpret the Tarot Cards (${cardNames}) specifically for this person's calculated destiny.
       3. Combine the Tarot meaning with their Saju energy.
-      4. DO NOT explain the calculation process. Just use the result to inform your advice.
+      4. **STRICT PROHIBITION**: DO NOT mention "Saju", "Ilju", "Five Elements", "Fire", "Water" or any Saju technical terms in the final output.
+      5. TRANSLATE Saju insights into natural personality traits (e.g., instead of "You are Fire Day Master", say "You have a passionate and explosive nature").
       `;
   }
 
@@ -293,6 +297,7 @@ export const getTarotReading = async (
     Cards: ${cardNames}
     
     TASK: Provide a tarot reading based on the cards AND the user's birth energy (Saju).
+    REMINDER: **NO SAJU TERMINOLOGY IN OUTPUT.**
     FAST RESPONSE REQUIRED.
     STRICTLY NO ASTERISKS (*)
     ${getTarotStructure(lang, tier)}

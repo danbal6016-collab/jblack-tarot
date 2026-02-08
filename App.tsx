@@ -1397,8 +1397,7 @@ const App: React.FC = () => {
                      {settingsMode === 'BGM' && (<div className="space-y-4"><button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">Upload Custom BGM</h3><div className="border border-dashed border-purple-500/30 rounded-xl p-6 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-500/5 transition-all relative"><input type="file" accept="audio/*" onChange={handleBgmUpload} className="absolute inset-0 opacity-0 cursor-pointer" /><span className="text-2xl mb-2 block">🎵</span><span className="text-xs text-gray-400">Click to upload MP3/WAV</span></div><p className="text-[10px] text-gray-500 mt-2 text-center">Supported: MP3, WAV. Stored locally.</p></div>)}
                      {settingsMode === 'HISTORY' && (
                         <div className="space-y-4">
-                            <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button>
-                            <h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">{TRANSLATIONS[lang].history}</h3>
+                            <button onClick={() => setSettingsMode('MAIN')} className="text-xs text-purple-400 mb-2 hover:text-white transition-colors">← Back</button><h3 className="text-sm font-bold text-purple-100 mb-4 font-serif">{TRANSLATIONS[lang].history}</h3>
                             {(!Array.isArray(user.history) || user.history.length === 0) ? (
                                 <p className="text-gray-500 text-xs text-center py-8">{TRANSLATIONS[lang].no_history}</p>
                             ) : (
