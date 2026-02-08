@@ -8,10 +8,13 @@ export function GoogleContinueButton() {
         return;
     }
 
-    // Use window.location.origin to ensure the redirect URL matches the current domain exactly.
-    // This prevents errors where env variables might point to localhost while the app is deployed.
+    // Use window.location.origin to redirect to the root of the site.
+    // We avoid /auth/callback because without proper server-side rewrite rules (e.g. vercel.json),
+    // visiting /auth/callback directly results in a 404 error from the hosting provider.
+    // The Supabase client in App.tsx (initialized in src/lib/supabase.ts) is configured with 
+    // detectSessionInUrl: true, so it will automatically handle the hash/code on the root path.
     const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
-    const redirectTo = `${origin}/auth/callback`;
+    const redirectTo = origin;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
