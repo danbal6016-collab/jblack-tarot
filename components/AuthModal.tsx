@@ -1,4 +1,5 @@
-import { supabase, isSupabaseConfigured } from "../src/lib/supabase.ts";
+
+import { supabase, isSupabaseConfigured } from "../src/lib/supabase";
 
 export function GoogleContinueButton() {
   const signInWithGoogle = async () => {
@@ -7,36 +8,31 @@ export function GoogleContinueButton() {
         return;
     }
 
-    // Safe env access for site URL
-    let siteUrl = window.location.origin;
-    try {
-        // @ts-ignore
-        if (typeof process !== "undefined" && process.env && process.env.VITE_SITE_URL) {
-            siteUrl = process.env.VITE_SITE_URL;
-        // @ts-ignore
-        } else if (import.meta && import.meta.env && import.meta.env.VITE_SITE_URL) {
-            // @ts-ignore
-            siteUrl = import.meta.env.VITE_SITE_URL;
-        }
-    } catch(e) {}
-
-    const redirectTo = `${siteUrl}/auth/callback`;
+    // Use window.location.origin to ensure the redirect URL matches the current domain exactly.
+    // This prevents errors where env variables might point to localhost while the app is deployed.
+    const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+    const redirectTo = `${origin}/auth/callback`;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
       },
     });
 
     if (error) {
       console.error("Google OAuth error:", error.message);
-      alert(error.message);
+      alert(`로그인 오류: ${error.message}`);
     }
   };
 
   return (
     <button onClick={signInWithGoogle} className="w-full py-3 bg-white text-black font-bold rounded flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors">
+      <img src="https://www.google.com/favicon.ico" alt="G" className="w-4 h-4" />
       Google 계정으로 계속하기
     </button>
   );
