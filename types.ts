@@ -113,11 +113,15 @@ export interface User {
   // Login Tracking for Demotion Logic
   loginDates: string[]; // List of YYYY-MM-DD strings
   lastLoginDate?: string;
+  visitCount?: number; // Total visits
 
   // Attendance
   attendanceDay: number; // 1 to 10
   lastAttendance?: string; // YYYY-MM-DD
   
+  // Monthly Mind Receipt
+  lastReceiptDate?: string; // YYYY-MM (Month of last receipt)
+
   // Skins
   ownedSkins: string[]; 
   currentSkin: string; 

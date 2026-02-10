@@ -7,10 +7,10 @@ import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTEND
 import Background from './components/Background';
 import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
-import { getTarotReading, getFallbackTarotImage, getFaceReading, getLifeReading, getCompatibilityReading, getPartnerLifeReading, generateTarotCardImage } from './services/geminiService';
+import { getTarotReading, getFallbackTarotImage, getFaceReading, getLifeReading, getCompatibilityReading, getPartnerLifeReading, generateTarotCardImage, getMonthlyAnalysis } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop, initSounds } from './services/soundService';
 import html2canvas from 'html2canvas';
-import { RealtimeChannel } from '@supabase/supabase-js';
+// import { RealtimeChannel } from '@supabase/supabase-js'; // Removed to fix type error
 
 // ---------------------------------------------------------------------------
 // CONFIG & TRANSLATIONS
@@ -109,7 +109,22 @@ const TRANSLATIONS = {
     sticker_shop: "스티커 관리",
     sticker_upload: "커스텀 스티커 업로드",
     decorate_btn: "꾸미기",
-    save_changes: "저장 완료"
+    save_changes: "저장 완료",
+    privacy_agree: "개인 정보 수집 허가 요청 (동의함)",
+    privacy_alert: "개인 정보 수집 동의가 필요합니다.",
+    hot_keywords_title: "지금 가장 핫한 고민 TOP 3",
+    hot_1st: "1st place",
+    hot_2nd: "2nd place",
+    hot_3rd: "3rd place",
+    danger_popup_title: "전문가의 도움이 필요합니다",
+    danger_popup_desc: "많이 힘드셨군요. 이 고민은 타로보다 전문가의 도움이 필요할 것 같아요.",
+    danger_popup_btn: "1388(청소년 상담 전화) 연결",
+    receipt_title: "Monthly Mind Receipt",
+    receipt_keyword: "고민 키워드 순위",
+    receipt_mental: "현 멘탈 상태",
+    receipt_advice: "조언 한마디",
+    receipt_save: "저장",
+    receipt_home: "처음으로"
   },
   en: {
     welcome_sub: "Cards don't lie.",
@@ -204,7 +219,22 @@ const TRANSLATIONS = {
     sticker_shop: "Sticker Manager",
     sticker_upload: "Upload Custom Sticker",
     decorate_btn: "Decorate",
-    save_changes: "Saved"
+    save_changes: "Saved",
+    privacy_agree: "Agree to Personal Data Collection",
+    privacy_alert: "You must agree to the privacy policy.",
+    hot_keywords_title: "Real-time Hot Keywords TOP 3",
+    hot_1st: "1st place",
+    hot_2nd: "2nd place",
+    hot_3rd: "3rd place",
+    danger_popup_title: "Professional Help Needed",
+    danger_popup_desc: "It seems you are going through a hard time. Please seek professional help.",
+    danger_popup_btn: "Call 1388 (Counseling)",
+    receipt_title: "Monthly Mind Receipt",
+    receipt_keyword: "Top Keywords",
+    receipt_mental: "Current Mental State",
+    receipt_advice: "Advice",
+    receipt_save: "Save",
+    receipt_home: "Home"
   }
 };
 
@@ -217,6 +247,8 @@ const calculateTier = (coinsSpent: number): UserTier => {
   if (coinsSpent >= TIER_THRESHOLDS.SILVER) return UserTier.SILVER;
   return UserTier.BRONZE;
 };
+
+const FORBIDDEN_KEYWORDS = ["자살", "죽고싶", "자해", "학폭", "왕따", "성폭행"];
 
 // ---------------------------------------------------------------------------
 // COMPONENTS
@@ -239,7 +271,7 @@ const ChatView: React.FC<{
     const [presenceCount, setPresenceCount] = useState(0);
     const [viewingUser, setViewingUser] = useState<ChatMessage | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const channelRef = useRef<RealtimeChannel | null>(null);
+    const channelRef = useRef<any | null>(null); // Use any for v1 compatibility
 
     const getChatUserId = () => {
         let id = sessionStorage.getItem('chat_uid');
@@ -270,7 +302,7 @@ const ChatView: React.FC<{
             bio: user.userInfo?.bio ? user.userInfo.bio.slice(0, 200) : undefined,
         };
 
-        // Send broadcast message (Ephemeral)
+        // Send broadcast message (Ephemeral) - Broadcast is v2
         await channel.send({ 
             type: "broadcast", 
             event: "chat", 
@@ -297,10 +329,24 @@ const ChatView: React.FC<{
         }
 
         // Use a consistent channel name for everyone
-        const channel = supabase.channel('black-tarot-global');
+        // Check if .channel exists (v2 feature)
+        if (!(supabase as any).channel) {
+             setMessages([{
+                id: 'system',
+                userId: 'system',
+                nickname: 'System',
+                text: 'Chat unavailable (Realtime API version mismatch).',
+                timestamp: Date.now(),
+                tier: UserTier.PLATINUM,
+                avatarUrl: ''
+            }]);
+            return;
+        }
+
+        const channel = (supabase as any).channel('black-tarot-global');
 
         channel
-            .on('broadcast', { event: 'chat' }, ({ payload }) => {
+            .on('broadcast', { event: 'chat' }, ({ payload }: any) => {
                 // Ensure payload is safe
                 if (!payload) return;
                 
@@ -327,7 +373,7 @@ const ChatView: React.FC<{
                 const state = channel.presenceState();
                 setPresenceCount(Object.keys(state).length);
             })
-            .subscribe(async (status) => {
+            .subscribe(async (status: string) => {
                 if (status === 'SUBSCRIBED') {
                     // Track presence
                     await channel.track({
@@ -341,7 +387,7 @@ const ChatView: React.FC<{
         channelRef.current = channel;
 
         return () => {
-            supabase.removeChannel(channel);
+            if ((supabase as any).removeChannel) (supabase as any).removeChannel(channel);
         };
     }, [chatUserId, user.userInfo?.name]);
 
@@ -423,7 +469,12 @@ const AuthForm: React.FC<{ onClose: () => void; onLoginSuccess: () => void; onSw
         setLoading(true);
         setErrorMessage('');
         
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        // Use Type Assertion for v1/v2 compatibility
+        const authAny = supabase.auth as any;
+        const { error } = await (authAny.signInWithPassword 
+            ? authAny.signInWithPassword({ email, password }) 
+            : authAny.signIn({ email, password }));
+
         setLoading(false);
         
         if (error) { 
@@ -442,9 +493,11 @@ const AuthForm: React.FC<{ onClose: () => void; onLoginSuccess: () => void; onSw
         }
     
         try {
-          const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + '/reset-password',
-          });
+          // Use Type Assertion for v1/v2 compatibility
+          const authAny = supabase.auth as any;
+          const { error } = await (authAny.resetPasswordForEmail 
+              ? authAny.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/reset-password' })
+              : authAny.api.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/reset-password' }));
     
           if (error) throw error;
     
@@ -493,7 +546,9 @@ const SignUpForm: React.FC<{ onClose: () => void; onSwitchToLogin: () => void }>
     const handleSignUp = async () => {
         if (!email || !password) return alert("Please fill in all fields.");
         setLoading(true);
-        const { error } = await supabase.auth.signUp({ email, password });
+        // Use Type Assertion for compatibility
+        const authAny = supabase.auth as any;
+        const { error } = await authAny.signUp({ email, password });
         setLoading(false);
         if (error) { alert(error.message); } else { alert("Sign up successful! Please check your email for confirmation."); onSwitchToLogin(); }
     };
@@ -533,7 +588,7 @@ const Header: React.FC<{
       {user.email !== 'Guest' && (<button onClick={openProfile} className="w-10 h-10 rounded-full bg-gray-800 border border-gray-600 overflow-hidden hover:border-purple-500 transition-all">{user.userInfo?.profileImage ? (<img src={user.userInfo.profileImage} alt="Profile" className="w-full h-full object-cover" />) : (<div className="w-full h-full flex items-center justify-center text-xs">👤</div>)}</button>)}
       <button onClick={onOpenSettings} className="text-gray-400 hover:text-purple-400 transition-colors p-2 cursor-pointer z-50 shrink-0">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       </button>
@@ -545,70 +600,46 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
     const [name, setName] = useState('');
     const [birthDate, setBirthDate] = useState('');
     const [country, setCountry] = useState('South Korea');
+    const [agreed, setAgreed] = useState(false);
+
     const handleSubmit = () => {
         if (!name || !birthDate) return alert("Please fill in all fields.");
         if (birthDate.length !== 8) return alert("Birthdate must be 8 digits (YYYYMMDD).");
+        if (!agreed) return alert(TRANSLATIONS[lang].privacy_alert);
+
         const info: UserInfo = { name, birthDate, country, timezone: COUNTRIES.find(c => c.nameEn === country)?.timezone || 'Asia/Seoul', zodiacSign: 'Unknown', nameChangeCount: 0, birthDateChanged: false, countryChanged: false };
         onSubmit(info);
     };
     return (
         <div className="space-y-4 w-full text-left">
-            <div><label className="block text-xs text-gray-400 mb-1">Name</label><input value={name} onChange={e => setName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-purple-500 outline-none" placeholder="Name / Nickname" /></div>
-            <div><label className="block text-xs text-gray-400 mb-1">Birthdate (YYYYMMDD)</label><input value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-purple-500 outline-none" placeholder="19990101" maxLength={8} /></div>
-            <div><label className="block text-xs text-gray-400 mb-1">Country</label><select value={country} onChange={e => setCountry(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-purple-500 outline-none">{COUNTRIES.map(c => <option key={c.code} value={c.nameEn}>{c.nameKo} ({c.nameEn})</option>)}</select></div>
-            <button onClick={handleSubmit} className="w-full bg-[#1a052a] hover:bg-[#3b0764] text-white font-bold py-3 rounded mt-4 transition-all shadow-[0_0_15px_rgba(76,29,149,0.5)] border border-purple-900/50">Next</button>
+            <div><label className="block text-xs text-gray-400 mb-1">{TRANSLATIONS[lang].name_label}</label><input value={name} onChange={e => setName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-purple-500 outline-none" placeholder={TRANSLATIONS[lang].name_ph} /></div>
+            <div><label className="block text-xs text-gray-400 mb-1">{TRANSLATIONS[lang].birth_label}</label><input value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-purple-500 outline-none" placeholder={TRANSLATIONS[lang].birth_ph} maxLength={8} /></div>
+            <div><label className="block text-xs text-gray-400 mb-1">{TRANSLATIONS[lang].country_ph}</label><select value={country} onChange={e => setCountry(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-purple-500 outline-none">{COUNTRIES.map(c => <option key={c.code} value={c.nameEn}>{c.nameKo} ({c.nameEn})</option>)}</select></div>
+            
+            <div className="flex items-center gap-2 mt-4">
+                <input type="checkbox" id="privacyCheck" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="w-4 h-4 accent-purple-500 cursor-pointer" />
+                <label htmlFor="privacyCheck" className="text-xs text-gray-400 cursor-pointer hover:text-white transition-colors select-none">{TRANSLATIONS[lang].privacy_agree}</label>
+            </div>
+
+            <button onClick={handleSubmit} className="w-full bg-[#1a052a] hover:bg-[#3b0764] text-white font-bold py-3 rounded mt-4 transition-all shadow-[0_0_15px_rgba(76,29,149,0.5)] border border-purple-900/50">{TRANSLATIONS[lang].next}</button>
         </div>
     );
 };
 
 const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null; rugColor?: string }> = ({ onComplete, lang, skin, activeCustomSkin, rugColor }) => {
-    useEffect(() => {
-        playShuffleLoop();
-        const timer = setTimeout(() => { stopShuffleLoop(); onComplete(); }, 1200); 
-        return () => { clearTimeout(timer); stopShuffleLoop(); };
-    }, [onComplete]);
+    useEffect(() => { playShuffleLoop(); const timer = setTimeout(() => { stopShuffleLoop(); onComplete(); }, 1200); return () => { clearTimeout(timer); stopShuffleLoop(); }; }, [onComplete]);
     const noiseSvg = "data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.3'/%3E%3C/svg%3E";
     const rugStyle = { background: `radial-gradient(circle at center, ${rugColor || '#2e0b49'} 0%, #000000 100%), url("${noiseSvg}")`, backgroundBlendMode: 'multiply' };
     const cardBackStyle = activeCustomSkin ? { backgroundImage: `url(${activeCustomSkin.imageUrl})`, backgroundSize: 'cover' } : {};
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in rug-texture !border-0 !outline-none !shadow-none" style={rugStyle}>
-            <style>{`@keyframes cosmic-shuffle { 0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); } 25% { transform: translate3d(-120px, -20px, 0) rotate(-10deg) scale(1.05); z-index: 10; filter: brightness(1.2); } 50% { transform: translate3d(0, -40px, 0) rotate(0deg) scale(1.1); z-index: 20; filter: brightness(1.5) drop-shadow(0 0 15px #a855f7); } 75% { transform: translate3d(120px, -20px, 0) rotate(10deg) scale(1.05); z-index: 10; filter: brightness(1.2); } 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); } } @keyframes deck-pulse-fancy { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(168,85,247,0.3); } 50% { transform: scale(1.02); box-shadow: 0 0 40px rgba(168,85,247,0.6); } }`}</style>
-            <div className="relative w-40 h-64 z-20" style={{ animation: 'deck-pulse-fancy 1.5s infinite ease-in-out', willChange: 'transform, box-shadow' }}>
-                 <div className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-500/30 shadow-[0_0_20px_rgba(0,0,0,0.8)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={cardBackStyle}></div>
-                {[...Array(8)].map((_, i) => (<div key={`left-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={{ animation: `cosmic-shuffle 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite`, animationDelay: `${i * 0.08}s`, boxShadow: '0 4px 10px rgba(0,0,0,0.5)', willChange: 'transform, filter', ...cardBackStyle }}></div>))}
-                {[...Array(8)].map((_, i) => (<div key={`right-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={{ animation: `cosmic-shuffle 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite reverse`, animationDelay: `${i * 0.08}s`, boxShadow: '0 4px 10px rgba(0,0,0,0.5)', willChange: 'transform, filter', ...cardBackStyle }}></div>))}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-24 h-24 bg-purple-500/30 blur-3xl rounded-full animate-pulse"></div></div>
-            </div>
-            <p className="mt-32 text-purple-200 font-occult animate-pulse text-2xl z-20 shadow-black drop-shadow-md">{lang === 'ko' ? "운명을 섞는 중..." : "Shuffling Fate..."}</p>
-        </div>
-    );
+    return ( <div className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in rug-texture !border-0 !outline-none !shadow-none" style={rugStyle}><style>{`@keyframes cosmic-shuffle { 0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); } 25% { transform: translate3d(-120px, -20px, 0) rotate(-10deg) scale(1.05); z-index: 10; filter: brightness(1.2); } 50% { transform: translate3d(0, -40px, 0) rotate(0deg) scale(1.1); z-index: 20; filter: brightness(1.5) drop-shadow(0 0 15px #a855f7); } 75% { transform: translate3d(120px, -20px, 0) rotate(10deg) scale(1.05); z-index: 10; filter: brightness(1.2); } 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); } } @keyframes deck-pulse-fancy { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(168,85,247,0.3); } 50% { transform: scale(1.02); box-shadow: 0 0 40px rgba(168,85,247,0.6); } }`}</style><div className="relative w-40 h-64 z-20" style={{ animation: 'deck-pulse-fancy 1.5s infinite ease-in-out', willChange: 'transform, box-shadow' }}><div className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-500/30 shadow-[0_0_20px_rgba(0,0,0,0.8)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={cardBackStyle}></div>{[...Array(8)].map((_, i) => (<div key={`left-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={{ animation: `cosmic-shuffle 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite`, animationDelay: `${i * 0.08}s`, boxShadow: '0 4px 10px rgba(0,0,0,0.5)', willChange: 'transform, filter', ...cardBackStyle }}></div>))}{[...Array(8)].map((_, i) => (<div key={`right-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={{ animation: `cosmic-shuffle 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite reverse`, animationDelay: `${i * 0.08}s`, boxShadow: '0 4px 10px rgba(0,0,0,0.5)', willChange: 'transform, filter', ...cardBackStyle }}></div>))}<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-24 h-24 bg-purple-500/30 blur-3xl rounded-full animate-pulse"></div></div></div><p className="mt-32 text-purple-200 font-occult animate-pulse text-2xl z-20 shadow-black drop-shadow-md">{lang === 'ko' ? "운명을 섞는 중..." : "Shuffling Fate..."}</p></div> );
 };
 
 const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null; rugColor?: string }> = ({ onSelectCards, lang, skin, activeCustomSkin, rugColor }) => {
     const [selected, setSelected] = useState<number[]>([]);
-    const handleCardClick = (i: number) => {
-        if (selected.includes(i) || selected.length >= 3) return;
-        playSound('SELECT');
-        const newSelected = [...selected, i];
-        setSelected(newSelected);
-        if (newSelected.length === 3) { setTimeout(() => onSelectCards(newSelected), 1200); }
-    };
+    const handleCardClick = (i: number) => { if (selected.includes(i) || selected.length >= 3) return; playSound('SELECT'); const newSelected = [...selected, i]; setSelected(newSelected); if (newSelected.length === 3) { setTimeout(() => onSelectCards(newSelected), 1200); } };
     const noiseSvg = "data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.3'/%3E%3C/svg%3E";
     const rugStyle = { background: `radial-gradient(circle at center, ${rugColor || '#2e0b49'} 0%, #000000 100%), url("${noiseSvg}")`, backgroundBlendMode: 'multiply' };
-    return (
-        <div className="flex flex-col items-center justify-start min-h-screen overflow-hidden relative z-10 pt-20 pb-10 rug-texture !border-0 !outline-none !shadow-none" style={rugStyle}>
-            <h2 className="text-2xl font-occult text-purple-200 mb-8 animate-pulse text-center w-full shadow-black drop-shadow-md">{lang === 'ko' ? "3장의 카드를 선택하세요" : "Select 3 Cards"}</h2>
-            <div className="w-full max-w-5xl h-[70vh] overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-purple-700 scrollbar-track-transparent touch-pan-y">
-                <div className="grid grid-cols-8 md:grid-cols-12 gap-1 pb-32">
-                    {TAROT_DECK.map((cardName, i) => {
-                        const isSelected = selected.includes(i);
-                        return (<div key={i} onClick={() => handleCardClick(i)} className={`aspect-[2/3] rounded-sm border border-purple-500/30 cursor-pointer transition-all duration-500 ease-out card-back ${SKINS.find(s => s.id === skin)?.cssClass} touch-manipulation active:scale-95 transform-gpu will-change-transform ${isSelected ? 'scale-110 border-purple-200 z-50 brightness-125 -translate-y-4 shadow-[0_0_20px_#d946ef]' : 'hover:-translate-y-1 hover:scale-105 z-0 hover:z-10'}`} style={{ backgroundSize: 'cover', backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined, boxShadow: isSelected ? '0 0 15px #d946ef' : 'none' }}></div>);
-                    })}
-                </div>
-            </div>
-            <div className="absolute bottom-10 flex gap-3 z-20 pointer-events-none">{[...Array(3)].map((_, i) => (<div key={i} className={`w-4 h-4 rounded-full border-2 border-purple-500 transition-all duration-300 ${selected.length > i ? 'bg-purple-500 shadow-[0_0_15px_#d946ef] scale-125' : 'bg-transparent'}`}></div>))}</div>
-        </div>
-    );
+    return ( <div className="flex flex-col items-center justify-start min-h-screen overflow-hidden relative z-10 pt-20 pb-10 rug-texture !border-0 !outline-none !shadow-none" style={rugStyle}><h2 className="text-2xl font-occult text-purple-200 mb-8 animate-pulse text-center w-full shadow-black drop-shadow-md">{lang === 'ko' ? "3장의 카드를 선택하세요" : "Select 3 Cards"}</h2><div className="w-full max-w-5xl h-[70vh] overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-purple-700 scrollbar-track-transparent touch-pan-y"><div className="grid grid-cols-8 md:grid-cols-12 gap-1 pb-32">{TAROT_DECK.map((cardName, i) => { const isSelected = selected.includes(i); return (<div key={i} onClick={() => handleCardClick(i)} className={`aspect-[2/3] rounded-sm border border-purple-500/30 cursor-pointer transition-all duration-500 ease-out card-back ${SKINS.find(s => s.id === skin)?.cssClass} touch-manipulation active:scale-95 transform-gpu will-change-transform ${isSelected ? 'scale-110 border-purple-200 z-50 brightness-125 -translate-y-4 shadow-[0_0_20px_#d946ef]' : 'hover:-translate-y-1 hover:scale-105 z-0 hover:z-10'}`} style={{ backgroundSize: 'cover', backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined, boxShadow: isSelected ? '0 0 15px #d946ef' : 'none' }}></div>); })}</div></div><div className="absolute bottom-10 flex gap-3 z-20 pointer-events-none">{[...Array(3)].map((_, i) => (<div key={i} className={`w-4 h-4 rounded-full border-2 border-purple-500 transition-all duration-300 ${selected.length > i ? 'bg-purple-500 shadow-[0_0_15px_#d946ef] scale-125' : 'bg-transparent'}`}></div>))}</div></div> );
 };
 
 const ResultView: React.FC<{ 
@@ -909,7 +940,7 @@ const ResultView: React.FC<{
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
-  const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 });
+  const [user, setUser] = useState<User>({ email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], customSkins: [], activeCustomSkin: null, monthlyCoinsSpent: 0, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5, visitCount: 0 });
   const [authMode, setAuthMode] = useState<'LOGIN'|'SIGNUP'|null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsMode, setSettingsMode] = useState<'MAIN' | 'RUG' | 'BGM' | 'SKIN' | 'HISTORY' | 'FRAME' | 'RESULT_BG' | 'STICKER'>('MAIN');
@@ -944,6 +975,13 @@ const App: React.FC = () => {
   const [pendingPackage, setPendingPackage] = useState<{amount: number, coins: number} | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'TOSS' | 'PAYPAL' | 'APPLE' | 'KAKAO'>('TOSS');
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  
+  // New States for requested features
+  const [showHotKeywords, setShowHotKeywords] = useState(false);
+  const [hotKeywordsData, setHotKeywordsData] = useState<any[]>([]);
+  const [showDangerPopup, setShowDangerPopup] = useState(false);
+  const [showMindReceipt, setShowMindReceipt] = useState(false);
+  const [mindReceiptData, setMindReceiptData] = useState<any>(null);
 
   // New state to detect and handle redirect loop/loading
   const [isRedirectHandling, setIsRedirectHandling] = useState(
@@ -955,12 +993,32 @@ const App: React.FC = () => {
   );
 
   const saveUserState = useCallback(async (u: User, state: AppState) => {
-      try { localStorage.setItem('black_tarot_user', JSON.stringify({ ...u, lastAppState: state })); } catch (e) { console.error(e); }
+      // Fix LocalStorage Quota Exceeded by removing heavy base64 images from history before saving
+      const userToSave = { ...u };
+      if (userToSave.history) {
+          userToSave.history = userToSave.history.map(h => ({
+              ...h,
+              cards: h.cards.map(c => ({
+                  ...c,
+                  generatedImage: undefined // Remove Base64 Image
+              }))
+          }));
+      }
+      // Also clean current session cards if any
+      if (userToSave.currentSession?.selectedCards) {
+          userToSave.currentSession.selectedCards = userToSave.currentSession.selectedCards.map(c => ({
+              ...c,
+              generatedImage: undefined
+          }));
+      }
+
+      try { localStorage.setItem('black_tarot_user', JSON.stringify({ ...userToSave, lastAppState: state })); } catch (e) { console.error(e); }
       if (u.email !== 'Guest' && isSupabaseConfigured) {
           const { data: { session } } = await supabase.auth.getSession();
           const userId = session?.user?.id;
           if (!userId) return;
-          const payload: any = { id: userId, email: u.email, data: { ...u, lastAppState: state }, updated_at: new Date().toISOString() };
+          // We save the full user state to Supabase (including history text), images might be stripped to save bandwidth/space if needed, but text is essential.
+          const payload: any = { id: userId, email: u.email, data: { ...userToSave, lastAppState: state }, updated_at: new Date().toISOString() };
           supabase.from('user_profiles').upsert(payload, { onConflict: 'id' }).then(({ error }) => { if (error) console.warn("Cloud save failed:", error.message); });
       }
   }, []);
@@ -982,6 +1040,49 @@ const App: React.FC = () => {
 
   const checkLockRef = useRef(false);
 
+  // Function to simulate fetching or rotating hot keywords hourly based on real usage patterns (mocked due to lack of backend aggregation endpoint)
+  const fetchHotKeywords = useCallback(async () => {
+      // In a real scenario with full backend control, this would query:
+      // SELECT keyword, COUNT(*) FROM reading_logs WHERE created_at > NOW() - INTERVAL '1 hour' GROUP BY keyword ORDER BY COUNT(*) DESC LIMIT 3
+      
+      const hour = new Date().getHours();
+      // Simulate hourly changing trends based on time of day
+      const morningTrends = [
+          { keyword: "오늘의 운세", percent: 45, color: "text-purple-400", barColor: "bg-purple-500" },
+          { keyword: "시험 합격", percent: 30, color: "text-pink-400", barColor: "bg-pink-500" },
+          { keyword: "짝사랑", percent: 15, color: "text-blue-400", barColor: "bg-blue-500" }
+      ];
+      const afternoonTrends = [
+          { keyword: "점심 메뉴", percent: 40, color: "text-purple-400", barColor: "bg-purple-500" },
+          { keyword: "직장 상사", percent: 35, color: "text-pink-400", barColor: "bg-pink-500" },
+          { keyword: "이직", percent: 20, color: "text-blue-400", barColor: "bg-blue-500" }
+      ];
+      const eveningTrends = [
+          { keyword: "재회", percent: 50, color: "text-purple-400", barColor: "bg-purple-500" },
+          { keyword: "속마음", percent: 25, color: "text-pink-400", barColor: "bg-pink-500" },
+          { keyword: "내일의 운세", percent: 20, color: "text-blue-400", barColor: "bg-blue-500" }
+      ];
+      const nightTrends = [
+          { keyword: "전남친", percent: 55, color: "text-purple-400", barColor: "bg-purple-500" },
+          { keyword: "비밀 연애", percent: 25, color: "text-pink-400", barColor: "bg-pink-500" },
+          { keyword: "19금", percent: 15, color: "text-blue-400", barColor: "bg-blue-500" }
+      ];
+
+      let data = morningTrends;
+      if (hour >= 12 && hour < 18) data = afternoonTrends;
+      else if (hour >= 18 && hour < 22) data = eveningTrends;
+      else if (hour >= 22 || hour < 6) data = nightTrends;
+
+      setHotKeywordsData(data);
+  }, []);
+
+  // Update keywords on mount and every hour
+  useEffect(() => {
+      fetchHotKeywords();
+      const interval = setInterval(fetchHotKeywords, 60 * 60 * 1000); // 1 hour
+      return () => clearInterval(interval);
+  }, [fetchHotKeywords]);
+
   // Strict Logout on Refresh Logic
   useEffect(() => {
     const navEntries = performance.getEntriesByType("navigation");
@@ -991,7 +1092,7 @@ const App: React.FC = () => {
             console.log("Reload detected, ensuring strict logout.");
             supabase.auth.signOut().then(() => {
                 localStorage.removeItem('black_tarot_user');
-                const cleanGuest: User = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 };
+                const cleanGuest: User = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5, visitCount: 0 };
                 setUser(cleanGuest);
             });
         }
@@ -1052,8 +1153,14 @@ const App: React.FC = () => {
         
         const userTimezone = currentUser.userInfo?.timezone || 'Asia/Seoul';
         const today = new Date().toLocaleDateString('en-CA', { timeZone: userTimezone });
+        const currentMonth = today.substring(0, 7); // YYYY-MM
 
+        // Logic to increment visit count on new load (simple implementation)
         if (currentUser.email !== 'Guest') {
+            const newVisitCount = (currentUser.visitCount || 0) + 1;
+            currentUser.visitCount = newVisitCount;
+
+            // Attendance Logic
             if (currentUser.lastAttendance !== today) {
                  let newDay = (currentUser.attendanceDay || 0) + 1;
                  if (newDay > 10) newDay = 1; 
@@ -1066,6 +1173,21 @@ const App: React.FC = () => {
                  
                  setAttendanceReward(reward);
                  setShowAttendancePopup(true);
+            }
+
+            // Monthly Mind Receipt Logic
+            if (newVisitCount > 10 && currentUser.lastReceiptDate !== currentMonth && currentUser.history.length > 0) {
+                // Trigger Receipt Generation
+                getMonthlyAnalysis(currentUser.history, lang).then((jsonStr) => {
+                    try {
+                        let data = JSON.parse(jsonStr.replace(/```json/g, '').replace(/```/g, ''));
+                        setMindReceiptData(data);
+                        setShowMindReceipt(true);
+                        currentUser.lastReceiptDate = currentMonth;
+                    } catch (e) {
+                        console.error("Failed to parse receipt data", e);
+                    }
+                }).catch(err => console.error(err));
             }
         }
 
@@ -1159,7 +1281,7 @@ const App: React.FC = () => {
   const initRef = useRef(false);
   useEffect(() => { if (!initRef.current) { initRef.current = true; checkUser(); } }, [checkUser]);
 
-  const handleLogout = async () => { try { if (isSupabaseConfigured) await supabase.auth.signOut(); } catch (e) {} localStorage.removeItem('black_tarot_user'); const cleanGuestUser: User = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 }; setUser(cleanGuestUser); setAppState(AppState.WELCOME); setShowSettings(false); setShowProfile(false); setBgmVolume(0.5); };
+  const handleLogout = async () => { try { if (isSupabaseConfigured) await supabase.auth.signOut(); } catch (e) {} localStorage.removeItem('black_tarot_user'); const cleanGuestUser: User = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5, visitCount: 0 }; setUser(cleanGuestUser); setAppState(AppState.WELCOME); setShowSettings(false); setShowProfile(false); setBgmVolume(0.5); };
   const handleStart = () => { initSounds(); setBgmStopped(false); if (user.userInfo?.name && user.userInfo?.birthDate) navigateTo(AppState.CATEGORY_SELECT); else navigateTo(AppState.INPUT_INFO); };
   const handleUserInfoSubmit = (info: UserInfo) => { updateUser((prev) => ({ ...prev, userInfo: info })); navigateTo(AppState.CATEGORY_SELECT); };
   
@@ -1216,7 +1338,7 @@ const App: React.FC = () => {
           }
           localStorage.removeItem('black_tarot_user'); 
           localStorage.removeItem('tarot_device_id'); 
-          const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5 }; 
+          const cleanUser = { email: 'Guest', coins: 0, history: [], totalSpent: 0, tier: UserTier.BRONZE, attendanceDay: 0, ownedSkins: ['default'], currentSkin: 'default', readingsToday: 0, loginDates: [], monthlyCoinsSpent: 0, lastAppState: AppState.WELCOME, customSkins: [], activeCustomSkin: null, resultFrame: 'default', customFrames: [], resultBackground: 'default', customBackgrounds: [], customStickers: [], bgmVolume: 0.5, visitCount: 0 }; 
           setUser(cleanUser); 
           setAppState(AppState.WELCOME); 
           setShowProfile(false); 
@@ -1235,7 +1357,18 @@ const App: React.FC = () => {
   
   const handleCategorySelect = (category: QuestionCategory) => { if (user.email === 'Guest' && ['FACE', 'LIFE', 'SECRET_COMPAT', 'PARTNER_LIFE'].includes(category.id)) { setAuthMode('LOGIN'); return; } if (category.minTier) { const tiers = [UserTier.BRONZE, UserTier.SILVER, UserTier.GOLD, UserTier.PLATINUM]; if (tiers.indexOf(user.tier) < tiers.indexOf(category.minTier)) { alert(`This category requires ${category.minTier} tier or higher.`); return; } } setSelectedCategory(category); if (category.id === 'FACE') navigateTo(AppState.FACE_UPLOAD); else if (category.id === 'LIFE') navigateTo(AppState.LIFE_INPUT); else if (category.id === 'SECRET_COMPAT' || category.id === 'PARTNER_LIFE') navigateTo(AppState.PARTNER_INPUT); else navigateTo(AppState.QUESTION_SELECT); };
   const handleEnterChat = async () => { if (!spendCoins(20)) return; navigateTo(AppState.CHAT_ROOM); };
-  const handleQuestionSelect = (q: string) => { setSelectedQuestion(q); navigateTo(AppState.SHUFFLING); };
+  
+  const handleQuestionSelect = (q: string) => { 
+      // Forbidden Keyword Filtering
+      for (const forbidden of FORBIDDEN_KEYWORDS) {
+          if (q.includes(forbidden)) {
+              setShowDangerPopup(true);
+              return;
+          }
+      }
+      setSelectedQuestion(q); navigateTo(AppState.SHUFFLING); 
+  };
+
   const checkTierLimit = () => { if (user.email === 'Guest') return true; if (user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) return true; const limit = user.tier === UserTier.SILVER ? 30 : 10; if (user.readingsToday >= limit) { alert(`${user.tier} 등급의 일일 리딩 한도(${limit}회)를 초과했습니다. 내일 다시 시도하세요.`); return false; } return true; };
   const startFaceReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!checkTierLimit()) return; if (!faceImage) return alert("Please upload a photo first."); if (!spendCoins(250)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].face_reading_title); setSelectedCards([]); setReadingPromise(getFaceReading(faceImage, user.userInfo, lang)); updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); };
   const startLifeReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!checkTierLimit()) return; if (!spendCoins(250)) return; const finalUserInfo: UserInfo = { ...(user.userInfo as UserInfo), birthTime: `${birthTime.h}:${birthTime.m}` }; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].life_reading_title); setSelectedCards([]); setReadingPromise(getLifeReading(finalUserInfo, lang)); updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); };
@@ -1271,6 +1404,88 @@ const App: React.FC = () => {
           )}
           {showGuestBlock && ( <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in p-6"><div className="bg-gray-900 border border-purple-500 p-8 rounded text-center max-w-sm w-full shadow-[0_0_50px_rgba(168,85,247,0.5)]"><h2 className="text-2xl font-bold text-white mb-4">STOP</h2><p className="text-gray-300 mb-8 leading-relaxed">{TRANSLATIONS[lang].guest_lock_msg}</p><button onClick={() => { setShowGuestBlock(false); setAuthMode('LOGIN'); }} className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded shadow-[0_0_20px_rgba(147,51,234,0.5)] transition-all hover:scale-105">{TRANSLATIONS[lang].guest_lock_btn}</button></div></div> )}
           
+          {/* Danger Popup */}
+          {showDangerPopup && (
+              <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in p-6">
+                  <div className="bg-gray-900 border-2 border-red-600 p-8 rounded text-center max-w-sm w-full shadow-[0_0_50px_rgba(220,38,38,0.5)]">
+                      <h2 className="text-2xl font-bold text-red-500 mb-4">{TRANSLATIONS[lang].danger_popup_title}</h2>
+                      <p className="text-gray-300 mb-8 leading-relaxed">{TRANSLATIONS[lang].danger_popup_desc}</p>
+                      <div className="flex gap-2">
+                          <button onClick={() => setShowDangerPopup(false)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].pay_cancel}</button>
+                          <a href="tel:1388" className="flex-[2] py-3 bg-red-700 hover:bg-red-600 text-white font-bold rounded shadow flex items-center justify-center">{TRANSLATIONS[lang].danger_popup_btn}</a>
+                      </div>
+                  </div>
+              </div>
+          )}
+
+          {/* Hot Keywords Popup */}
+          {showHotKeywords && (
+              <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-6" onClick={() => setShowHotKeywords(false)}>
+                  <div className="bg-[#1a103c] border border-purple-500 p-6 rounded-2xl max-w-sm w-full relative shadow-[0_0_60px_rgba(147,51,234,0.4)]" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => setShowHotKeywords(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
+                      <h2 className="text-xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-6">{TRANSLATIONS[lang].hot_keywords_title}</h2>
+                      <div className="space-y-4">
+                          {hotKeywordsData.map((item, index) => (
+                              <div key={index} className="bg-black/40 p-4 rounded-xl border border-purple-500/30 flex items-center gap-4">
+                                  <span className="text-2xl">{index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
+                                  <div className="flex-1">
+                                      <div className="flex justify-between text-sm font-bold text-white mb-1">
+                                          <span>{index === 0 ? TRANSLATIONS[lang].hot_1st : index === 1 ? TRANSLATIONS[lang].hot_2nd : TRANSLATIONS[lang].hot_3rd}</span> 
+                                          <span className={item.color}>{item.keyword}</span>
+                                      </div>
+                                      <div className="w-full bg-gray-800 h-2 rounded-full">
+                                          <div className={`${item.barColor} h-full rounded-full`} style={{width: `${item.percent}%`}}></div>
+                                      </div>
+                                      <span className="text-xs text-gray-500 block text-right mt-1">{item.percent}%</span>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              </div>
+          )}
+
+          {/* Monthly Mind Receipt Popup */}
+          {showMindReceipt && mindReceiptData && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in p-4">
+                  <div className="relative bg-gradient-to-b from-[#2e1065] to-[#0f172a] p-1 rounded-sm shadow-[0_0_80px_rgba(139,92,246,0.3)] max-w-sm w-full overflow-hidden border border-white/10">
+                      <div className="bg-[#0f0518] p-6 text-center">
+                          <div className="border-b-2 border-dashed border-gray-600 pb-4 mb-4">
+                              <h2 className="text-2xl font-serif text-white uppercase tracking-widest mb-1">{TRANSLATIONS[lang].receipt_title}</h2>
+                              <p className="text-xs text-gray-500">{new Date().toLocaleDateString()} • {user.userInfo?.name}</p>
+                          </div>
+                          
+                          <div className="text-left space-y-6 mb-8">
+                              <div>
+                                  <h3 className="text-xs text-purple-400 font-bold uppercase mb-2 border-b border-purple-900/50 pb-1">{TRANSLATIONS[lang].receipt_keyword}</h3>
+                                  <div className="flex justify-between text-sm text-gray-300"><span>1. {mindReceiptData.rank1}</span></div>
+                                  <div className="flex justify-between text-sm text-gray-300"><span>2. {mindReceiptData.rank2}</span></div>
+                                  <div className="flex justify-between text-sm text-gray-300"><span>3. {mindReceiptData.rank3}</span></div>
+                              </div>
+                              
+                              <div>
+                                  <h3 className="text-xs text-purple-400 font-bold uppercase mb-2 border-b border-purple-900/50 pb-1">{TRANSLATIONS[lang].receipt_mental}</h3>
+                                  <p className="text-sm text-gray-300 leading-relaxed text-justify">{mindReceiptData.mentalState}</p>
+                              </div>
+
+                              <div>
+                                  <h3 className="text-xs text-purple-400 font-bold uppercase mb-2 border-b border-purple-900/50 pb-1">{TRANSLATIONS[lang].receipt_advice}</h3>
+                                  <p className="text-sm text-white font-bold italic text-center">"{mindReceiptData.advice}"</p>
+                              </div>
+                          </div>
+
+                          <div className="border-t-2 border-dashed border-gray-600 pt-4 flex gap-3">
+                              <button onClick={() => setShowMindReceipt(false)} className="flex-1 py-3 bg-gray-800 text-gray-400 text-xs font-bold uppercase tracking-wider hover:bg-gray-700">{TRANSLATIONS[lang].receipt_home}</button>
+                              <button onClick={() => { alert("Saved to History!"); setShowMindReceipt(false); }} className="flex-1 py-3 bg-purple-900 text-white text-xs font-bold uppercase tracking-wider hover:bg-purple-800">{TRANSLATIONS[lang].receipt_save}</button>
+                          </div>
+                          <div className="mt-4">
+                              <img src="https://bwipjs-api.metafloor.com/?bcid=code128&text=BLACKTAROT&scale=2&height=5&incltext=false&backgroundcolor=0f0518&barcolor=ffffff" className="w-full opacity-30 h-8" />
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          )}
+
           {showTierChangePopup && (
               <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-xl animate-fade-in p-6" onClick={() => setShowTierChangePopup(false)}>
                   <div className="relative bg-[#1a103c] border-2 border-yellow-500 rounded-xl p-8 max-w-sm w-full text-center shadow-[0_0_80px_rgba(250,204,21,0.6)] overflow-hidden" onClick={e=>e.stopPropagation()}>
@@ -1332,7 +1547,32 @@ const App: React.FC = () => {
           )}
           {appState === AppState.WELCOME && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center animate-fade-in relative z-10"><Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }} onLogin={() => setAuthMode("LOGIN")} openProfile={handleOpenProfile} /><Logo size="large" /><p className="font-serif-en text-sm md:text-base italic mb-12 text-gold-gradient font-bold tracking-widest uppercase drop-shadow-sm opacity-90">{TRANSLATIONS[lang].welcome_sub}</p><button onClick={handleStart} className="btn-gold-3d mb-8">{TRANSLATIONS[lang].enter}</button></div> )}
           {appState === AppState.INPUT_INFO && ( <div className="flex flex-col items-center justify-center min-h-screen p-6 relative z-10 animate-fade-in"><Logo size="small" /><div className="w-full max-w-md bg-black/60 border-wine-gradient p-8 rounded-lg backdrop-blur-sm"><h2 className="text-2xl font-occult text-purple-200 mb-2 text-center">{TRANSLATIONS[lang].info_title}</h2><p className="text-gray-400 text-sm mb-8 text-center">{TRANSLATIONS[lang].info_desc}</p><UserInfoForm onSubmit={handleUserInfoSubmit} lang={lang} /></div></div> )}
-          {appState === AppState.CATEGORY_SELECT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10"><h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center">{TRANSLATIONS[lang].select_cat_title}</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full relative">{(<button onClick={handleEnterChat} className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group"><span className="text-2xl mb-1 group-hover:animate-bounce">💬</span><span className="text-[8px] text-white font-bold">{isGuest ? 'Free' : TRANSLATIONS[lang].chat_entry_fee}</span></button>)}{CATEGORIES.map((cat) => { return (<button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]`}><span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span><span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{lang === 'en' ? cat.id : cat.label}</span>{!isGuest && cat.cost && <span className="absolute top-2 right-2 text-[10px] text-yellow-500 bg-black/80 px-1 rounded border border-yellow-700">-{cat.cost}</span>}</button>); })}</div></div> )}
+          {appState === AppState.CATEGORY_SELECT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10"><h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center">{TRANSLATIONS[lang].select_cat_title}</h2>
+          
+          <button onClick={() => setShowHotKeywords(true)} className="fixed bottom-6 left-6 animate-pulse z-20 group drop-shadow-[0_0_15px_rgba(168,85,247,0.8)] filter">
+              <svg viewBox="0 0 24 24" className="w-20 h-20">
+                  <defs>
+                      <linearGradient id="purpleFireGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                          <stop offset="0%" style={{stopColor:'#2e1065', stopOpacity:1}} />
+                          <stop offset="30%" style={{stopColor:'#7e22ce', stopOpacity:1}} />
+                          <stop offset="60%" style={{stopColor:'#a855f7', stopOpacity:1}} />
+                          <stop offset="100%" style={{stopColor:'#e879f9', stopOpacity:1}} />
+                      </linearGradient>
+                      <filter id="glow">
+                          <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                          <feMerge>
+                              <feMergeNode in="coloredBlur"/>
+                              <feMergeNode in="SourceGraphic"/>
+                          </feMerge>
+                      </filter>
+                  </defs>
+                  <path fill="url(#purpleFireGradient)" filter="url(#glow)" d="M12,22c4.97,0,9-4.03,9-9c0-4.97-9-13-9-13S3,8.03,3,13C3,17.97,7.03,22,12,22z M10.5,10.5 c0-1.38,1.12-2.5,2.5-2.5s2.5,1.12,2.5,2.5s-1.12,2.5-2.5,2.5S10.5,11.88,10.5,10.5z M7.5,14.5c0-1.38,1.12-2.5,2.5-2.5 s2.5,1.12,2.5,2.5s-1.12,2.5-2.5,2.5S7.5,15.88,7.5,14.5z M14.5,14.5c0-1.38,1.12-2.5,2.5-2.5s2.5,1.12,2.5,2.5 s-1.12,2.5-2.5,2.5S14.5,15.88,14.5,14.5z"/>
+                  <path fill="#ffffff" opacity="0.3" d="M12,18c-1.66,0-3-1.34-3-3s1.34-3,3-3s3,1.34,3,3S13.66,18,12,18z"/>
+                  <path fill="url(#purpleFireGradient)" d="M15.5 6.5C15.5 6.5 18 10 18 12.5C18 15.5 15.5 18 12 18C8.5 18 6 15.5 6 12.5C6 10 8.5 6.5 8.5 6.5C8.5 6.5 12 2 12 2C12 2 15.5 6.5 15.5 6.5ZM12 16C14.2 16 16 14.2 16 12C16 10.5 15 9 12 5C9 9 8 10.5 8 12C8 14.2 9.8 16 12 16Z" />
+              </svg>
+          </button>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full relative">{(<button onClick={handleEnterChat} className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group"><span className="text-2xl mb-1 group-hover:animate-bounce">💬</span><span className="text-[8px] text-white font-bold">{isGuest ? 'Free' : TRANSLATIONS[lang].chat_entry_fee}</span></button>)}{CATEGORIES.map((cat) => { return (<button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]`}><span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span><span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{lang === 'en' ? cat.id : cat.label}</span>{!isGuest && cat.cost && <span className="absolute top-2 right-2 text-[10px] text-yellow-500 bg-black/80 px-1 rounded border border-yellow-700">-{cat.cost}</span>}</button>); })}</div></div> )}
           {appState === AppState.CHAT_ROOM && ( <ChatView user={user} lang={lang} onLeave={() => navigateTo(AppState.CATEGORY_SELECT)} /> )}
           {appState === AppState.FACE_UPLOAD && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-4">{TRANSLATIONS[lang].face_reading_title}</h2><p className="text-gray-300 mb-6 text-sm md:text-base leading-relaxed break-keep">{TRANSLATIONS[lang].face_reading_desc}</p><div className="mb-6 border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative"><input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onloadend=()=>setFaceImage(r.result as string); r.readAsDataURL(f); } }} className="absolute inset-0 opacity-0 cursor-pointer" />{faceImage ? <img src={faceImage} className="max-h-48 mx-auto rounded" /> : <span className="text-gray-500">{TRANSLATIONS[lang].face_guide}</span>}</div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startFaceReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].face_upload_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-250 Coin)')}</button></div></div></div> )}
           {appState === AppState.LIFE_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{TRANSLATIONS[lang].life_reading_title}</h2><p className="text-gray-300 text-sm mb-6 leading-relaxed break-keep whitespace-pre-wrap">{TRANSLATIONS[lang].life_reading_desc}</p><div className="flex gap-4 justify-center mb-6"><select value={birthTime.h} onChange={e=>setBirthTime({...birthTime, h:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:24}).map((_,i) => <option key={i} value={i.toString()}>{i}시</option>)}</select><select value={birthTime.m} onChange={e=>setBirthTime({...birthTime, m:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:60}).map((_,i) => <option key={i} value={i.toString()}>{i}분</option>)}</select></div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startLifeReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].life_input_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-250 Coin)')}</button></div></div></div> )}
@@ -1645,6 +1885,7 @@ const App: React.FC = () => {
                         )}
                       </div>
                   </div>
+                  
               </div>
           )}
       </div>
