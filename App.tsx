@@ -1418,24 +1418,6 @@ const App: React.FC = () => {
               </div>
           )}
 
-          {/* Hot Keywords Popup */}
-          {showHotKeywords && (
-              <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-6" onClick={() => setShowHotKeywords(false)}>
-                  <div className="bg-[#1a103c] border border-purple-500 p-6 rounded-2xl max-w-sm w-full relative shadow-[0_0_60px_rgba(147,51,234,0.4)]" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => setShowHotKeywords(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
-                      <h2 className="text-xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-6">{TRANSLATIONS[lang].hot_keywords_title}</h2>
-                      <div className="space-y-4">
-                          {hotKeywordsData.map((item, index) => (
-                              <div key={index} className="bg-black/40 p-4 rounded-xl border border-purple-500/30 flex items-center gap-4">
-                                  <span className="text-2xl">{index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
-                                  <div className="flex-1">
-                                      <div className="flex justify-between text-sm font-bold text-white mb-1">
-                                          <span>{index === 0 ? TRANSLATIONS[lang].hot_1st : index === 1 ? TRANSLATIONS[lang].hot_2nd : TRANSLATIONS[lang].hot_3rd}</span> 
-                                          <span className={item.color}>{item.keyword}</span>
-                                      </div>
-                                      <div className="w-full bg-gray-800 h-2 rounded-full">
-                                          <div className={`${item.barColor} h-full rounded-full`} style={{width: `${item.percent}%`}}></div>
-                                      </div>
                                       <span className="text-xs text-gray-500 block text-right mt-1">{item.percent}%</span>
                                   </div>
                               </div>
