@@ -10,7 +10,6 @@ import AudioPlayer from './components/AudioPlayer';
 import { getTarotReading, getFallbackTarotImage, getFaceReading, getLifeReading, getCompatibilityReading, getPartnerLifeReading, generateTarotCardImage, getMonthlyAnalysis } from './services/geminiService';
 import { playSound, playShuffleLoop, stopShuffleLoop, initSounds } from './services/soundService';
 import html2canvas from 'html2canvas';
-// import { RealtimeChannel } from '@supabase/supabase-js'; // Removed to fix type error
 
 // ---------------------------------------------------------------------------
 // CONFIG & TRANSLATIONS
@@ -976,7 +975,6 @@ const App: React.FC = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'TOSS' | 'PAYPAL' | 'APPLE' | 'KAKAO'>('TOSS');
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   
-  // New States for requested features
   const [showHotKeywords, setShowHotKeywords] = useState(false);
   const [hotKeywordsData, setHotKeywordsData] = useState<any[]>([]);
   const [showDangerPopup, setShowDangerPopup] = useState(false);
@@ -1418,15 +1416,6 @@ const App: React.FC = () => {
               </div>
           )}
 
-                                      <span className="text-xs text-gray-500 block text-right mt-1">{item.percent}%</span>
-                                  </div>
-                              </div>
-                          ))}
-                      </div>
-                  </div>
-              </div>
-          )}
-
           {/* Monthly Mind Receipt Popup */}
           {showMindReceipt && mindReceiptData && (
               <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in p-4">
@@ -1530,29 +1519,6 @@ const App: React.FC = () => {
           {appState === AppState.WELCOME && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center animate-fade-in relative z-10"><Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }} onLogin={() => setAuthMode("LOGIN")} openProfile={handleOpenProfile} /><Logo size="large" /><p className="font-serif-en text-sm md:text-base italic mb-12 text-gold-gradient font-bold tracking-widest uppercase drop-shadow-sm opacity-90">{TRANSLATIONS[lang].welcome_sub}</p><button onClick={handleStart} className="btn-gold-3d mb-8">{TRANSLATIONS[lang].enter}</button></div> )}
           {appState === AppState.INPUT_INFO && ( <div className="flex flex-col items-center justify-center min-h-screen p-6 relative z-10 animate-fade-in"><Logo size="small" /><div className="w-full max-w-md bg-black/60 border-wine-gradient p-8 rounded-lg backdrop-blur-sm"><h2 className="text-2xl font-occult text-purple-200 mb-2 text-center">{TRANSLATIONS[lang].info_title}</h2><p className="text-gray-400 text-sm mb-8 text-center">{TRANSLATIONS[lang].info_desc}</p><UserInfoForm onSubmit={handleUserInfoSubmit} lang={lang} /></div></div> )}
           {appState === AppState.CATEGORY_SELECT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10"><h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center">{TRANSLATIONS[lang].select_cat_title}</h2>
-          
-          <button onClick={() => setShowHotKeywords(true)} className="fixed bottom-6 left-6 animate-pulse z-20 group drop-shadow-[0_0_15px_rgba(168,85,247,0.8)] filter">
-              <svg viewBox="0 0 24 24" className="w-20 h-20">
-                  <defs>
-                      <linearGradient id="purpleFireGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-                          <stop offset="0%" style={{stopColor:'#2e1065', stopOpacity:1}} />
-                          <stop offset="30%" style={{stopColor:'#7e22ce', stopOpacity:1}} />
-                          <stop offset="60%" style={{stopColor:'#a855f7', stopOpacity:1}} />
-                          <stop offset="100%" style={{stopColor:'#e879f9', stopOpacity:1}} />
-                      </linearGradient>
-                      <filter id="glow">
-                          <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-                          <feMerge>
-                              <feMergeNode in="coloredBlur"/>
-                              <feMergeNode in="SourceGraphic"/>
-                          </feMerge>
-                      </filter>
-                  </defs>
-                  <path fill="url(#purpleFireGradient)" filter="url(#glow)" d="M12,22c4.97,0,9-4.03,9-9c0-4.97-9-13-9-13S3,8.03,3,13C3,17.97,7.03,22,12,22z M10.5,10.5 c0-1.38,1.12-2.5,2.5-2.5s2.5,1.12,2.5,2.5s-1.12,2.5-2.5,2.5S10.5,11.88,10.5,10.5z M7.5,14.5c0-1.38,1.12-2.5,2.5-2.5 s2.5,1.12,2.5,2.5s-1.12,2.5-2.5,2.5S7.5,15.88,7.5,14.5z M14.5,14.5c0-1.38,1.12-2.5,2.5-2.5s2.5,1.12,2.5,2.5 s-1.12,2.5-2.5,2.5S14.5,15.88,14.5,14.5z"/>
-                  <path fill="#ffffff" opacity="0.3" d="M12,18c-1.66,0-3-1.34-3-3s1.34-3,3-3s3,1.34,3,3S13.66,18,12,18z"/>
-                  <path fill="url(#purpleFireGradient)" d="M15.5 6.5C15.5 6.5 18 10 18 12.5C18 15.5 15.5 18 12 18C8.5 18 6 15.5 6 12.5C6 10 8.5 6.5 8.5 6.5C8.5 6.5 12 2 12 2C12 2 15.5 6.5 15.5 6.5ZM12 16C14.2 16 16 14.2 16 12C16 10.5 15 9 12 5C9 9 8 10.5 8 12C8 14.2 9.8 16 12 16Z" />
-              </svg>
-          </button>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full relative">{(<button onClick={handleEnterChat} className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group"><span className="text-2xl mb-1 group-hover:animate-bounce">💬</span><span className="text-[8px] text-white font-bold">{isGuest ? 'Free' : TRANSLATIONS[lang].chat_entry_fee}</span></button>)}{CATEGORIES.map((cat) => { return (<button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]`}><span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span><span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{lang === 'en' ? cat.id : cat.label}</span>{!isGuest && cat.cost && <span className="absolute top-2 right-2 text-[10px] text-yellow-500 bg-black/80 px-1 rounded border border-yellow-700">-{cat.cost}</span>}</button>); })}</div></div> )}
           {appState === AppState.CHAT_ROOM && ( <ChatView user={user} lang={lang} onLeave={() => navigateTo(AppState.CATEGORY_SELECT)} /> )}
@@ -1867,7 +1833,6 @@ const App: React.FC = () => {
                         )}
                       </div>
                   </div>
-                  
               </div>
           )}
       </div>
