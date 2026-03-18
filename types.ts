@@ -119,8 +119,7 @@ export interface User {
   attendanceDay: number; // 1 to 10
   lastAttendance?: string; // YYYY-MM-DD
   
-  // Monthly Mind Receipt
-  lastReceiptDate?: string; // YYYY-MM (Month of last receipt)
+  
 
   // Skins
   ownedSkins: string[]; 
