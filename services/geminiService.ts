@@ -624,44 +624,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
     return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
-// NEW: Monthly Mind Receipt Analysis
-export const getMonthlyAnalysis = async (history: ReadingResult[], lang: Language = 'ko'): Promise<string> => {
-    // Extract recent questions
-    const recentQuestions = history.slice(0, 20).map(h => h.question).join("\n");
-    const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
 
-    const prompt = `
-        ${randomSeed}
-        [MONTHLY MIND RECEIPT GENERATION]
-        
-        Analyze the following list of the user's questions from this month:
-        ${recentQuestions}
-
-        TASK:
-        1. Identify the Top 3 most frequent keywords or themes.
-        2. Analyze the user's current mental state based on these questions (3 sentences).
-        3. Provide 1 punchy, witty advice sentence.
-
-        OUTPUT FORMAT (JSON):
-        {
-            "rank1": "Keyword 1",
-            "rank2": "Keyword 2",
-            "rank3": "Keyword 3",
-            "mentalState": "Analysis...",
-            "advice": "Witty Advice..."
-        }
-        
-        Language: ${lang === 'en' ? 'English' : 'Korean'}
-        Ensure JSON is valid.
-    `;
-
-    const config = { 
-        responseMimeType: "application/json",
-        temperature: 0.7 
-    };
-    
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
-};
 
 export const getFallbackTarotImage = (cardId: number): string => {
   const baseUrl = "https://raw.githubusercontent.com/tarruda/tarot-deck/master/images/";
