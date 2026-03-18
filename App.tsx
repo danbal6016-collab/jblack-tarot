@@ -118,12 +118,7 @@ const TRANSLATIONS = {
     danger_popup_title: "전문가의 도움이 필요합니다",
     danger_popup_desc: "많이 힘드셨군요. 이 고민은 타로보다 전문가의 도움이 필요할 것 같아요.",
     danger_popup_btn: "1388(청소년 상담 전화) 연결",
-    receipt_title: "Monthly Mind Receipt",
-    receipt_keyword: "고민 키워드 순위",
-    receipt_mental: "현 멘탈 상태",
-    receipt_advice: "조언 한마디",
-    receipt_save: "저장",
-    receipt_home: "처음으로"
+   
   },
   en: {
     welcome_sub: "Cards don't lie.",
@@ -228,12 +223,7 @@ const TRANSLATIONS = {
     danger_popup_title: "Professional Help Needed",
     danger_popup_desc: "It seems you are going through a hard time. Please seek professional help.",
     danger_popup_btn: "Call 1388 (Counseling)",
-    receipt_title: "Monthly Mind Receipt",
-    receipt_keyword: "Top Keywords",
-    receipt_mental: "Current Mental State",
-    receipt_advice: "Advice",
-    receipt_save: "Save",
-    receipt_home: "Home"
+
   }
 };
 
@@ -978,8 +968,7 @@ const App: React.FC = () => {
   const [showHotKeywords, setShowHotKeywords] = useState(false);
   const [hotKeywordsData, setHotKeywordsData] = useState<any[]>([]);
   const [showDangerPopup, setShowDangerPopup] = useState(false);
-  const [showMindReceipt, setShowMindReceipt] = useState(false);
-  const [mindReceiptData, setMindReceiptData] = useState<any>(null);
+ 
 
   // New state to detect and handle redirect loop/loading
   const [isRedirectHandling, setIsRedirectHandling] = useState(
@@ -1173,20 +1162,7 @@ const App: React.FC = () => {
                  setShowAttendancePopup(true);
             }
 
-            // Monthly Mind Receipt Logic
-            if (newVisitCount > 10 && currentUser.lastReceiptDate !== currentMonth && currentUser.history.length > 0) {
-                // Trigger Receipt Generation
-                getMonthlyAnalysis(currentUser.history, lang).then((jsonStr) => {
-                    try {
-                        let data = JSON.parse(jsonStr.replace(/```json/g, '').replace(/```/g, ''));
-                        setMindReceiptData(data);
-                        setShowMindReceipt(true);
-                        currentUser.lastReceiptDate = currentMonth;
-                    } catch (e) {
-                        console.error("Failed to parse receipt data", e);
-                    }
-                }).catch(err => console.error(err));
-            }
+           
         }
 
         const computedTier = calculateTier(currentUser.totalSpent);
@@ -1416,46 +1392,7 @@ const App: React.FC = () => {
               </div>
           )}
 
-          {/* Monthly Mind Receipt Popup */}
-          {showMindReceipt && mindReceiptData && (
-              <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in p-4">
-                  <div className="relative bg-gradient-to-b from-[#2e1065] to-[#0f172a] p-1 rounded-sm shadow-[0_0_80px_rgba(139,92,246,0.3)] max-w-sm w-full overflow-hidden border border-white/10">
-                      <div className="bg-[#0f0518] p-6 text-center">
-                          <div className="border-b-2 border-dashed border-gray-600 pb-4 mb-4">
-                              <h2 className="text-2xl font-serif text-white uppercase tracking-widest mb-1">{TRANSLATIONS[lang].receipt_title}</h2>
-                              <p className="text-xs text-gray-500">{new Date().toLocaleDateString()} • {user.userInfo?.name}</p>
-                          </div>
-                          
-                          <div className="text-left space-y-6 mb-8">
-                              <div>
-                                  <h3 className="text-xs text-purple-400 font-bold uppercase mb-2 border-b border-purple-900/50 pb-1">{TRANSLATIONS[lang].receipt_keyword}</h3>
-                                  <div className="flex justify-between text-sm text-gray-300"><span>1. {mindReceiptData.rank1}</span></div>
-                                  <div className="flex justify-between text-sm text-gray-300"><span>2. {mindReceiptData.rank2}</span></div>
-                                  <div className="flex justify-between text-sm text-gray-300"><span>3. {mindReceiptData.rank3}</span></div>
-                              </div>
-                              
-                              <div>
-                                  <h3 className="text-xs text-purple-400 font-bold uppercase mb-2 border-b border-purple-900/50 pb-1">{TRANSLATIONS[lang].receipt_mental}</h3>
-                                  <p className="text-sm text-gray-300 leading-relaxed text-justify">{mindReceiptData.mentalState}</p>
-                              </div>
-
-                              <div>
-                                  <h3 className="text-xs text-purple-400 font-bold uppercase mb-2 border-b border-purple-900/50 pb-1">{TRANSLATIONS[lang].receipt_advice}</h3>
-                                  <p className="text-sm text-white font-bold italic text-center">"{mindReceiptData.advice}"</p>
-                              </div>
-                          </div>
-
-                          <div className="border-t-2 border-dashed border-gray-600 pt-4 flex gap-3">
-                              <button onClick={() => setShowMindReceipt(false)} className="flex-1 py-3 bg-gray-800 text-gray-400 text-xs font-bold uppercase tracking-wider hover:bg-gray-700">{TRANSLATIONS[lang].receipt_home}</button>
-                              <button onClick={() => { alert("Saved to History!"); setShowMindReceipt(false); }} className="flex-1 py-3 bg-purple-900 text-white text-xs font-bold uppercase tracking-wider hover:bg-purple-800">{TRANSLATIONS[lang].receipt_save}</button>
-                          </div>
-                          <div className="mt-4">
-                              <img src="https://bwipjs-api.metafloor.com/?bcid=code128&text=BLACKTAROT&scale=2&height=5&incltext=false&backgroundcolor=0f0518&barcolor=ffffff" className="w-full opacity-30 h-8" />
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          )}
+          
 
           {showTierChangePopup && (
               <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-xl animate-fade-in p-6" onClick={() => setShowTierChangePopup(false)}>
