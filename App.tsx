@@ -224,6 +224,110 @@ const TRANSLATIONS = {
     danger_popup_desc: "It seems you are going through a hard time. Please seek professional help.",
     danger_popup_btn: "Call 1388 (Counseling)",
 
+  },
+  zh: {
+    welcome_sub: "牌不会说谎",
+    enter: "开启命运之门",
+    info_title: "准备迎接命运",
+    info_desc: "请输入详细信息以确保准确。",
+    name_label: "姓名",
+    name_ph: "姓名",
+    birth_label: "出生日期",
+    birth_ph: "YYYYMMDD",
+    country_ph: "选择国家",
+    select_cat_title: "选择今日塔罗主题",
+    shuffling: "命运洗牌中...",
+    select_cards_title: "选择3张牌",
+    result_question: "问题",
+    share: "保存与分享", 
+    settings_title: "设置",
+    settings_login_only: "※ 设置功能仅限登录用户使用。",
+    bgm_control: "背景音乐设置",
+    language_control: "语言",
+    tier_info: "我的等级",
+    attendance: "签到状态",
+    skin_shop: "卡牌皮肤",
+    profile_edit: "编辑个人资料",
+    logout: "退出登录",
+    delete_account: "注销账号",
+    delete_confirm: "您确定要注销吗？所有数据（金币、等级、记录）将被永久删除。",
+    attendance_popup: "签到成功！",
+    reward_popup: "等级奖励发放！",
+    face_reading_title: "面相",
+    face_reading_desc: "不要把时间浪费在犹豫要不要联系上。现在就来看看他是不是你在找的那个人。",
+    face_upload_btn: "看面相 (-200 Coin)",
+    face_guide: "上传一张能清晰看到面部的照片。",
+    life_reading_title: "人生",
+    life_reading_desc: "你什么时候会发大财？你未曾察觉的专属天赋是什么？统领众人的人生巅峰期在何时？未来的伴侣会有怎样的身高、外貌、气质和职业？为了登上顶峰，绝对不能错过的生命贵人是谁？你天生的性格和倾向，以及基于此需要注意的事项是什么？现在就来揭晓你隐藏的人生秘籍吧。",
+    life_input_btn: "查看人生秘籍 (-200 Coin)",
+    life_guide: "请输入您的出生时间。",
+    downloading: "极速保存中...",
+    time_label: "出生时间",
+    tier_benefit_silver: "每月1日持有金币1.5倍",
+    tier_benefit_gold: "每月1日持有金币2.0倍",
+    tier_benefit_platinum: "每月1日持有金币3.0倍",
+    no_benefit: "无特权",
+    guest_exhausted: "访客免费次数(1次)已用完。",
+    coin_shortage: "金币不足。",
+    shop_title: "VIP黑金币休息室",
+    shop_subtitle: "为内心的烦恼寻找命运的解答。",
+    shop_pkg_1: "₩4,900 / 60 Coins",
+    shop_pkg_2: "₩7,900 / 110 Coins",
+    shop_pkg_3: "₩15,500 / 220 Coins",
+    next: "下一步",
+    custom_q_ph: "请输入具体的烦恼。",
+    history: "塔罗记录",
+    no_history: "暂无记录。",
+    limit_reached: "今日占卜次数(10次)已用尽，请明天再试。",
+    solution_lock: "查看实际解决方案 (Gold+)",
+    secret_compat: "你和他的隐秘契合度 (-200 Coin)",
+    partner_life: "他天生的人生八字 (-200 Coin)",
+    partner_birth_ph: "他的出生日期 (YYYYMMDD)",
+    pay_title: "选择支付方式",
+    pay_cancel: "取消",
+    pay_confirm: "去支付",
+    guest_lock_msg: "需要登录才能继续。",
+    guest_lock_btn: "登录 / 注册",
+    secret_compat_title: "隐秘契合度",
+    secret_compat_desc: "未成年人请退出。",
+    secret_compat_btn: "确认契合度 (-200 Coin)",
+    partner_life_title: "他的人生",
+    partner_life_desc: "秘密揭开他天生的人生八字。",
+    partner_life_btn: "偷窥人生 (-200 Coin)",
+    bronze_shop_lock: "青铜等级无法购买皮肤。",
+    chat_room_title: "命运聊天室",
+    chat_input_ph: "分享您的烦恼...",
+    chat_entry_fee: "入场费 20 金币",
+    chat_full: "房间已满（最多50人）",
+    chat_leave: "离开",
+    custom_skin_title: "自定义皮肤工作室",
+    upload_skin: "上传设计",
+    public_option: "公开（获取代码）",
+    private_option: "私密（仅自己可见）",
+    skin_code_label: "输入皮肤代码",
+    skin_code_btn: "应用",
+    skin_code_placeholder: "6位数字代码",
+    skin_saved: "皮肤已保存。",
+    skin_applied: "皮肤已应用！",
+    rug_shop: "塔罗桌垫颜色",
+    bgm_upload: "上传背景音乐",
+    back: "返回",
+    frame_shop: "结果框",
+    custom_frame_title: "制作自定义边框",
+    result_bg_shop: "结果背景",
+    sticker_shop: "贴纸管理",
+    sticker_upload: "上传自定义贴纸",
+    decorate_btn: "装饰",
+    save_changes: "保存完成",
+    privacy_agree: "请求允许收集个人信息（同意）",
+    privacy_alert: "需要同意收集个人信息。",
+    hot_keywords_title: "实时热门烦恼 TOP 3",
+    hot_1st: "第1名",
+    hot_2nd: "第2名",
+    hot_3rd: "第3名",
+    danger_popup_title: "需要专业帮助",
+    danger_popup_desc: "您一定很痛苦吧。这个问题可能需要专业人士的帮助，而不是塔罗牌。",
+    danger_popup_btn: "拨打1388（青少年咨询热线）",
   }
 };
 
@@ -332,7 +436,7 @@ const ChatView: React.FC<{
             return;
         }
 
-        const channel = (supabase as any).channel('black-tarot-global');
+       const channel = (supabase as any).channel(`black-tarot-${lang}`);
 
         channel
             .on('broadcast', { event: 'chat' }, ({ payload }: any) => {
@@ -628,7 +732,7 @@ const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang
     const handleCardClick = (i: number) => { if (selected.includes(i) || selected.length >= 3) return; playSound('SELECT'); const newSelected = [...selected, i]; setSelected(newSelected); if (newSelected.length === 3) { setTimeout(() => onSelectCards(newSelected), 1200); } };
     const noiseSvg = "data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.3'/%3E%3C/svg%3E";
     const rugStyle = { background: `radial-gradient(circle at center, ${rugColor || '#2e0b49'} 0%, #000000 100%), url("${noiseSvg}")`, backgroundBlendMode: 'multiply' };
-    return ( <div className="flex flex-col items-center justify-start min-h-screen overflow-hidden relative z-10 pt-20 pb-10 rug-texture !border-0 !outline-none !shadow-none" style={rugStyle}><h2 className="text-2xl font-occult text-purple-200 mb-8 animate-pulse text-center w-full shadow-black drop-shadow-md">{lang === 'ko' ? "3장의 카드를 선택하세요" : "Select 3 Cards"}</h2><div className="w-full max-w-5xl h-[70vh] overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-purple-700 scrollbar-track-transparent touch-pan-y"><div className="grid grid-cols-8 md:grid-cols-12 gap-1 pb-32">{TAROT_DECK.map((cardName, i) => { const isSelected = selected.includes(i); return (<div key={i} onClick={() => handleCardClick(i)} className={`aspect-[2/3] rounded-sm border border-purple-500/30 cursor-pointer transition-all duration-500 ease-out card-back ${SKINS.find(s => s.id === skin)?.cssClass} touch-manipulation active:scale-95 transform-gpu will-change-transform ${isSelected ? 'scale-110 border-purple-200 z-50 brightness-125 -translate-y-4 shadow-[0_0_20px_#d946ef]' : 'hover:-translate-y-1 hover:scale-105 z-0 hover:z-10'}`} style={{ backgroundSize: 'cover', backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined, boxShadow: isSelected ? '0 0 15px #d946ef' : 'none' }}></div>); })}</div></div><div className="absolute bottom-10 flex gap-3 z-20 pointer-events-none">{[...Array(3)].map((_, i) => (<div key={i} className={`w-4 h-4 rounded-full border-2 border-purple-500 transition-all duration-300 ${selected.length > i ? 'bg-purple-500 shadow-[0_0_15px_#d946ef] scale-125' : 'bg-transparent'}`}></div>))}</div></div> );
+    return ( <div className="flex flex-col items-center justify-start min-h-screen overflow-hidden relative z-10 pt-20 pb-10 rug-texture !border-0 !outline-none !shadow-none" style={rugStyle}><h2 className="text-2xl font-occult text-purple-200 mb-8 animate-pulse text-center w-full shadow-black drop-shadow-md">{lang === 'ko' ? "3장의 카드를 선택하세요" : "Select 3 Cards"}</h2><div className="w-full max-w-5xl h-[70vh] overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-purple-700 scrollbar-track-transparent touch-pan-y"><div className="grid grid-cols-8 md:grid-cols-12 gap-1 pb-32">{TAROT_DECK.map((cardName, i) => { const isSelected = selected.includes(i); return (<div key={i} onClick={() => handleCardClick(i)} className={`aspect-[2/3] rounded-sm border border-purple-500/30 cursor-pointer transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] transform-gpu card-back ${SKINS.find(s => s.id === skin)?.cssClass} touch-manipulation active:scale-95 transform-gpu will-change-transform ${isSelected ? 'scale-110 border-purple-200 z-50 brightness-125 -translate-y-4 shadow-[0_0_20px_#d946ef]' : 'hover:-translate-y-1 hover:scale-105 z-0 hover:z-10'}`} style={{ backgroundSize: 'cover', backgroundImage: activeCustomSkin ? `url(${activeCustomSkin.imageUrl})` : undefined, boxShadow: isSelected ? '0 0 15px #d946ef' : 'none' }}></div>); })}</div></div><div className="absolute bottom-10 flex gap-3 z-20 pointer-events-none">{[...Array(3)].map((_, i) => (<div key={i} className={`w-4 h-4 rounded-full border-2 border-purple-500 transition-all duration-300 ${selected.length > i ? 'bg-purple-500 shadow-[0_0_15px_#d946ef] scale-125' : 'bg-transparent'}`}></div>))}</div></div> );
 };
 
 const ResultView: React.FC<{ 
@@ -845,7 +949,7 @@ const ResultView: React.FC<{
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"></div>
                 <div ref={frameRef} className="absolute inset-0 pointer-events-none z-20" style={isCustomFrame ? resultFrameStyle : undefined}></div>
                 {activeStickers.map((sticker) => (
-                    <div key={sticker.id} onMouseDown={(e) => handleDragStart(e, sticker.id)} onTouchStart={(e) => handleDragStart(e, sticker.id)} className="absolute z-50 cursor-move hover:scale-110 active:scale-95 transition-transform" style={{ left: `${sticker.x}%`, top: `${sticker.y}%`, transform: 'translate(-50%, -50%)' }}>
+                    <div key={sticker.id} onMouseDown={(e) => handleDragStart(e, sticker.id)} onTouchStart={(e) => handleDragStart(e, sticker.id)} className="absolute z-50 cursor-move hover:scale-110 active:scale-95 transition-transform touch-none will-change-transform" style={{ left: `${sticker.x}%`, top: `${sticker.y}%`, transform: 'translate(-50%, -50%)' }}>
                         {sticker.src.startsWith('http') || sticker.src.startsWith('data:') ? <img src={sticker.src} className="w-16 h-16 object-contain drop-shadow-md" draggable={false} /> : <span className="text-5xl drop-shadow-md select-none">{sticker.src}</span>}
                     </div>
                 ))}
@@ -1323,7 +1427,7 @@ const App: React.FC = () => {
   
   const processPayment = () => {
     if (!pendingPackage) return;
-    alert("댓글이 100개가 넘으면 오픈합니다.");
+    alert("3월 21일 자정에 오픈!");
     setPendingPackage(null);
     setShopStep('AMOUNT');
     setShowShop(false);
@@ -1344,11 +1448,11 @@ const App: React.FC = () => {
   };
 
   const checkTierLimit = () => { if (user.email === 'Guest') return true; if (user.tier === UserTier.GOLD || user.tier === UserTier.PLATINUM) return true; const limit = user.tier === UserTier.SILVER ? 30 : 10; if (user.readingsToday >= limit) { alert(`${user.tier} 등급의 일일 리딩 한도(${limit}회)를 초과했습니다. 내일 다시 시도하세요.`); return false; } return true; };
-  const startFaceReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!checkTierLimit()) return; if (!faceImage) return alert("Please upload a photo first."); if (!spendCoins(250)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].face_reading_title); setSelectedCards([]); setReadingPromise(getFaceReading(faceImage, user.userInfo, lang)); updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); };
-  const startLifeReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!checkTierLimit()) return; if (!spendCoins(250)) return; const finalUserInfo: UserInfo = { ...(user.userInfo as UserInfo), birthTime: `${birthTime.h}:${birthTime.m}` }; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].life_reading_title); setSelectedCards([]); setReadingPromise(getLifeReading(finalUserInfo, lang)); updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); };
-  const startPartnerReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!checkTierLimit()) return; if (!partnerBirth || partnerBirth.length < 8) return alert("올바른 생년월일을 입력해주세요. (YYYYMMDD)"); const isSecret = selectedCategory?.id === 'SECRET_COMPAT'; const cost = isSecret ? 200 : 250; if (!spendCoins(cost)) return; navigateTo(AppState.RESULT); setSelectedQuestion(selectedCategory?.label || "Partner Reading"); setSelectedCards([]); if (isSecret) { if (!user.userInfo) { alert("User info missing"); return; } setReadingPromise(getCompatibilityReading(user.userInfo, partnerBirth, lang)); } else { setReadingPromise(getPartnerLifeReading(partnerBirth, lang)); } updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); };
+  const startFaceReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!checkTierLimit()) return; if (!faceImage) return alert("Please upload a photo first."); if (!spendCoins(200)) return; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].face_reading_title); setSelectedCards([]); setReadingPromise(getFaceReading(faceImage, user.userInfo, lang)); updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); };
+  const startLifeReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!checkTierLimit()) return; if (!spendCoins(200)) return; const finalUserInfo: UserInfo = { ...(user.userInfo as UserInfo), birthTime: `${birthTime.h}:${birthTime.m}` }; navigateTo(AppState.RESULT); setSelectedQuestion(TRANSLATIONS[lang].life_reading_title); setSelectedCards([]); setReadingPromise(getLifeReading(finalUserInfo, lang)); updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); };
+  const startPartnerReading = () => { if (user.email === 'Guest' && parseInt(localStorage.getItem('guest_readings') || '0') >= 1) { setShowGuestBlock(true); return; } if (!checkTierLimit()) return; if (!partnerBirth || partnerBirth.length < 8) return alert("올바른 생년월일을 입력해주세요. (YYYYMMDD)"); const isSecret = selectedCategory?.id === 'SECRET_COMPAT'; const cost = 200; if (!spendCoins(cost)) return; navigateTo(AppState.RESULT); setSelectedQuestion(selectedCategory?.label || "Partner Reading"); setSelectedCards([]); if (isSecret) { if (!user.userInfo) { alert("User info missing"); return; } setReadingPromise(getCompatibilityReading(user.userInfo, partnerBirth, lang)); } else { setReadingPromise(getPartnerLifeReading(partnerBirth, lang)); } updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); };
   const handleCardSelect = (indices: number[]) => { 
-      if (user.email === 'Guest') { const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0'); if (guestReadings >= 1) { setShowGuestBlock(true); return; } localStorage.setItem('guest_readings', (guestReadings + 1).toString()); } else { if (!checkTierLimit()) return; if (!spendCoins(5)) return; updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); } 
+      if (user.email === 'Guest') { const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0'); if (guestReadings >= 1) { setShowGuestBlock(true); return; } localStorage.setItem('guest_readings', (guestReadings + 1).toString()); } else { if (!checkTierLimit()) return; if (!spendCoins(10)) return; updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); } 
       const selected = indices.map(i => { const cardName = TAROT_DECK[i]; return { id: i, name: cardName, isReversed: Math.random() < 0.3, imagePlaceholder: getFallbackTarotImage(i), generatedImage: undefined, backDesign: 0 }; }); 
       setSelectedCards(selected); navigateTo(AppState.RESULT); setReadingPromise(getTarotReading(selectedQuestion, selected, user.userInfo, lang, user.history, user.tier)); 
       selected.forEach((card, idx) => { generateTarotCardImage(card.name).then(base64 => { const imageUrl = `data:image/png;base64,${base64}`; setSelectedCards(prev => { const newCards = [...prev]; if (newCards[idx] && newCards[idx].name === card.name) { newCards[idx] = { ...newCards[idx], generatedImage: imageUrl }; } return newCards; }); }).catch(err => { const seed = Math.floor(Math.random() * 1000000); const genUrl = `https://image.pollinations.ai/prompt/tarot%20card%20${encodeURIComponent(card.name)}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=300&height=500&nologo=true&seed=${seed}&model=flux-schnell`; setSelectedCards(prev => { const newCards = [...prev]; if (newCards[idx] && newCards[idx].name === card.name) { newCards[idx] = { ...newCards[idx], generatedImage: genUrl }; } return newCards; }); }); }); 
@@ -1370,8 +1474,8 @@ const App: React.FC = () => {
   }
 
   return (
-      <div className={`relative min-h-screen text-white font-sans overflow-hidden select-none ${SKINS.find(s=>s.id===user.currentSkin)?.cssClass}`}>
-          <Background />
+<div className="relative min-h-screen text-white font-sans overflow-hidden select-none">
+  <Background />
           <AudioPlayer volume={bgmVolume} userStopped={bgmStopped} currentTrack={currentBgm.url} />
           {appState !== AppState.WELCOME && appState !== AppState.INPUT_INFO && appState !== AppState.CHAT_ROOM && (
               <div className="z-50 pointer-events-auto"><Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }} onLogin={() => setAuthMode("LOGIN")} openProfile={handleOpenProfile} /></div>
@@ -1479,10 +1583,11 @@ const App: React.FC = () => {
                     {/* Common Settings */}
                     <div className="bg-[#1a0b2e]/50 p-4 rounded border border-purple-500/30">
                       <h3 className="text-sm font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].language_control}</h3>
-                      <div className="flex gap-2">
-                          <button onClick={() => setLang('ko')} className={`flex-1 py-2 rounded border transition-all ${lang === 'ko' ? 'bg-purple-600 border-purple-400 text-white shadow-lg' : 'bg-[#1a0b2e] border-purple-900 text-purple-400 hover:bg-purple-900/50'}`}>한국어</button>
-                          <button onClick={() => setLang('en')} className={`flex-1 py-2 rounded border transition-all ${lang === 'en' ? 'bg-purple-600 border-purple-400 text-white shadow-lg' : 'bg-[#1a0b2e] border-purple-900 text-purple-400 hover:bg-purple-900/50'}`}>English</button>
-                      </div>
+                    <div className="flex gap-2">
+    <button onClick={() => setLang('ko')} className={`flex-1 py-2 text-sm rounded border transition-all ${lang === 'ko' ? 'bg-purple-600 border-purple-400 text-white shadow-lg' : 'bg-[#1a0b2e] border-purple-900 text-purple-400 hover:bg-purple-900/50'}`}>한국어</button>
+    <button onClick={() => setLang('en')} className={`flex-1 py-2 text-sm rounded border transition-all ${lang === 'en' ? 'bg-purple-600 border-purple-400 text-white shadow-lg' : 'bg-[#1a0b2e] border-purple-900 text-purple-400 hover:bg-purple-900/50'}`}>English</button>
+    <button onClick={() => setLang('zh')} className={`flex-1 py-2 text-sm rounded border transition-all ${lang === 'zh' ? 'bg-purple-600 border-purple-400 text-white shadow-lg' : 'bg-[#1a0b2e] border-purple-900 text-purple-400 hover:bg-purple-900/50'}`}>中文</button>
+</div>
                     </div>
 
                     <div className="bg-[#1a0b2e]/50 p-4 rounded border border-purple-500/30">
@@ -1521,8 +1626,8 @@ const App: React.FC = () => {
                     
                     {/* Gold+ Features - Restored visibility */}
                     <button onClick={() => handleSettingsClick('RUG')} className="w-full py-4 bg-[#1a0b2e] hover:bg-gradient-to-r hover:from-[#2e1065] hover:to-[#0f172a] active:bg-black rounded border border-purple-500/30 hover:border-purple-400 text-left px-4 flex justify-between items-center group transition-all shadow-lg">
-                        <span className="text-white font-bold">{TRANSLATIONS[lang].rug_shop}</span>
-                        <span className="text-yellow-500 group-hover:text-white">→</span>
+                        <span className="text-purple-200 font-bold">{TRANSLATIONS[lang].rug_shop}</span>
+                        <span className="text-purple-500 group-hover:text-white">→</span>
                     </button>
                      
                     {/* Platinum Features - Restored visibility */}
