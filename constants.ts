@@ -37,10 +37,10 @@ export const BGMS: BGM[] = [
 
 // --- SKINS ---
 export const SKINS: Skin[] = [
-  { id: 'default', name: 'Classic Black', cost: 0, type: 'BASIC', cssClass: 'design-0' },
-  { id: 'lux_1', name: 'Golden Baroque', cost: 50, type: 'LUXURY', cssClass: 'design-1' },
-  { id: 'lux_2', name: 'Emerald Velvet', cost: 50, type: 'LUXURY', cssClass: 'design-2' },
-  { id: 'lux_3', name: 'Royal Crimson', cost: 50, type: 'LUXURY', cssClass: 'design-3' },
+  { id: 'default', name: 'Classic', cost: 0, type: 'BASIC', cssClass: 'design-0' },
+  { id: 'lux_1', name: '1', cost: 50, type: 'LUXURY', cssClass: 'design-1' },
+  { id: 'lux_2', name: '2', cost: 50, type: 'LUXURY', cssClass: 'design-2' },
+  { id: 'lux_3', name: '3', cost: 50, type: 'LUXURY', cssClass: 'design-3' },
   { id: 'idol_1', name: 'K-Idol All Black 1', cost: 150, type: 'IDOL', cssClass: 'design-idol-1' },
   { id: 'idol_2', name: 'K-Idol All Black 2', cost: 150, type: 'IDOL', cssClass: 'design-idol-2' },
 ];
