@@ -1022,9 +1022,15 @@ const ResultView: React.FC<{
             <div className="w-full max-w-[400px] mt-4 mb-10 z-40">
                 <div className="bg-[#0f0518]/90 backdrop-blur-xl border border-purple-500/40 rounded-2xl p-4 shadow-[0_0_30px_rgba(168,85,247,0.15)] flex flex-col gap-2">
                     <div className="text-[10px] text-purple-300 font-bold uppercase tracking-widest text-center mb-1 flex items-center justify-center gap-2"><span className="w-8 h-[1px] bg-purple-500/50"></span>DECORATE YOUR FATE<span className="w-8 h-[1px] bg-purple-500/50"></span></div>
-                    <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 justify-start md:justify-center px-1">
-                        {user.customStickers?.concat(DEFAULT_STICKERS).map((s, i) => (<button key={i} onClick={() => addSticker(s)} className="w-12 h-12 bg-white/5 hover:bg-purple-500/20 rounded-xl flex items-center justify-center text-2xl hover:scale-110 shrink-0 border border-white/5 hover:border-purple-500/50 transition-all active:scale-95 shadow-sm">{s.startsWith('http') || s.startsWith('data:') ? <img src={s} className="w-full h-full object-contain p-1" /> : s}</button>))}
-                    </div>
+                   <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 justify-start md:justify-center px-1">
+    {[...(user.customStickers || []), ...DEFAULT_STICKERS]
+        .filter(s => !(user.hiddenStickers || []).includes(s))
+        .map((s, i) => (
+        <button key={i} onClick={() => addSticker(s)} className="w-12 h-12 bg-white/5 hover:bg-purple-500/20 rounded-xl flex items-center justify-center text-2xl hover:scale-110 shrink-0 border border-white/5 hover:border-purple-500/50 transition-all active:scale-95 shadow-sm">
+            {s.startsWith('http') || s.startsWith('data:') ? <img src={s} className="w-full h-full object-contain p-1" draggable={false} /> : s}
+        </button>
+    ))}
+</div>
                 </div>
             </div>
         </div>
@@ -1388,14 +1394,83 @@ const App: React.FC = () => {
   const checkGuestAction = () => { if (user.email === 'Guest') { alert("로그인한 사용자만 이용 가능합니다."); return true; } return false; };
   const buySkin = (skin: Skin) => { if (checkGuestAction()) return; if (user.ownedSkins.includes(skin.id)) { updateUser(prev => ({ ...prev, currentSkin: skin.id, activeCustomSkin: null })); return; } if (spendCoins(skin.cost)) { updateUser(prev => ({ ...prev, ownedSkins: [...prev.ownedSkins, skin.id], currentSkin: skin.id, activeCustomSkin: null })); } };
   const handleCustomSkinUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomSkinImage(e.target?.result as string); reader.readAsDataURL(file); };
-  const handleSaveCustomSkin = () => { if (checkGuestAction()) return; if (!customSkinImage) return; if (!spendCoins(120)) return; const newSkin: CustomSkin = { id: Math.random().toString(36).substring(2), imageUrl: customSkinImage, isPublic: isSkinPublic, shareCode: isSkinPublic ? Math.floor(100000 + Math.random() * 900000).toString() : undefined }; updateUser(prev => ({ ...prev, customSkins: [...(prev.customSkins || []), newSkin], activeCustomSkin: newSkin })); setCustomSkinImage(null); alert(`${TRANSLATIONS[lang].skin_saved} ${newSkin.shareCode ? `Code: ${newSkin.shareCode}` : ''}`); };
+  const handleSaveCustomSkin = async () => { 
+      if (checkGuestAction()) return; 
+      if (!customSkinImage) return; 
+      if (!spendCoins(120)) return; 
+
+      const shareCode = isSkinPublic ? Math.floor(100000 + Math.random() * 900000).toString() : undefined; 
+      const newSkin: CustomSkin = { 
+          id: Math.random().toString(36).substring(2), 
+          imageUrl: customSkinImage, 
+          isPublic: isSkinPublic, 
+          shareCode: shareCode 
+      }; 
+
+      // 공개 설정 시 Supabase DB에 업로드
+      if (isSkinPublic && isSupabaseConfigured && shareCode) {
+          const { error } = await supabase.from('shared_skins').insert([
+              { share_code: shareCode, image_url: customSkinImage }
+          ]);
+          if (error) console.error("Skin upload failed:", error);
+      }
+
+      updateUser(prev => ({ ...prev, customSkins: [...(prev.customSkins || []), newSkin], activeCustomSkin: newSkin })); 
+      setCustomSkinImage(null); 
+      alert(`${TRANSLATIONS[lang].skin_saved} ${newSkin.shareCode ? `Code: ${newSkin.shareCode}` : ''}`); 
+  };
   const handleCustomFrameUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomFrameImage(e.target?.result as string); reader.readAsDataURL(file); };
   const handleSaveCustomFrame = () => { if (checkGuestAction()) return; if (!customFrameImage) return; const newFrame: CustomFrame = { id: Math.random().toString(36).substring(2), imageUrl: customFrameImage, name: 'Custom Frame' }; updateUser(prev => ({ ...prev, customFrames: [...(prev.customFrames || []), newFrame], resultFrame: newFrame.id })); setCustomFrameImage(null); alert("Frame Saved & Applied!"); };
   const handleCustomBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomBgImage(e.target?.result as string); reader.readAsDataURL(file); };
   const handleSaveCustomBg = () => { if (checkGuestAction()) return; if (!customBgImage) return; const newBg: CustomFrame = { id: Math.random().toString(36).substring(2), imageUrl: customBgImage, name: 'Custom BG' }; updateUser(prev => ({ ...prev, customBackgrounds: [...(prev.customBackgrounds || []), newBg], resultBackground: newBg.imageUrl })); setCustomBgImage(null); alert("Background Saved & Applied!"); };
   const handleCustomStickerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => setCustomStickerImage(e.target?.result as string); reader.readAsDataURL(file); };
   const handleSaveCustomSticker = () => { if (checkGuestAction()) return; if (!customStickerImage) return; updateUser(prev => ({ ...prev, customStickers: [...(prev.customStickers || []), customStickerImage] })); setCustomStickerImage(null); alert("Sticker Added!"); };
-  const handleApplySkinCode = () => { if (checkGuestAction()) return; const found = user.customSkins?.find(s => s.shareCode === inputSkinCode); if (found) { updateUser(prev => ({ ...prev, activeCustomSkin: found })); alert(TRANSLATIONS[lang].skin_applied); } else alert("Invalid Code (Simulation: Only local codes work in demo)"); };
+  const handleDeleteSticker = (targetSticker: string) => {
+      if (checkGuestAction()) return;
+      if (DEFAULT_STICKERS.includes(targetSticker)) {
+          // 디폴트 스티커는 상수이므로 숨김(hidden) 처리로 삭제를 구현
+          updateUser(prev => ({ ...prev, hiddenStickers: [...(prev.hiddenStickers || []), targetSticker] }));
+      } else {
+          // 업로드한 커스텀 스티커는 배열에서 완전히 제거
+          updateUser(prev => ({ ...prev, customStickers: (prev.customStickers || []).filter(s => s !== targetSticker) }));
+      }
+  };
+  const handleApplySkinCode = async () => { 
+      if (checkGuestAction()) return; 
+      if (!inputSkinCode) return;
+
+      // 1. 내 로컬 스킨 목록에서 먼저 탐색
+      let found = user.customSkins?.find(s => s.shareCode === inputSkinCode); 
+
+      // 2. 로컬에 없다면 Supabase DB에서 탐색 (다른 유저의 코드)
+      if (!found && isSupabaseConfigured) {
+          const { data, error } = await supabase
+              .from('shared_skins')
+              .select('image_url')
+              .eq('share_code', inputSkinCode)
+              .single();
+          
+          if (data && data.image_url) {
+              found = {
+                  id: Math.random().toString(36).substring(2),
+                  imageUrl: data.image_url,
+                  isPublic: true,
+                  shareCode: inputSkinCode
+              };
+              // 다운로드한 스킨을 내 목록에 영구 추가
+              updateUser(prev => ({ ...prev, customSkins: [...(prev.customSkins || []), found!] }));
+          }
+      }
+
+      // 3. 적용 및 예외 처리
+      if (found) { 
+          updateUser(prev => ({ ...prev, activeCustomSkin: found })); 
+          alert(TRANSLATIONS[lang].skin_applied); 
+          setInputSkinCode('');
+      } else { 
+          alert(lang === 'ko' ? "유효하지 않거나 존재하지 않는 코드입니다." : "Invalid or non-existent code."); 
+      } 
+  };
   const handleBgmUpload = (e: React.ChangeEvent<HTMLInputElement>) => { if (checkGuestAction()) return; const file = e.target.files?.[0]; if (!file) return; const url = URL.createObjectURL(file); const newBgm: BGM = { id: 'custom-' + Date.now(), name: file.name, url: url, category: 'DEFAULT' }; setCurrentBgm(newBgm); alert("BGM Applied!"); };
   const handleRugChange = (color: string) => { if (checkGuestAction()) return; updateUser(prev => ({ ...prev, rugColor: color })); };
   const handleOpenProfile = () => { if (user.userInfo) setEditProfileData({ ...user.userInfo }); setShowProfile(true); };
@@ -1797,28 +1872,46 @@ const App: React.FC = () => {
                     </div>
                 )}
                 
-                {settingsMode === 'STICKER' && (
-                    <div className="flex flex-col h-full overflow-hidden">
-                        <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
-                        <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].sticker_shop}</h3>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                            {DEFAULT_STICKERS.map((s, i) => <div key={i} className="text-2xl p-2 bg-gray-800 rounded">{s}</div>)}
+               {settingsMode === 'STICKER' && (
+    <div className="flex flex-col h-full overflow-hidden">
+        <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
+        <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].sticker_shop}</h3>
+        
+        <div className="flex-1 overflow-y-auto space-y-6 pr-2 scrollbar-thin scrollbar-thumb-purple-700">
+            {/* 통합 스티커 관리 (클릭 시 삭제) */}
+            <div>
+                <h4 className="text-xs font-bold text-gray-400 mb-3">보유 중인 스티커 (클릭하여 삭제)</h4>
+                <div className="flex flex-wrap gap-2">
+                    {[...(user.customStickers || []), ...DEFAULT_STICKERS]
+                        .filter(s => !(user.hiddenStickers || []).includes(s))
+                        .map((s, i) => (
+                        <div key={i} onClick={() => { if(confirm('이 스티커를 삭제하시겠습니까?')) handleDeleteSticker(s); }} className="relative w-12 h-12 bg-gray-800 rounded cursor-pointer group flex items-center justify-center text-2xl border border-gray-700 hover:border-red-500 transition-colors">
+                            {s.startsWith('http') || s.startsWith('data:') ? <img src={s} className="w-full h-full object-contain p-1" /> : s}
+                            <div className="absolute inset-0 bg-red-900/90 hidden group-hover:flex items-center justify-center rounded text-white text-[10px] font-bold">삭제</div>
                         </div>
-                        {user.tier !== UserTier.BRONZE && (
-                            <div className="border-t border-gray-700 pt-4">
-                                <h4 className="text-sm font-bold text-purple-300 mb-2">{TRANSLATIONS[lang].sticker_upload}</h4>
-                                <label className="block w-full p-2 bg-gray-800 rounded text-center text-xs text-gray-300 cursor-pointer hover:bg-gray-700 mb-2">
-                                    Upload Sticker (PNG/GIF)
-                                    <input type="file" accept="image/*" className="hidden" onChange={handleCustomStickerUpload} />
-                                </label>
-                                {customStickerImage && <button onClick={handleSaveCustomSticker} className="w-full py-2 bg-purple-600 rounded text-xs font-bold text-white">Add Sticker</button>}
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    {user.customStickers?.map((s, i) => <img key={i} src={s} className="w-10 h-10 object-contain bg-gray-800 rounded p-1" />)}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
+                    ))}
+                </div>
+            </div>
+
+            {/* 스티커 업로드 */}
+            {user.tier !== UserTier.BRONZE && (
+                <div className="border-t border-gray-700 pt-4">
+                    <h4 className="text-sm font-bold text-purple-300 mb-2">{TRANSLATIONS[lang].sticker_upload}</h4>
+                    <label className="block w-full p-3 bg-gray-800/50 border border-dashed border-gray-500 rounded text-center text-xs text-gray-300 cursor-pointer hover:border-purple-500 mb-2 transition-colors">
+                        + Upload Sticker (PNG/GIF)
+                        <input type="file" accept="image/*" className="hidden" onChange={handleCustomStickerUpload} />
+                    </label>
+                    {customStickerImage && (
+                        <div className="flex flex-col items-center gap-3 mt-3 p-3 bg-gray-900 rounded border border-gray-700">
+                            <img src={customStickerImage} className="w-16 h-16 object-contain bg-gray-800 rounded p-1 border border-purple-500/50" />
+                            <button onClick={handleSaveCustomSticker} className="w-full py-2 bg-purple-600 hover:bg-purple-500 rounded text-xs font-bold text-white shadow-lg transition-colors">Add Sticker</button>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    </div>
+)}
 
                 {settingsMode === 'HISTORY' && (
                      <div className="flex flex-col h-full overflow-hidden">
