@@ -267,6 +267,16 @@ export const TIER_POPUP_TEXT = {
     benefit_gold: "2.0x Coins on 1st of every month",
     benefit_platinum: "3.0x Coins on 1st of every month",
     confirm: "Confirm"
+  },
+  zh: {
+    up_title: "等级提升！",
+    down_title: "等级下降",
+    up_msg: "恭喜！您已晋升到新等级。",
+    down_msg: "很遗憾，您的等级下降了。增加活动量再次挑战吧！",
+    benefit_silver: "每月1日发放1.5倍持有金币",
+    benefit_gold: "每月1日发放2.0倍持有金币",
+    benefit_platinum: "每月1日发放3.0倍持有金币",
+    confirm: "确认"
   }
 };
 
