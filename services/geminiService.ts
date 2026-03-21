@@ -575,3 +575,9 @@ export const getFallbackTarotImage = (cardId: number): string => {
 
   return `${baseUrl}${filename}`;
 };
+
+// geminiService.ts 맨 아래에 추가
+export const generateTarotCardImage = async (cardName: string): Promise<string> => {
+    // 이 함수가 에러를 던져야 App.tsx의 .catch() 문이 실행되어 이미지가 정상 출력됩니다.
+    throw new Error("Fallback to Pollinations AI");
+};
