@@ -6,13 +6,10 @@ import { TarotCard, UserInfo, Language, ReadingResult } from "../types";
 // BLACK TAROT PERSONA CONFIGURATION
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// BLACK TAROT PERSONA CONFIGURATION
-// ---------------------------------------------------------------------------
 
 const getBaseInstruction = (lang: Language) => {
-    if (lang === 'zh') {
-        return `
+    if (lang === 'zh') {
+        return `
 [SYSTEM: PERSONA ACTIVATED]
 You are a BRUTALLY HONEST, SHARP-TONGUED, and DIRECT fortune teller.
 Output MUST be entirely in CHINESE (Simplified).
@@ -24,8 +21,8 @@ STRICT RULES:
 3. ABSOLUTELY NO ASTERISKS (*) OR MARKDOWN BOLDING.
 4. **NEVER** MENTION "SAJU", "FOUR PILLARS", or technical fortune terms in the output. Translate insights into natural character traits.
 `;
-    } else if (lang === 'en') {
-        return `
+    } else if (lang === 'en') {
+        return `
 [SYSTEM: PERSONA ACTIVATED]
 You are a BRUTALLY HONEST, SHARP-TONGUED, and DIRECT fortune teller.
 Output must be in ENGLISH.
@@ -37,8 +34,8 @@ STRICT RULES:
 3. ABSOLUTELY NO ASTERISKS (*) OR MARKDOWN BOLDING.
 4. **NEVER** MENTION "SAJU", "FOUR PILLARS", OR "ELEMENTS" DIRECTLY IN THE OUTPUT.
 `;
-    }
-    return `
+    }
+    return `
 [SYSTEM: PERSONA ACTIVATED]
 You are a HONEST, INSIGHTFUL, and DIRECT fortune teller.
 Output must be CONCISE and CLEAR in KOREAN.
@@ -54,8 +51,8 @@ STRICT RULES:
 };
 
 const getTarotStructure = (lang: Language, tier: string = 'BRONZE') => {
-    if (lang === 'zh') {
-        return `
+    if (lang === 'zh') {
+        return `
 FORMAT:
 [内容分析]
 (6 sentences. Analyze the situation clearly in Chinese.)
@@ -68,8 +65,8 @@ FORMAT:
 2. (Write the fastest solution here. 6+ sentences in Chinese. No brackets for titles.)
 3. (Write a creative solution here. 6+ sentences in Chinese. No brackets for titles.)
 `;
-    } else if (lang === 'en') {
-        return `
+    } else if (lang === 'en') {
+        return `
 FORMAT:
 [Analysis]
 (6 sentences. Analyze the situation clearly in English.)
@@ -82,8 +79,8 @@ FORMAT:
 2. (Write the most effective, fast solution here. 6+ sentences in English. No brackets for titles.)
 3. (Write a creative but logical solution here. 6+ sentences in English. No brackets for titles.)
 `;
-    }
-    return `
+    }
+    return `
 FORMAT:
 [내용 분석]
 (6 sentences. Analyze the situation clearly. Focus on the direct answer to the question based on the cards. in Korean)
@@ -116,10 +113,10 @@ cards are silent today...
 
 // --- SAFETY SETTINGS ---
 const SAFETY_SETTINGS = [
-    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
 ];
 
 // --- API CALL HELPERS ---
@@ -129,436 +126,437 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const MODELS_TO_TRY = ['gemini-2.5-flash', 'gemini-flash-latest'];
 
 async function retryOperation<T>(
-    operation: () => Promise<T>,
-    maxAttempts: number = 3, 
-    baseDelay: number = 1000 
+    operation: () => Promise<T>,
+    maxAttempts: number = 3, 
+    baseDelay: number = 1000 
 ): Promise<T> {
-    let lastError: any;
-    for (let i = 0; i < maxAttempts; i++) {
-        try {
-            return await operation();
-        } catch (error: any) {
-            lastError = error;
-            console.warn(`Attempt ${i + 1} failed:`, error.message);
-            const delay = baseDelay * Math.pow(2, i) + Math.random() * 500;
-            await wait(delay);
-        }
-    }
-    throw lastError;
+    let lastError: any;
+    for (let i = 0; i < maxAttempts; i++) {
+        try {
+            return await operation();
+        } catch (error: any) {
+            lastError = error;
+            console.warn(`Attempt ${i + 1} failed:`, error.message);
+            const delay = baseDelay * Math.pow(2, i) + Math.random() * 500;
+            await wait(delay);
+        }
+    }
+    throw lastError;
 }
 
 // Global Timeout Wrapper
 async function callGenAI(prompt: string, baseConfig: any, preferredModel: string = 'gemini-2.5-flash', imageParts?: any[], lang: Language = 'ko'): Promise<string> {
-    const GLOBAL_TIMEOUT = 200000; 
+    const GLOBAL_TIMEOUT = 200000; 
 
-    const generationTask = async () => {
-        const chain = [preferredModel, ...MODELS_TO_TRY].filter((v, i, a) => a.indexOf(v) === i);
-        const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
-        if (!config.maxOutputTokens) config.maxOutputTokens = 8192; 
-        if (config.thinkingConfig) delete config.thinkingConfig;
+    const generationTask = async () => {
+        const chain = [preferredModel, ...MODELS_TO_TRY].filter((v, i, a) => a.indexOf(v) === i);
+        const config = { ...baseConfig, safetySettings: SAFETY_SETTINGS };
+        if (!config.maxOutputTokens) config.maxOutputTokens = 8192; 
+        if (config.thinkingConfig) delete config.thinkingConfig;
 
-        for (const model of chain) {
-            try {
-                console.log(`Attempting generation with model: ${model}`);
-                let responseText = "";
-                
-                let apiKey = '';
-                try {
-                    // @ts-ignore
-                    if (typeof import.meta !== 'undefined' && import.meta.env) apiKey = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
-                } catch(e) {}
-                try {
-                    // @ts-ignore
-                    if (!apiKey && typeof process !== 'undefined' && process.env) apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
-                } catch(e) {}
+        for (const model of chain) {
+            try {
+                console.log(`Attempting generation with model: ${model}`);
+                let responseText = "";
+                
+                let apiKey = '';
+                try {
+                    // @ts-ignore
+                    if (typeof import.meta !== 'undefined' && import.meta.env) apiKey = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
+                } catch(e) {}
+                try {
+                    // @ts-ignore
+                    if (!apiKey && typeof process !== 'undefined' && process.env) apiKey = process.env.API_KEY || process.env.VITE_API_KEY || '';
+                } catch(e) {}
 
-                if (apiKey) {
-                    try {
-                        responseText = await retryOperation(async () => {
-                            const ai = new GoogleGenAI({ apiKey });
-                            let contents: any = { parts: [{ text: prompt }] };
-                            if (imageParts && imageParts.length > 0) contents = { parts: [...imageParts, { text: prompt }] };
+                if (apiKey) {
+                    try {
+                        responseText = await retryOperation(async () => {
+                            const ai = new GoogleGenAI({ apiKey });
+                            let contents: any = { parts: [{ text: prompt }] };
+                            if (imageParts && imageParts.length > 0) contents = { parts: [...imageParts, { text: prompt }] };
 
-                            const response = await ai.models.generateContent({
-                                model: model,
-                                contents: contents,
-                                config: config
-                            });
-                            if (response.text) return response.text;
-                            throw new Error("No text generated from model.");
-                        }, 2, 800);
+                            const response = await ai.models.generateContent({
+                                model: model,
+                                contents: contents,
+                                config: config
+                            });
+                            if (response.text) return response.text;
+                            throw new Error("No text generated from model.");
+                        }, 2, 800);
 
-                        if (responseText) return responseText;
-                    } catch (e: any) {
-                        console.warn(`Client-side SDK failed for ${model}.`, e.message);
-                    }
-                }
+                        if (responseText) return responseText;
+                    } catch (e: any) {
+                        console.warn(`Client-side SDK failed for ${model}.`, e.message);
+                    }
+                }
 
-                try {
-                    responseText = await retryOperation(async () => {
-                        const body: any = { prompt, config, model };
-                        if (imageParts) body.imageParts = imageParts;
+                try {
+                    responseText = await retryOperation(async () => {
+                        const body: any = { prompt, config, model };
+                        if (imageParts) body.imageParts = imageParts;
 
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 120000);
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 120000);
 
-                        try {
-                            const constEqRes = await fetch('/api/gemini', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(body),
-                                signal: controller.signal
-                            });
-                            clearTimeout(timeoutId);
-                            
-                            if (!constEqRes.ok) {
-                                const errText = await constEqRes.text();
-                                throw new Error(`Proxy error: ${constEqRes.status} ${errText}`);
-                            }
-                            
-                            const data = await constEqRes.json();
-                            if (!data.text) throw new Error("Empty response from proxy");
-                            return data.text as string;
-                        } catch (fetchErr: any) {
-                            clearTimeout(timeoutId);
-                            throw fetchErr;
-                        }
-                    }, 3, 1000);
+                        try {
+                            const constEqRes = await fetch('/api/gemini', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body),
+                                signal: controller.signal
+                            });
+                            clearTimeout(timeoutId);
+                            
+                            if (!constEqRes.ok) {
+                                const errText = await constEqRes.text();
+                                throw new Error(`Proxy error: ${constEqRes.status} ${errText}`);
+                            }
+                            
+                            const data = await constEqRes.json();
+                            if (!data.text) throw new Error("Empty response from proxy");
+                            return data.text as string;
+                        } catch (fetchErr: any) {
+                            clearTimeout(timeoutId);
+                            throw fetchErr;
+                        }
+                    }, 3, 1000);
 
-                    if (responseText) return responseText;
-                } catch (proxyError: any) {
-                    console.error(`Proxy failed for ${model}:`, proxyError);
-                }
+                    if (responseText) return responseText;
+                } catch (proxyError: any) {
+                    console.error(`Proxy failed for ${model}:`, proxyError);
+                }
 
-            } catch (modelError: any) {
-                console.warn(`Model ${model} failed fully.`);
-                continue;
-            }
-        }
-        console.error("All models failed. Returning Emergency Fallback.");
-        return EMERGENCY_FALLBACK_RESPONSE;
-    };
+            } catch (modelError: any) {
+                console.warn(`Model ${model} failed fully.`);
+                continue;
+            }
+        }
+        console.error("All models failed. Returning Emergency Fallback.");
+        return EMERGENCY_FALLBACK_RESPONSE;
+    };
 
-    const timeoutTask = new Promise<string>((resolve) => {
-        setTimeout(() => {
-            console.error("Global API Timeout. Returning fallback.");
-            resolve(EMERGENCY_FALLBACK_RESPONSE);
-        }, GLOBAL_TIMEOUT);
-    });
+    const timeoutTask = new Promise<string>((resolve) => {
+        setTimeout(() => {
+            console.error("Global API Timeout. Returning fallback.");
+            resolve(EMERGENCY_FALLBACK_RESPONSE);
+        }, GLOBAL_TIMEOUT);
+    });
 
-    return Promise.race([generationTask(), timeoutTask]);
+    return Promise.race([generationTask(), timeoutTask]);
 }
 
 // --- MAIN SERVICES ---
 
 export const getTarotReading = async (
-  question: string,
-  cards: TarotCard[],
-  userInfo?: UserInfo,
-  lang: Language = 'ko',
-  history: ReadingResult[] = [],
-  tier: string = 'BRONZE'
+  question: string,
+  cards: TarotCard[],
+  userInfo?: UserInfo,
+  lang: Language = 'ko',
+  history: ReadingResult[] = [],
+  tier: string = 'BRONZE'
 ): Promise<string> => {
-  const cardNames = cards.map(c => c.name + (c.isReversed ? " (Reversed)" : "")).join(", ");
-  
-  let userContext = "User: Anonymous (General Reading)";
-  if (userInfo) {
-      userContext = `
-      [MANDATORY USER ANALYSIS]
-      Name: ${userInfo.name}
-      Birthdate: ${userInfo.birthDate}
-      CRITICAL INSTRUCTION: Calculate "Saju" internally. Do NOT explicitly mention "Saju" or technical terms in output.
-      `;
-  }
+  const cardNames = cards.map(c => c.name + (c.isReversed ? " (Reversed)" : "")).join(", ");
+  
+  let userContext = "User: Anonymous (General Reading)";
+  if (userInfo) {
+      userContext = `
+      [MANDATORY USER ANALYSIS]
+      Name: ${userInfo.name}
+      Birthdate: ${userInfo.birthDate}
+      CRITICAL INSTRUCTION: Calculate "Saju" internally. Do NOT explicitly mention "Saju" or technical terms in output.
+      `;
+  }
 
-  const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-  const languageDirective = lang === 'zh' ? 'OUTPUT MUST BE IN CHINESE.' : lang === 'en' ? 'OUTPUT MUST BE IN ENGLISH.' : 'OUTPUT MUST BE IN KOREAN.';
+  const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
+  const languageDirective = lang === 'zh' ? 'OUTPUT MUST BE IN CHINESE.' : lang === 'en' ? 'OUTPUT MUST BE IN ENGLISH.' : 'OUTPUT MUST BE IN KOREAN.';
 
-  const prompt = `
-    ${randomSeed}
-    ${userContext}
-    Q: "${question}"
-    Cards: ${cardNames}
-    
-    TASK: Provide a tarot reading.
-    ${languageDirective}
-    STRICTLY NO ASTERISKS (*)
-    ${getTarotStructure(lang, tier)}
-  `;
+  const prompt = `
+    ${randomSeed}
+    ${userContext}
+    Q: "${question}"
+    Cards: ${cardNames}
+    
+    TASK: Provide a tarot reading.
+    ${languageDirective}
+    STRICTLY NO ASTERISKS (*)
+    ${getTarotStructure(lang, tier)}
+  `;
 
-  const config = {
-    systemInstruction: getBaseInstruction(lang),
-    temperature: 0.9, 
-    maxOutputTokens: 8192, 
-  };
+  const config = {
+    systemInstruction: getBaseInstruction(lang),
+    temperature: 0.9, 
+    maxOutputTokens: 8192, 
+  };
 
-  return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
+  return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getCompatibilityReading = async (
-    myInfo: UserInfo, 
-    partnerBirth: string, 
-    lang: Language = 'ko'
+    myInfo: UserInfo, 
+    partnerBirth: string, 
+    lang: Language = 'ko'
 ): Promise<string> => {
-    const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-    
-    let prompt = "";
-    if (lang === 'zh') {
-        prompt = `
-          ${randomSeed}
-          [深度隐秘契合度分析]
-          我: ${myInfo.name} (出生日期: ${myInfo.birthDate})
-          对方出生日期: ${partnerBirth}
-          
-          核心任务:
-          1. 根据出生日期在内部计算八字契合度。
-          2. 提供露骨、火辣的19禁身体契合度分析。
-          3. 绝对禁止在输出中提及“八字”、“五行”等术语。
-          4. 请必须用中文回答。
-          
-          结构:
-          [身体契合度]
-          [对方隐藏的欲望]
-          [最终结论]
-          [对方的取向]
-        `;
-    } else if (lang === 'en') {
-        prompt = `
-          ${randomSeed}
-          [DEEP COMPATIBILITY ANALYSIS]
-          User: ${myInfo.name} (Born: ${myInfo.birthDate})
-          Partner: Born ${partnerBirth}
-          
-          CRITICAL TASK:
-          1. Internally calculate Saju.
-          2. Provide an INTENSE 19+ PHYSICAL ANALYSIS.
-          3. CONSTRAINT: DO NOT mention "Saju" or "Elements".
-          4. OUTPUT MUST BE IN ENGLISH.
-          
-          Structure:
-          [Physical Chemistry]
-          [What are they holding back?]
-          [Verdict]
-          [Their Taste]
-        `;
-    } else {
-        prompt = `
-          ${randomSeed}
-          [심층 속궁합 정밀 분석]
-          나: ${myInfo.name} (생년월일: ${myInfo.birthDate})
-          상대방: 생년월일 ${partnerBirth}
-          
-          핵심 과제:
-          1. 내부적으로 사주를 계산하여 속궁합 묘사.
-          2. 사주 용어 절대 금지.
-          3. 한국어로 작성.
-          
-          구조:
-          [속궁합 분석]
-          [그 사람 지금 뭘 참고 있을까?]
-          [결론 및 조언]
-          [그 사람의 취향]
-        `;
-    }
+    const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
+    
+    let prompt = "";
+    if (lang === 'zh') {
+        prompt = `
+          ${randomSeed}
+          [深度隐秘契合度分析]
+          我: ${myInfo.name} (出生日期: ${myInfo.birthDate})
+          对方出生日期: ${partnerBirth}
+          
+          核心任务:
+          1. 根据出生日期在内部计算八字契合度。
+          2. 提供露骨、火辣的19禁身体契合度分析。
+          3. 绝对禁止在输出中提及“八字”、“五行”等术语。
+          4. 请必须用中文回答。
+          
+          结构:
+          [身体契合度]
+          [对方隐藏的欲望]
+          [最终结论]
+          [对方的取向]
+        `;
+    } else if (lang === 'en') {
+        prompt = `
+          ${randomSeed}
+          [DEEP COMPATIBILITY ANALYSIS]
+          User: ${myInfo.name} (Born: ${myInfo.birthDate})
+          Partner: Born ${partnerBirth}
+          
+          CRITICAL TASK:
+          1. Internally calculate Saju.
+          2. Provide an INTENSE 19+ PHYSICAL ANALYSIS.
+          3. CONSTRAINT: DO NOT mention "Saju" or "Elements".
+          4. OUTPUT MUST BE IN ENGLISH.
+          
+          Structure:
+          [Physical Chemistry]
+          [What are they holding back?]
+          [Verdict]
+          [Their Taste]
+        `;
+    } else {
+        prompt = `
+          ${randomSeed}
+          [심층 속궁합 정밀 분석]
+          나: ${myInfo.name} (생년월일: ${myInfo.birthDate})
+          상대방: 생년월일 ${partnerBirth}
+          
+          핵심 과제:
+          1. 내부적으로 사주를 계산하여 속궁합 묘사.
+          2. 사주 용어 절대 금지.
+          3. 한국어로 작성.
+          
+          구조:
+          [속궁합 분석]
+          [그 사람 지금 뭘 참고 있을까?]
+          [결론 및 조언]
+          [그 사람의 취향]
+        `;
+    }
 
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 8192 };
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getPartnerLifeReading = async (partnerBirth: string, lang: Language = 'ko'): Promise<string> => {
-    const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-    
-    let prompt = "";
-    if (lang === 'zh') {
-        prompt = `
-          ${randomSeed}
-          [命运精密分析模式]
-          对象出生日期: ${partnerBirth}
+    const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
+    
+    let prompt = "";
+    if (lang === 'zh') {
+        prompt = `
+          ${randomSeed}
+          [命运精密分析模式]
+          对象出生日期: ${partnerBirth}
 
-          重要指示:
-          1. 内部计算八字。
-          2. 绝对禁止使用八字专业术语。
-          3. 必须用中文回答。
+          重要指示:
+          1. 内部计算八字。
+          2. 绝对禁止使用八字专业术语。
+          3. 必须用中文回答。
 
-          结构:
-          [天生宿命]
-          [早年运势]
-          [中年运势]
-          [晚年运势]
-          [给粉丝的建议]
-        `;
-    } else if (lang === 'en') {
-        prompt = `
-          ${randomSeed}
-          [DESTINY ANALYSIS MODE]
-          Target Birthdate: ${partnerBirth}
+          结构:
+          [天生宿命]
+          [早年运势]
+          [中年运势]
+          [晚年运势]
+          [给粉丝的建议]
+        `;
+    } else if (lang === 'en') {
+        prompt = `
+          ${randomSeed}
+          [DESTINY ANALYSIS MODE]
+          Target Birthdate: ${partnerBirth}
 
-          CRITICAL TASK:
-          1. Internally calculate Saju.
-          2. NO technical terms.
-          3. OUTPUT MUST BE IN ENGLISH.
+          CRITICAL TASK:
+          1. Internally calculate Saju.
+          2. NO technical terms.
+          3. OUTPUT MUST BE IN ENGLISH.
 
-          Structure:
-          [Born Destiny]
-          [Early Life]
-          [Middle Life]
-          [Late Life]
-          [Advice for Fans]
-        `;
-    } else {
-        prompt = `
-          ${randomSeed}
-          [운명 정밀 분석 모드]
-          대상 생년월일: ${partnerBirth}
+          Structure:
+          [Born Destiny]
+          [Early Life]
+          [Middle Life]
+          [Late Life]
+          [Advice for Fans]
+        `;
+    } else {
+        prompt = `
+          ${randomSeed}
+          [운명 정밀 분석 모드]
+          대상 생년월일: ${partnerBirth}
 
-          중요 지시사항:
-          1. 내부적으로 사주 계산.
-          2. 사주 용어 절대 금지.
-          3. 한국어로 작성.
+          중요 지시사항:
+          1. 내부적으로 사주 계산.
+          2. 사주 용어 절대 금지.
+          3. 한국어로 작성.
 
-          구조:
-          [타고난 팔자 (Born Destiny)]
-          [초년운 (Early Life)]
-          [중년운 (Middle Life)]
-          [말년운 (Late Life)]
-          [덕질 조언 (Fandom Advice)]
-        `;
-    }
+          구조:
+          [타고난 팔자 (Born Destiny)]
+          [초년운 (Early Life)]
+          [중년운 (Middle Life)]
+          [말년운 (Late Life)]
+          [덕질 조언 (Fandom Advice)]
+        `;
+    }
 
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, lang: Language = 'ko'): Promise<string> => {
-    const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-    const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
-    
-    let prompt = "";
-    if (lang === 'zh') {
-        prompt = `
-            ${randomSeed}
-            [面相与外貌综合评价]
-            任务:
-            1. 分析面相（财运、命运、爱情）。
-            2. 评价外貌（幽默且犀利）。
-            3. 必须全部用中文输出。
-            
-            结构:
-            [总体氛围与评分]
-            [五官详细分析]
-            [魅力点]
-            [命运建议]
-        `;
-    } else if (lang === 'en') {
-        prompt = `
-            ${randomSeed}
-            [SYSTEM: FACE READER MODE ACTIVATED]
-            TASK:
-            1. Physiognomy analysis.
-            2. Appearance Evaluation.
-            3. OUTPUT MUST BE IN ENGLISH.
-            
-            STRUCTURE:
-            [Overall Vibe & Rating]
-            [Detailed Feature Analysis]
-            [Charm Point]
-            [Destiny Advice]
-        `;
-    } else {
-        prompt = `
-            ${randomSeed}
-            [관상 및 외모 총평]
-            TASK:
-            1. 관상 분석.
-            2. 외모 평가.
-            3. 한국어로 작성.
-            
-            STRUCTURE:
-            [관상 및 외모 총평]
-            [이목구비 정밀 분석]
-            [매력 포인트 및 호감도]
-            [운명적 조언]
-        `;
-    }
+    const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
+    const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
+    
+    let prompt = "";
+    if (lang === 'zh') {
+        prompt = `
+            ${randomSeed}
+            [面相与外貌综合评价]
+            任务:
+            1. 分析面相（财运、命运、爱情）。
+            2. 评价外貌（幽默且犀利）。
+            3. 必须全部用中文输出。
+            
+            结构:
+            [总体氛围与评分]
+            [五官详细分析]
+            [魅力点]
+            [命运建议]
+        `;
+    } else if (lang === 'en') {
+        prompt = `
+            ${randomSeed}
+            [SYSTEM: FACE READER MODE ACTIVATED]
+            TASK:
+            1. Physiognomy analysis.
+            2. Appearance Evaluation.
+            3. OUTPUT MUST BE IN ENGLISH.
+            
+            STRUCTURE:
+            [Overall Vibe & Rating]
+            [Detailed Feature Analysis]
+            [Charm Point]
+            [Destiny Advice]
+        `;
+    } else {
+        prompt = `
+            ${randomSeed}
+            [관상 및 외모 총평]
+            TASK:
+            1. 관상 분석.
+            2. 외모 평가.
+            3. 한국어로 작성.
+            
+            STRUCTURE:
+            [관상 및 외모 총평]
+            [이목구비 정밀 분석]
+            [매력 포인트 및 호감도]
+            [운명적 조언]
+        `;
+    }
 
-    const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', [imagePart], lang);
+    const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', [imagePart], lang);
 };
 
 export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'): Promise<string> => {
-    const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
-    
-    let prompt = "";
-    if (lang === 'zh') {
-        prompt = `
-            ${randomSeed} 
-            [人生精密分析模式]
-            名字: ${userInfo.name}
-            出生日期: ${userInfo.birthDate}
-            出生时间: ${userInfo.birthTime}
-            
-            任务:
-            1. 内部计算八字。
-            2. 绝对禁止使用八字术语。
-            3. 必须全部用中文输出。
+    const randomSeed = `[ID:${Date.now().toString().slice(-4)}]`;
+    
+    let prompt = "";
+    if (lang === 'zh') {
+        prompt = `
+            ${randomSeed} 
+            [人生精密分析模式]
+            名字: ${userInfo.name}
+            出生日期: ${userInfo.birthDate}
+            出生时间: ${userInfo.birthTime}
+            
+            任务:
+            1. 内部计算八字。
+            2. 绝对禁止使用八字术语。
+            3. 必须全部用中文输出。
 
-            结构:
-            [财运]
-            [天才般的才能与隐藏潜力]
-            [人生的黄金期]
-            [未来伴侣详细分析]
-            [我生命中的贵人]
-            [天生的性格与倾向]
-            [人生需要注意的事项]
-        `;
-    } else if (lang === 'en') {
-        prompt = `
-            ${randomSeed} 
-            [DETAILED LIFE PATH ANALYSIS]
-            User: ${userInfo.name}
-            Birthdate: ${userInfo.birthDate}
-            Time: ${userInfo.birthTime}
-            
-            TASK:
-            1. Internally calculate Saju.
-            2. NO Saju terminology.
-            3. OUTPUT MUST BE IN ENGLISH.
+            结构:
+            [财运]
+            [天才般的才能与隐藏潜力]
+            [人生的黄金期]
+            [未来伴侣详细分析]
+            [我生命中的贵人]
+            [天生的性格与倾向]
+            [人生需要注意的事项]
+        `;
+    } else if (lang === 'en') {
+        prompt = `
+            ${randomSeed} 
+            [DETAILED LIFE PATH ANALYSIS]
+            User: ${userInfo.name}
+            Birthdate: ${userInfo.birthDate}
+            Time: ${userInfo.birthTime}
+            
+            TASK:
+            1. Internally calculate Saju.
+            2. NO Saju terminology.
+            3. OUTPUT MUST BE IN ENGLISH.
 
-            Structure:
-            [Wealth Luck: When and How?]
-            [Genius Talent & Hidden Potential]
-            [Golden Age of Life]
-            [Future Spouse Detailed Analysis]
-            [Noble Person (Gui-in)]
-            [Innate Personality & Nature]
-            [Cautionary Points]
-        `;
-    } else {
-        prompt = `
-            ${randomSeed} 
-            [인생 정밀 분석 모드]
-            이름: ${userInfo.name}
-            생년월일: ${userInfo.birthDate}
-            태어난 시간: ${userInfo.birthTime}
-            
-            지시사항:
-            1. 내부적으로 사주 계산.
-            2. 사주 용어 절대 금지.
-            3. 한국어로 작성.
+            Structure:
+            [Wealth Luck: When and How?]
+            [Genius Talent & Hidden Potential]
+            [Golden Age of Life]
+            [Future Spouse Detailed Analysis]
+            [Noble Person (Gui-in)]
+            [Innate Personality & Nature]
+            [Cautionary Points]
+        `;
+    } else {
+        prompt = `
+            ${randomSeed} 
+            [인생 정밀 분석 모드]
+            이름: ${userInfo.name}
+            생년월일: ${userInfo.birthDate}
+            태어난 시간: ${userInfo.birthTime}
+            
+            지시사항:
+            1. 내부적으로 사주 계산.
+            2. 사주 용어 절대 금지.
+            3. 한국어로 작성.
 
-            구조:
-            [재물운]
-            [천재적 재능과 숨겨진 잠재력]
-            [인생의 황금기]
-            [미래 배우자 상세 분석]
-            [내 인생의 귀인]
-            [타고난 성격과 성향]
-            [인생에서 주의해야 할 점]
-        `;
-    }
+            구조:
+            [재물운]
+            [천재적 재능과 숨겨진 잠재력]
+            [인생의 황금기]
+            [미래 배우자 상세 분석]
+            [내 인생의 귀인]
+            [타고난 성격과 성향]
+            [인생에서 주의해야 할 점]
+        `;
+    }
 
-    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
-    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
+    const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
+    return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
+
 
