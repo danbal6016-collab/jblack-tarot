@@ -1435,6 +1435,29 @@ const App: React.FC = () => {
           updateUser(prev => ({ ...prev, customStickers: (prev.customStickers || []).filter(s => s !== targetSticker) }));
       }
   };
+  const handleDeleteCustomSkin = (skinId: string) => {
+    if (checkGuestAction()) return;
+    if (!confirm("이 스킨을 삭제하시겠습니까?")) return;
+
+    updateUser(prev => {
+        const nextCustomSkins = (prev.customSkins || []).filter(s => s.id !== skinId);
+        let nextCurrentSkin = prev.currentSkin;
+        let nextActiveCustom = prev.activeCustomSkin;
+
+        // 만약 삭제하려는 스킨이 현재 적용 중인 스킨이라면 기본으로 복구
+        if (prev.activeCustomSkin?.id === skinId) {
+            nextCurrentSkin = 'default';
+            nextActiveCustom = null;
+        }
+
+        return { 
+            ...prev, 
+            customSkins: nextCustomSkins, 
+            currentSkin: nextCurrentSkin, 
+            activeCustomSkin: nextActiveCustom 
+        };
+    });
+};
   const handleApplySkinCode = async () => { 
       if (checkGuestAction()) return; 
       if (!inputSkinCode) return;
@@ -1801,12 +1824,22 @@ const App: React.FC = () => {
                                          {/* My Custom Skins List */}
                                          {user.customSkins && user.customSkins.length > 0 && (
                                              <div className="grid grid-cols-3 gap-2 mt-2">
-                                                 {user.customSkins.map(skin => (
-                                                     <div key={skin.id} onClick={() => updateUser(prev => ({...prev, activeCustomSkin: skin}))} className={`relative cursor-pointer border rounded p-1 ${user.activeCustomSkin?.id === skin.id ? 'border-green-500' : 'border-gray-700'}`}>
-                                                         <img src={skin.imageUrl} className="w-full h-20 object-cover rounded" />
-                                                         {skin.isPublic && <span className="absolute bottom-0 right-0 bg-blue-600 text-[8px] px-1 text-white">PUB</span>}
-                                                     </div>
-                                                 ))}
+                                                {user.customSkins?.map(skin => (
+    <div key={skin.id} className="relative group">
+        <div onClick={() => updateUser(prev => ({...prev, activeCustomSkin: skin}))} 
+             className={`relative cursor-pointer border rounded p-1 transition-all ${user.activeCustomSkin?.id === skin.id ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-700'}`}>
+            <img src={skin.imageUrl} className="w-full h-20 object-cover rounded" />
+            {skin.isPublic && <span className="absolute bottom-0 right-0 bg-blue-600 text-[8px] px-1 text-white">PUB</span>}
+        </div>
+        {/* 삭제용 X 버튼 추가 */}
+        <button 
+            onClick={(e) => { e.stopPropagation(); handleDeleteCustomSkin(skin.id); }}
+            className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+        >
+            ✕
+        </button>
+    </div>
+))}
                                              </div>
                                          )}
                                      </div>
@@ -1847,12 +1880,14 @@ const App: React.FC = () => {
         <h3 className="text-lg font-bold text-white mb-4 shrink-0">{TRANSLATIONS[lang].bgm_upload}</h3>
         
         <div className="space-y-6 flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-purple-700">
-            {/* 3. MP3 업로드 구역 (사장님이 원하시던 기능) */}
+           {/* 3. MP3 업로드 구역 */}
             <div className="bg-[#1a0b2e]/50 p-4 rounded border border-purple-500/30">
                 <label className="block w-full p-6 bg-gray-800/50 border border-dashed border-gray-500 hover:border-purple-500 rounded text-center text-xs text-gray-300 cursor-pointer transition-colors mb-2">
                     BGM을 업로드 해주세요. (MP3)
                     <input type="file" accept="audio/*" className="hidden" onChange={handleBgmUpload} />
                 </label>
+                {/* 에러를 냈던 미완성 <p> 태그를 삭제하고 현재 곡 이름을 표시하는 완성된 태그를 넣었습니다. */}
+                <p className="text-[10px] text-purple-400 text-center italic">현재 재생 중: {currentBgm.name}</p>
             </div>
 
         </div>
