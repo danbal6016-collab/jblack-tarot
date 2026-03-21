@@ -66,7 +66,7 @@ export const RESULT_BACKGROUNDS = [
 ];
 
 export const DEFAULT_STICKERS = [
-    "✨", "🌙", "🔮", "🦋", "🕯️", "⚰️", "🥀", "💀", "🗝️", "🧿"
+    "✨", "🌙", "🔮", "🦋", "🕯️", "🥀", "💀", "🗝️"
 ];
 
 // Updated Thresholds (Coins Spent)
