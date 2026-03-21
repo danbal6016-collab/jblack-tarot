@@ -1850,21 +1850,11 @@ const App: React.FC = () => {
             {/* 3. MP3 업로드 구역 (사장님이 원하시던 기능) */}
             <div className="bg-[#1a0b2e]/50 p-4 rounded border border-purple-500/30">
                 <label className="block w-full p-6 bg-gray-800/50 border border-dashed border-gray-500 hover:border-purple-500 rounded text-center text-xs text-gray-300 cursor-pointer transition-colors mb-2">
-                    + MP3 파일 업로드 (나만의 BGM)
+                    BGM을 업로드 해주세요. (MP3)
                     <input type="file" accept="audio/*" className="hidden" onChange={handleBgmUpload} />
                 </label>
-                <p className="text-[10px] text-purple-400 text-center italic">현재 곡: {currentBgm.name}</p>
             </div>
 
-            {/* 4. 볼륨 및 정지 컨트롤 */}
-            <div className="bg-[#1a0b2e]/50 p-4 rounded border border-purple-500/30">
-                <h4 className="text-xs font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].bgm_control}</h4>
-                <input type="range" min="0" max="1" step="0.01" value={bgmVolume} onChange={(e) => { const v = parseFloat(e.target.value); setBgmVolume(v); updateUser(prev => ({ ...prev, bgmVolume: v })); }} className="w-full accent-purple-500 mb-2 bg-gray-700 h-2 rounded-lg cursor-pointer appearance-none" />
-                <div className="flex justify-between text-xs text-purple-400 mb-4"><span>Mute</span><span>Max</span></div>
-                <button onClick={() => setBgmStopped(!bgmStopped)} className={`w-full py-2 rounded border transition-all ${bgmStopped ? 'bg-red-900/30 border-red-800 text-red-200 hover:bg-red-900/50' : 'bg-purple-600 border-purple-400 text-white hover:bg-purple-500'}`}>
-                    {bgmStopped ? 'Play BGM' : 'Stop BGM'}
-                </button>
-            </div>
         </div>
     </div>
 )}
