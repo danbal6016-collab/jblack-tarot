@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from "./src/lib/supabase";
 import { GoogleContinueButton } from "./components/AuthModal";
 import { AppState, CategoryKey, TarotCard, QuestionCategory, User, UserInfo, Language, ReadingResult, UserTier, Country, BGM, Skin, ChatMessage, CustomSkin, CustomFrame } from './types';
-import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTENDANCE_REWARDS, RESULT_FRAMES, RESULT_BACKGROUNDS, DEFAULT_STICKERS, TIER_POPUP_TEXT, RK_COLORS } from './constants';
+import { CATEGORIES, TAROT_DECK, COUNTRIES, BGMS, SKINS, TIER_THRESHOLDS, ATTENDANCE_REWARDS, RESULT_FRAMES, RESULT_BACKGROUNDS, DEFAULT_STICKERS, TIER_POPUP_TEXT, RK_COLORS, CATEGORY_TRANSLATIONS } from './constants';
 import Background from './components/Background';
 import Logo from './components/Logo';
 import AudioPlayer from './components/AudioPlayer';
