@@ -1435,27 +1435,30 @@ const App: React.FC = () => {
           updateUser(prev => ({ ...prev, customStickers: (prev.customStickers || []).filter(s => s !== targetSticker) }));
       }
   };
-  const handleDeleteCustomSkin = (skinId: string) => {
-    if (checkGuestAction()) return;
-    if (!confirm("이 스킨을 삭제하시겠습니까?")) return;
+ const handleDeleteCustomSkin = async (skinId: string) => {
+    // 1. 게스트 차단 (필요시 삭제)
+    if (user.email === 'Guest') return alert("로그인 유저만 가능합니다.");
+    if (!confirm("이 스킨을 서버와 앱에서 영구 삭제할까요?")) return;
 
+    const targetSkin = user.customSkins?.find(s => s.id === skinId);
+
+    // 2. Supabase 서버에서 삭제 (공개 스킨인 경우)
+    if (targetSkin?.shareCode && isSupabaseConfigured) {
+        await supabase.from('shared_skins').delete().eq('share_code', targetSkin.shareCode);
+    }
+
+    // 3. 로컬 상태 업데이트
     updateUser(prev => {
-        const nextCustomSkins = (prev.customSkins || []).filter(s => s.id !== skinId);
-        let nextCurrentSkin = prev.currentSkin;
-        let nextActiveCustom = prev.activeCustomSkin;
-
-        // 만약 삭제하려는 스킨이 현재 적용 중인 스킨이라면 기본으로 복구
-        if (prev.activeCustomSkin?.id === skinId) {
-            nextCurrentSkin = 'default';
-            nextActiveCustom = null;
-        }
-
+        const nextSkins = (prev.customSkins || []).filter(s => s.id !== skinId);
         return { 
             ...prev, 
-            customSkins: nextCustomSkins, 
-            currentSkin: nextCurrentSkin, 
-            activeCustomSkin: nextActiveCustom 
+            customSkins: nextSkins,
+            activeCustomSkin: prev.activeCustomSkin?.id === skinId ? null : prev.activeCustomSkin,
+            currentSkin: prev.activeCustomSkin?.id === skinId ? 'default' : prev.currentSkin
         };
+    });
+    alert("삭제되었습니다.");
+};
     });
 };
   const handleApplySkinCode = async () => { 
@@ -1494,7 +1497,35 @@ const App: React.FC = () => {
           alert(lang === 'ko' ? "유효하지 않거나 존재하지 않는 코드입니다." : "Invalid or non-existent code."); 
       } 
   };
-  const handleBgmUpload = (e: React.ChangeEvent<HTMLInputElement>) => { if (checkGuestAction()) return; const file = e.target.files?.[0]; if (!file) return; const url = URL.createObjectURL(file); const newBgm: BGM = { id: 'custom-' + Date.now(), name: file.name, url: url, category: 'DEFAULT' }; setCurrentBgm(newBgm); alert("BGM Applied!"); };
+ const handleBgmUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // 게스트도 테스트 해보고 싶다면 아래 줄을 주석 처리 하세요
+    // if (checkGuestAction()) return; 
+
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 기존 URL 메모리 해제 (성능 최적화)
+    if (currentBgm.url.startsWith('blob:')) URL.revokeObjectURL(currentBgm.url);
+
+    const url = URL.createObjectURL(file);
+    const newBgm: BGM = { 
+        id: 'custom-' + Date.now(), 
+        name: file.name.slice(0, 20), // 이름 너무 길면 잘림 방지
+        url: url, 
+        category: 'DEFAULT' 
+    };
+
+    setCurrentBgm(newBgm);
+    setBgmStopped(false); // ★ 중요: 업로드 즉시 소리가 나도록 정지 해제
+    
+    // 볼륨이 0이면 안 들리니까 최소값 보장
+    if (bgmVolume < 0.1) {
+        setBgmVolume(0.5);
+        updateUser(prev => ({ ...prev, bgmVolume: 0.5 }));
+    }
+
+    alert("BGM이 즉시 적용되었습니다!");
+};
   const handleRugChange = (color: string) => { if (checkGuestAction()) return; updateUser(prev => ({ ...prev, rugColor: color })); };
   const handleOpenProfile = () => { if (user.userInfo) setEditProfileData({ ...user.userInfo }); setShowProfile(true); };
   const handleSaveProfile = async () => { if (!user.userInfo) return; if (checkGuestAction()) return; const currentInfo = user.userInfo; const nextInfo = { ...editProfileData }; if (nextInfo.name !== currentInfo.name) { const currentCount = currentInfo.nameChangeCount || 0; if (currentCount >= 5) { alert("이름 변경 횟수(5회)를 초과했습니다."); return; } nextInfo.nameChangeCount = currentCount + 1; } else { nextInfo.nameChangeCount = currentInfo.nameChangeCount; } if (nextInfo.birthDate !== currentInfo.birthDate) { if (currentInfo.birthDateChanged) { alert("생년월일은 한 번만 변경할 수 있습니다."); return; } nextInfo.birthDateChanged = true; } if (nextInfo.country !== currentInfo.country) { if (currentInfo.countryChanged) { alert("국가는 한 번만 변경할 수 있습니다."); return; } nextInfo.countryChanged = true; } updateUser(prev => ({ ...prev, userInfo: nextInfo })); setShowProfile(false); alert("프로필이 저장되었습니다."); };
