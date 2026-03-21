@@ -1725,16 +1725,14 @@ const App: React.FC = () => {
                     </div>
                 )}
                 
-                {settingsMode === 'BGM' && (
-                   {/* 기존 BGM 컨트롤 영역 교체 */}
-<div className="bg-[#1a0b2e]/50 p-4 rounded border border-purple-500/30">
-    <h3 className="text-sm font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].bgm_control}</h3>
-    {/* step="0.01"로 수정하여 끊김 없는 좌우 볼륨 조절 구현 */}
-    <input type="range" min="0" max="1" step="0.01" value={bgmVolume} onChange={(e) => { const v = parseFloat(e.target.value); setBgmVolume(v); updateUser(prev => ({ ...prev, bgmVolume: v })); }} className="w-full accent-purple-500 mb-2 bg-gray-700 h-2 rounded-lg cursor-pointer appearance-none" />
-    <div className="flex justify-between text-xs text-purple-400"><span>Mute</span><span>Max</span></div>
-    <button onClick={() => setBgmStopped(!bgmStopped)} className={`w-full py-2 mt-2 rounded border transition-all ${bgmStopped ? 'bg-red-900/30 border-red-800 text-red-200 hover:bg-red-900/50' : 'bg-purple-600 border-purple-400 text-white hover:bg-purple-500'}`}>{bgmStopped ? 'Play BGM' : 'Stop BGM'}</button>
-</div>
-                )}
+               {settingsMode === 'BGM' && (
+    <div className="bg-[#1a0b2e]/50 p-4 rounded border border-purple-500/30">
+        <h3 className="text-sm font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].bgm_control}</h3>
+        <input type="range" min="0" max="1" step="0.01" value={bgmVolume} onChange={(e) => { const v = parseFloat(e.target.value); setBgmVolume(v); updateUser(prev => ({ ...prev, bgmVolume: v })); }} className="w-full accent-purple-500 mb-2 bg-gray-700 h-2 rounded-lg cursor-pointer appearance-none" />
+        <div className="flex justify-between text-xs text-purple-400"><span>Mute</span><span>Max</span></div>
+        <button onClick={() => setBgmStopped(!bgmStopped)} className={`w-full py-2 mt-2 rounded border transition-all ${bgmStopped ? 'bg-red-900/30 border-red-800 text-red-200 hover:bg-red-900/50' : 'bg-purple-600 border-purple-400 text-white hover:bg-purple-500'}`}>{bgmStopped ? 'Play BGM' : 'Stop BGM'}</button>
+    </div>
+)}
 
               {settingsMode === 'FRAME' && (
     <div className="flex flex-col h-full overflow-hidden">
