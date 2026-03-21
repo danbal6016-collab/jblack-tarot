@@ -343,22 +343,22 @@ export const getCompatibilityReading = async (
           [The Physical Touch that Breaks Their Control]
         `;
     } else {
-        prompt = `
+       prompt = `
           ${randomSeed}
-          [심층 속궁합 정밀 분석 - 고수위 관능 모드]
+          [심층 속궁합 정밀 분석 - 은근한 관능/야시꾸리 모드]
           나: ${myInfo.name} (생년월일: ${myInfo.birthDate})
           상대방: 생년월일 ${partnerBirth}
           
           핵심 과제:
           1. 내부적으로 사주를 계산하여 속궁합 묘사. 사주 용어 절대 금지.
-          2. [수위 극대화 지시] 직접적인 성기 명칭 등은 필터링에 걸리므로 피하되, 숨 막히는 텐션, 끈적하고 관능적인 메타포, 본능적인 끌림과 체온, 숨결 등 아찔한 육체적 묘사를 극한으로 끌어올릴 것.
-          3. 마치 고수위 피폐 로맨스 웹소설의 한 장면처럼, 상대방이 침대 위에서 숨기고 있는 통제력과 은밀한 판타지를 농염하고 도발적으로 서술할 것.
+          2. [톤앤매너 극대화] 대놓고 저급한 단어를 쓰는 기계적인 야설체 절대 금지. 대신 은근히 야시꾸리하고 앙큼하며 도발적인 바이브를 유지할 것.
+          3. 타로 리더가 고객에게만 넌지시 던지듯, 직접적인 묘사 없이도 상상력을 자극하고 진짜 겪은 듯한 리얼한 육체적 텐션을 묘사할 것.
           
           구조:
-          [본능적 끌림과 육체적 텐션]
-          [그 사람이 침대 위에서 숨기고 있는 통제력과 욕망]
-          [두 사람이 밤에 만들어내는 파괴적 시너지]
-          [상대방을 완벽하게 무너뜨릴 스킨십 포인트]
+          [본능적 끌림과 숨 막히는 텐션]
+          [그 사람이 침대 위에서 억누르고 있는 은밀한 취향]
+          [두 사람이 얽혔을 때 만들어내는 파괴적 시너지]
+          [상대방의 이성을 끊어버릴 스킨십 포인트]
         `;
     }
 
@@ -409,23 +409,23 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
         `;
     } else {
         prompt = `
-          ${randomSeed}
-          [운명 정밀 분석 모드]
-          대상 생년월일: ${partnerBirth}
+          ${randomSeed}
+          [운명 정밀 분석 - 뒷얘기 썰 푸는 모드]
+          대상 생년월일: ${partnerBirth}
 
-          중요 지시사항:
-          1. 내부적으로 사주 계산.
-          2. 사주 용어 절대 금지.
-          3. 한국어로 작성.
+          핵심 과제:
+          1. 내부적으로 사주 계산. 사주 용어 절대 금지.
+          2. [톤앤매너 극대화] 딱딱한 분석이 아니라, 마치 흥미진진한 뒷얘기나 '썰'을 푸는 듯한 생동감 있는 말투를 사용할 것. 
+          3. "아마 그러했겠죠.", "그렇게 버티긴 쉽지 않았을걸요?", "진짜 독하게 마음먹었을 거예요." 같이 대화하듯 몰입감 있는 화법을 구사할 것.
 
-          구조:
-          [타고난 팔자 (Born Destiny)]
-          [초년운 (Early Life)]
-          [중년운 (Middle Life)]
-          [말년운 (Late Life)]
-          [덕질 조언 (Fandom Advice)]
-        `;
-    }
+          구조:
+          [타고난 팔자]
+          [초년운]
+          [중년운]
+          [말년운]
+          [덕질 조언]
+        `;
+    }
 prompt += LENGTH_INSTRUCTION[lang];
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
@@ -467,21 +467,22 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
             [Destiny Advice]
         `;
     } else {
-        prompt = `
-            ${randomSeed}
-            [관상 및 외모 총평]
-            TASK:
-            1. 관상 분석.
-            2. 외모 평가.
-            3. 한국어로 작성.
-            
-            STRUCTURE:
-            [관상 및 외모 총평]
-            [이목구비 정밀 분석]
-            [매력 포인트 및 호감도]
-            [운명적 조언]
-        `;
-    }
+       prompt = `
+          ${randomSeed}
+          [관상 및 외모 총평 - 솔직한 얼평 모드]
+          
+          핵심 과제:
+          1. 관상 분석 및 외모 평가. 한국어로 작성.
+          2. [톤앤매너 극대화] 솔직하고 예리하게 '얼평(외모 평가)'을 하듯 작성하되, 선을 넘는 무례하거나 공격적인 언행은 금지할 것.
+          3. 단점이나 아쉬운 부분도 결국 매력으로 승화시켜 묘사할 것. (예: "코가 살짝 낮지만 오히려 그것이 특유의 앙큼하고 귀여운 분위기를 극대화한다.")
+          
+          구조:
+          [관상 및 외모 총평]
+          [이목구비 정밀 분석]
+          [매력 포인트 및 호감도]
+          [운명적 조언]
+        `;
+    }
 prompt += LENGTH_INSTRUCTION[lang];
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
@@ -538,27 +539,27 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
         `;
     } else {
         prompt = `
-            ${randomSeed} 
-            [인생 정밀 분석 모드]
-            이름: ${userInfo.name}
-            생년월일: ${userInfo.birthDate}
-            태어난 시간: ${userInfo.birthTime}
-            
-            지시사항:
-            1. 내부적으로 사주 계산.
-            2. 사주 용어 절대 금지.
-            3. 한국어로 작성.
+            ${randomSeed} 
+            [인생 정밀 분석 - 천기누설 비밀 모드]
+            이름: ${userInfo.name}
+            생년월일: ${userInfo.birthDate}
+            태어난 시간: ${userInfo.birthTime}
+            
+            핵심 과제:
+            1. 내부적으로 사주 계산. 사주 용어 절대 금지.
+            2. [톤앤매너 극대화] 남들이 함부로 알아서는 안 되는 '금기된 비밀'을 은밀하게 귀띔해주듯 작성할 것. 
+            3. 조심스럽지만 확신에 찬 어조로, "이건 진짜 너한테만 알려주는 건데..." 같은 몰입감 높은 뉘앙스를 풍길 것.
 
-            구조:
-            [재물운]
-            [천재적 재능과 숨겨진 잠재력]
-            [인생의 황금기]
-            [미래 배우자 상세 분석]
-            [내 인생의 귀인]
-            [타고난 성격과 성향]
-            [인생에서 주의해야 할 점]
-        `;
-    }
+            구조:
+            [재물운]
+            [천재적 재능과 숨겨진 잠재력]
+            [인생의 황금기]
+            [미래 배우자 상세 분석]
+            [내 인생의 귀인]
+            [타고난 성격과 성향]
+            [인생에서 주의해야 할 점]
+        `;
+    }
 
   prompt += LENGTH_INSTRUCTION[lang];
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
