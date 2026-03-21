@@ -555,8 +555,23 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
         `;
     }
 
+  
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
 
 
+export const getFallbackTarotImage = (cardId: number): string => {
+  const baseUrl = "https://raw.githubusercontent.com/tarruda/tarot-deck/master/images/";
+  const pad = (n: number) => n < 10 ? `0${n}` : `${n}`;
+  let filename = "";
+
+  if (cardId >= 0 && cardId <= 21) filename = `${pad(cardId)}.jpg`;
+  else if (cardId >= 22 && cardId <= 35) filename = `wands${pad(cardId - 22 + 1)}.jpg`;
+  else if (cardId >= 36 && cardId <= 49) filename = `cups${pad(cardId - 36 + 1)}.jpg`;
+  else if (cardId >= 50 && cardId <= 63) filename = `swords${pad(cardId - 50 + 1)}.jpg`;
+  else if (cardId >= 64 && cardId <= 77) filename = `pentacles${pad(cardId - 64 + 1)}.jpg`;
+  else filename = "00.jpg";
+
+  return `${baseUrl}${filename}`;
+};
