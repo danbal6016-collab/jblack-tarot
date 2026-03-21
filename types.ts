@@ -18,7 +18,7 @@ export enum AppState {
 
 export type CategoryKey = 'FANDOM' | 'LOVE' | 'APPEARANCE' | 'CAREER' | 'WEALTH' | 'HEALTH' | 'STUDY' | 'RELATIONSHIP' | 'FACE' | 'LIFE' | 'SECRET_COMPAT' | 'PARTNER_LIFE';
 
-export type Language = 'ko' | 'en';
+export type Language = 'ko' | 'en' | 'zh';
 
 export enum UserTier {
   BRONZE = 'BRONZE',
