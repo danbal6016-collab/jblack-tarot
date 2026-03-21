@@ -1726,41 +1726,57 @@ const App: React.FC = () => {
                 )}
                 
                 {settingsMode === 'BGM' && (
-                    <div className="flex flex-col h-full overflow-hidden">
-                         <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
-                         <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].bgm_upload} (Platinum)</h3>
-                         <label className="block w-full p-4 border-2 border-dashed border-gray-600 rounded text-center cursor-pointer hover:border-purple-500 hover:text-purple-400 transition-colors">
-                             <input type="file" accept="audio/*" className="hidden" onChange={handleBgmUpload} />
-                             <span className="text-sm">Click to Upload MP3</span>
-                         </label>
-                         <p className="text-xs text-gray-500 mt-2 text-center">Uploaded music will play only for you.</p>
-                    </div>
+                   {/* 기존 BGM 컨트롤 영역 교체 */}
+<div className="bg-[#1a0b2e]/50 p-4 rounded border border-purple-500/30">
+    <h3 className="text-sm font-bold text-purple-200 mb-3">{TRANSLATIONS[lang].bgm_control}</h3>
+    {/* step="0.01"로 수정하여 끊김 없는 좌우 볼륨 조절 구현 */}
+    <input type="range" min="0" max="1" step="0.01" value={bgmVolume} onChange={(e) => { const v = parseFloat(e.target.value); setBgmVolume(v); updateUser(prev => ({ ...prev, bgmVolume: v })); }} className="w-full accent-purple-500 mb-2 bg-gray-700 h-2 rounded-lg cursor-pointer appearance-none" />
+    <div className="flex justify-between text-xs text-purple-400"><span>Mute</span><span>Max</span></div>
+    <button onClick={() => setBgmStopped(!bgmStopped)} className={`w-full py-2 mt-2 rounded border transition-all ${bgmStopped ? 'bg-red-900/30 border-red-800 text-red-200 hover:bg-red-900/50' : 'bg-purple-600 border-purple-400 text-white hover:bg-purple-500'}`}>{bgmStopped ? 'Play BGM' : 'Stop BGM'}</button>
+</div>
                 )}
 
-                {settingsMode === 'FRAME' && (
-                    <div className="flex flex-col h-full overflow-hidden">
-                        <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
-                        <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].frame_shop}</h3>
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                            {RESULT_FRAMES.map(frame => (
-                                <div key={frame.id} onClick={() => updateUser(prev => ({...prev, resultFrame: frame.id}))} className={`h-24 border rounded cursor-pointer relative flex items-center justify-center ${user.resultFrame === frame.id ? 'bg-purple-900/30 ring-2 ring-purple-500' : 'bg-gray-800 border-gray-700'}`}>
-                                    <div className="w-16 h-20 bg-gray-900" ref={(el) => { if (el) el.style.cssText = frame.css; }}></div>
-                                    <span className="absolute bottom-1 text-[9px] text-gray-400">{frame.name}</span>
-                                </div>
-                            ))}
-                        </div>
-                        {user.tier !== UserTier.BRONZE && (
-                            <div className="border-t border-gray-700 pt-4">
-                                <h4 className="text-sm font-bold text-purple-300 mb-2">{TRANSLATIONS[lang].custom_frame_title}</h4>
-                                <label className="block w-full p-2 bg-gray-800 rounded text-center text-xs text-gray-300 cursor-pointer hover:bg-gray-700 mb-2">
-                                    Upload Frame Image (PNG)
-                                    <input type="file" accept="image/*" className="hidden" onChange={handleCustomFrameUpload} />
-                                </label>
-                                {customFrameImage && <button onClick={handleSaveCustomFrame} className="w-full py-2 bg-purple-600 rounded text-xs font-bold text-white">Save Frame</button>}
-                            </div>
-                        )}
+              {settingsMode === 'FRAME' && (
+    <div className="flex flex-col h-full overflow-hidden">
+        <button onClick={() => setSettingsMode('MAIN')} className="mb-4 text-sm text-gray-400 hover:text-white">← Back</button>
+        <h3 className="text-lg font-bold text-white mb-4">{TRANSLATIONS[lang].frame_shop}</h3>
+        
+        {/* 스크롤 영역 추가 */}
+        <div className="flex-1 overflow-y-auto pr-2 pb-4 scrollbar-thin scrollbar-thumb-purple-700">
+            <div className="grid grid-cols-2 gap-3 mb-6">
+                {RESULT_FRAMES.map(frame => (
+                    <div key={frame.id} onClick={() => updateUser(prev => ({...prev, resultFrame: frame.id}))} className={`h-24 border rounded cursor-pointer relative flex items-center justify-center transition-all ${user.resultFrame === frame.id ? 'bg-purple-900/30 ring-2 ring-purple-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}>
+                        <div className="w-16 h-20 bg-gray-900" ref={(el) => { if (el) el.style.cssText = frame.css; }}></div>
+                        <span className="absolute bottom-1 text-[9px] text-gray-400">{frame.name}</span>
+                    </div>
+                ))}
+                
+                {/* 앨범에서 업로드한 커스텀 프레임 목록 렌더링 */}
+                {user.customFrames?.map(frame => (
+                    <div key={frame.id} onClick={() => updateUser(prev => ({...prev, resultFrame: frame.id}))} className={`h-24 border rounded cursor-pointer relative flex items-center justify-center transition-all ${user.resultFrame === frame.id ? 'bg-purple-900/30 ring-2 ring-purple-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`}>
+                        <div className="w-16 h-20" style={{ border: '15px solid transparent', borderImage: `url(${frame.imageUrl}) 30 round` }}></div>
+                        <span className="absolute bottom-1 text-[9px] text-purple-400">Custom</span>
+                    </div>
+                ))}
+            </div>
+
+            {/* 등급 제한 해제된 사진 업로드 영역 */}
+            <div className="border-t border-gray-700 pt-4">
+                <h4 className="text-sm font-bold text-purple-300 mb-3">{TRANSLATIONS[lang].custom_frame_title}</h4>
+                <label className="block w-full p-4 bg-gray-800/50 border border-dashed border-gray-500 hover:border-purple-500 rounded text-center text-xs text-gray-300 cursor-pointer transition-colors mb-2">
+                    + 앨범에서 사진 업로드
+                    <input type="file" accept="image/*" className="hidden" onChange={handleCustomFrameUpload} />
+                </label>
+                {customFrameImage && (
+                    <div className="flex flex-col items-center gap-3 mt-3 p-3 bg-gray-900 rounded border border-gray-700">
+                        <img src={customFrameImage} alt="preview" className="h-20 object-cover rounded border border-purple-500/50" />
+                        <button onClick={handleSaveCustomFrame} className="w-full py-2 bg-purple-600 hover:bg-purple-500 rounded text-xs font-bold text-white shadow-lg transition-colors">프레임 저장 및 적용</button>
                     </div>
                 )}
+            </div>
+        </div>
+    </div>
+)}
 
                 {settingsMode === 'RESULT_BG' && (
                     <div className="flex flex-col h-full overflow-hidden">
