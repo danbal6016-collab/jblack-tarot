@@ -45,11 +45,11 @@ const TRANSLATIONS = {
     reward_popup: "등급 보상 지급!",
     face_reading_title: "관상",
     face_reading_desc: "연락 할까 말까 고민하는 시간도 아까워요. 그 사람이 당신이 찾던 그 이인지, 지금 확인해 보세요.",
-    face_upload_btn: "관상 보기 (-250 Coin)",
+    face_upload_btn: "관상 보기 (-200 Coin)",
     face_guide: "인물의 얼굴이 잘 보이는 사진을 업로드 하세요.",
     life_reading_title: "인생",
     life_reading_desc: "당신이 언제, 무엇으로 떼돈을 벌까요? 당신도 몰랐던 당신만의 천재적 재능은 무엇일까요? 모두를 거느리는 내 인생의 황금기는 언제일까요? 미래의 배우자는 어떤 키, 외모, 분위기, 직업을 가지고 있을까요? 정상에 오르기 위해 놓치면 안 될 내 인생의 귀인은 누구일까요? 당신의 타고난 성격과 성향, 그리고 그것에 기반해 주의해야 할 점은 무엇일까요? 지금 당신의 숨겨진 인생 치트키를 알아보세요.",
-    life_input_btn: "인생 치트키 확인 (-250 Coin)",
+    life_input_btn: "인생 치트키 확인 (-200 Coin)",
     life_guide: "당신의 생시를 알려주세요.",
     downloading: "초고속 저장 중...",
     time_label: "태어난 시간",
@@ -70,8 +70,8 @@ const TRANSLATIONS = {
     no_history: "기록이 없습니다.",
     limit_reached: "오늘의 리딩 횟수(10회)를 모두 소진했습니다. 내일 다시 시도하세요.",
     solution_lock: "실질적인 해결책 보기 (Gold+)",
-    secret_compat: "당신과 그 사람의 은밀한 궁합 (-250 Coin)",
-    partner_life: "그 사람의 타고난 인생 팔자 (-250 Coin)",
+    secret_compat: "당신과 그 사람의 은밀한 궁합 (-200 Coin)",
+    partner_life: "그 사람의 타고난 인생 팔자 (-200 Coin)",
     partner_birth_ph: "그 사람의 생년월일 (YYYYMMDD)",
     pay_title: "결제 수단 선택",
     pay_cancel: "취소",
@@ -83,7 +83,7 @@ const TRANSLATIONS = {
     secret_compat_btn: "궁합 확인 (-200 Coin)",
     partner_life_title: "그 사람의 인생",
     partner_life_desc: "그 사람의 타고난 인생 팔자를 비밀리에 들춰 보세요.",
-    partner_life_btn: "인생 훔쳐보기 (-250 Coin)",
+    partner_life_btn: "인생 훔쳐보기 (-200 Coin)",
     bronze_shop_lock: "브론즈 등급은 스킨을 구매할 수 없습니다.",
     chat_room_title: "운명의 수다방",
     chat_input_ph: "고민을 나누어 보세요...",
@@ -150,11 +150,11 @@ const TRANSLATIONS = {
     reward_popup: "Monthly Reward!",
     face_reading_title: "Physiognomy",
     face_reading_desc: "Stop wasting time guessing. Check if they are the one.",
-    face_upload_btn: "Analyze Face (-250 Coin)",
+    face_upload_btn: "Analyze Face (-200 Coin)",
     face_guide: "Upload a clear photo of the face.",
     life_reading_title: "Life Path",
     life_reading_desc: "When will you make a fortune? Hidden talents, golden age, future spouse.",
-    life_input_btn: "Reveal Cheat Codes (-250 Coin)",
+    life_input_btn: "Reveal Cheat Codes (-200 Coin)",
     life_guide: "Enter your birth time.",
     downloading: "Saving Fast...",
     time_label: "Birth Time",
@@ -175,8 +175,8 @@ const TRANSLATIONS = {
     no_history: "No records found.",
     limit_reached: "Daily reading limit (10) reached.",
     solution_lock: "Unlock Practical Solution (Gold+)",
-    secret_compat: "Secret Compatibility (-250 Coin)",
-    partner_life: "Partner's Life Path (-250 Coin)",
+    secret_compat: "Secret Compatibility (-200 Coin)",
+    partner_life: "Partner's Life Path (-200 Coin)",
     partner_birth_ph: "Partner Birthdate (YYYYMMDD)",
     pay_title: "Select Payment Method",
     pay_cancel: "Cancel",
@@ -188,7 +188,7 @@ const TRANSLATIONS = {
     secret_compat_btn: "Check Compat (-200 Coin)",
     partner_life_title: "Their Life",
     partner_life_desc: "Secretly reveal their true destiny.",
-    partner_life_btn: "Spy on Life (-250 Coin)",
+    partner_life_btn: "Spy on Life (-200 Coin)",
     bronze_shop_lock: "Bronze tier cannot purchase skins.",
     chat_room_title: "Fate Chat Room",
     chat_input_ph: "Share your worries...",
@@ -1634,14 +1634,52 @@ const App: React.FC = () => {
           )}
           {appState === AppState.WELCOME && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center animate-fade-in relative z-10"><Header user={user} lang={lang} onOpenSettings={() => { setShowSettings(true); setSettingsMode('MAIN'); }} onOpenShop={() => { setShowShop(true); setShopStep('AMOUNT'); }} onLogin={() => setAuthMode("LOGIN")} openProfile={handleOpenProfile} /><Logo size="large" /><p className="font-serif-en text-sm md:text-base italic mb-12 text-gold-gradient font-bold tracking-widest uppercase drop-shadow-sm opacity-90">{TRANSLATIONS[lang].welcome_sub}</p><button onClick={handleStart} className="btn-gold-3d mb-8">{TRANSLATIONS[lang].enter}</button></div> )}
           {appState === AppState.INPUT_INFO && ( <div className="flex flex-col items-center justify-center min-h-screen p-6 relative z-10 animate-fade-in"><Logo size="small" /><div className="w-full max-w-md bg-black/60 border-wine-gradient p-8 rounded-lg backdrop-blur-sm"><h2 className="text-2xl font-occult text-purple-200 mb-2 text-center">{TRANSLATIONS[lang].info_title}</h2><p className="text-gray-400 text-sm mb-8 text-center">{TRANSLATIONS[lang].info_desc}</p><UserInfoForm onSubmit={handleUserInfoSubmit} lang={lang} /></div></div> )}
-          {appState === AppState.CATEGORY_SELECT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10"><h2 className="text-3xl font-occult text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center">{TRANSLATIONS[lang].select_cat_title}</h2>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full relative">{(<button onClick={handleEnterChat} className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group"><span className="text-2xl mb-1 group-hover:animate-bounce">💬</span><span className="text-[8px] text-white font-bold">{isGuest ? 'Free' : TRANSLATIONS[lang].chat_entry_fee}</span></button>)}{CATEGORIES.map((cat) => { return (<button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]`}><span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span><span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{lang === 'en' ? cat.id : cat.label}</span>{!isGuest && cat.cost && <span className="absolute top-2 right-2 text-[10px] text-yellow-500 bg-black/80 px-1 rounded border border-yellow-700">-{cat.cost}</span>}</button>); })}</div></div> )}
-          {appState === AppState.CHAT_ROOM && ( <ChatView user={user} lang={lang} onLeave={() => navigateTo(AppState.CATEGORY_SELECT)} /> )}
+         {appState === AppState.CATEGORY_SELECT && ( 
+  <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20 pb-10">
+    <h2 className={`text-3xl text-transparent bg-clip-text bg-gradient-to-b from-purple-200 to-purple-800 mb-8 text-center ${lang === 'zh' ? 'font-sans font-bold' : 'font-occult'}`}>{TRANSLATIONS[lang].select_cat_title}</h2>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl w-full relative">
+      <button onClick={handleEnterChat} className="absolute -right-4 top-1/2 -translate-y-1/2 w-16 h-16 bg-purple-900/80 border border-purple-500 rounded-full flex flex-col items-center justify-center shadow-[0_0_15px_rgba(147,51,234,0.6)] hover:bg-purple-800 hover:scale-110 transition-all z-20 group">
+        <span className="text-2xl mb-1 group-hover:animate-bounce">💬</span>
+        <span className="text-[8px] text-white font-bold">{isGuest ? 'Free' : TRANSLATIONS[lang].chat_entry_fee}</span>
+      </button>
+      {CATEGORIES.map((cat) => { 
+        // 동적 번역 매핑 적용
+        const translatedLabel = CATEGORY_TRANSLATIONS[lang]?.[cat.id]?.label || cat.label;
+        return (
+          <button key={cat.id} onClick={() => handleCategorySelect(cat)} className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 border-wine-gradient backdrop-blur-sm group bg-gradient-to-br from-[#1a103c] to-[#000000] hover:-translate-y-1 hover:shadow-[0_8px_15px_rgba(88,28,135,0.4)]`}>
+            <span className="text-4xl mb-2 filter drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] transition-transform duration-300 group-hover:scale-110">{cat.icon}</span>
+            <span className="text-gray-200 font-sans font-bold tracking-wide group-hover:text-white transition-colors">{translatedLabel}</span>
+            {!isGuest && cat.cost && <span className="absolute top-2 right-2 text-[10px] text-yellow-500 bg-black/80 px-1 rounded border border-yellow-700">-{cat.cost}</span>}
+          </button>
+        ); 
+      })}
+    </div>
+  </div> 
+)}
+  {appState === AppState.CHAT_ROOM && ( <ChatView user={user} lang={lang} onLeave={() => navigateTo(AppState.CATEGORY_SELECT)} /> )}
           {appState === AppState.FACE_UPLOAD && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-4">{TRANSLATIONS[lang].face_reading_title}</h2><p className="text-gray-300 mb-6 text-sm md:text-base leading-relaxed break-keep">{TRANSLATIONS[lang].face_reading_desc}</p><div className="mb-6 border-2 border-dashed border-gray-600 rounded-lg p-8 hover:border-purple-500 transition-colors cursor-pointer relative"><input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onloadend=()=>setFaceImage(r.result as string); r.readAsDataURL(f); } }} className="absolute inset-0 opacity-0 cursor-pointer" />{faceImage ? <img src={faceImage} className="max-h-48 mx-auto rounded" /> : <span className="text-gray-500">{TRANSLATIONS[lang].face_guide}</span>}</div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startFaceReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].face_upload_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-250 Coin)')}</button></div></div></div> )}
           {appState === AppState.LIFE_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{TRANSLATIONS[lang].life_reading_title}</h2><p className="text-gray-300 text-sm mb-6 leading-relaxed break-keep whitespace-pre-wrap">{TRANSLATIONS[lang].life_reading_desc}</p><div className="flex gap-4 justify-center mb-6"><select value={birthTime.h} onChange={e=>setBirthTime({...birthTime, h:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:24}).map((_,i) => <option key={i} value={i.toString()}>{i}시</option>)}</select><select value={birthTime.m} onChange={e=>setBirthTime({...birthTime, m:e.target.value})} className="bg-gray-800 text-white p-2 rounded">{Array.from({length:60}).map((_,i) => <option key={i} value={i.toString()}>{i}분</option>)}</select></div><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startLifeReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{TRANSLATIONS[lang].life_input_btn.replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : '(-250 Coin)')}</button></div></div></div> )}
           {appState === AppState.PARTNER_INPUT && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in"><div className="w-full max-w-md bg-black/60 border border-purple-500/50 p-6 rounded text-center"><h2 className="text-xl font-bold text-white mb-2">{selectedCategory?.label}</h2><p className="text-gray-400 mb-6">{selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_desc : TRANSLATIONS[lang].partner_life_desc}</p><input value={partnerBirth} onChange={e=>setPartnerBirth(e.target.value)} placeholder={TRANSLATIONS[lang].partner_birth_ph} className="w-full p-3 bg-gray-800 rounded text-white border border-gray-700 focus:border-purple-500 mb-6 outline-none"/><div className="flex gap-2"><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">{TRANSLATIONS[lang].back}</button><button onClick={startPartnerReading} className="flex-[2] py-3 bg-purple-700 hover:bg-purple-600 rounded font-bold">{(selectedCategory?.id === 'SECRET_COMPAT' ? TRANSLATIONS[lang].secret_compat_btn : TRANSLATIONS[lang].partner_life_btn).replace(/\(-?\d+\s*Coin\)/, isGuest ? '' : selectedCategory?.id === 'SECRET_COMPAT' ? '(-200 Coin)' : '(-250 Coin)')}</button></div></div></div> )}
-          {appState === AppState.QUESTION_SELECT && selectedCategory && ( <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20"><h2 className="text-2xl font-occult text-purple-200 mb-6 text-center">{selectedCategory.label}</h2><div className="w-full max-w-xl space-y-3">{selectedCategory.questions.map((q, i) => (<button key={i} onClick={() => handleQuestionSelect(q)} className="w-full p-4 text-left bg-black/60 border border-purple-900/50 rounded hover:bg-purple-900/30 hover:border-purple-500 transition-all text-gray-200 text-sm md:text-base">{q}</button>))}<div className="relative mt-6 pt-4 border-t border-gray-800"><input className="w-full p-4 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 outline-none text-sm md:text-base" placeholder={TRANSLATIONS[lang].custom_q_ph} value={customQuestion} onChange={(e) => setCustomQuestion(e.target.value)} /><button onClick={() => { if (!customQuestion) return; handleQuestionSelect(customQuestion); }} className="absolute right-2 top-6 bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded mt-0.5">{TRANSLATIONS[lang].next}</button></div><button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="w-full py-3 mt-4 text-gray-500 hover:text-gray-300">{TRANSLATIONS[lang].back}</button></div></div> )}
+        {appState === AppState.QUESTION_SELECT && selectedCategory && ( 
+  <div className="flex flex-col items-center justify-center min-h-screen p-4 relative z-10 animate-fade-in pt-20">
+    <h2 className={`text-2xl text-purple-200 mb-6 text-center ${lang === 'zh' ? 'font-sans font-bold' : 'font-occult'}`}>
+      {CATEGORY_TRANSLATIONS[lang]?.[selectedCategory.id]?.label || selectedCategory.label}
+    </h2>
+    <div className="w-full max-w-xl space-y-3">
+      {/* 번역된 질문 배열 불러오기 */}
+      {(CATEGORY_TRANSLATIONS[lang]?.[selectedCategory.id]?.questions || selectedCategory.questions).map((q, i) => (
+        <button key={i} onClick={() => handleQuestionSelect(q)} className="w-full p-4 text-left bg-black/60 border border-purple-900/50 rounded hover:bg-purple-900/30 hover:border-purple-500 transition-all text-gray-200 text-sm md:text-base">
+          {q}
+        </button>
+      ))}
+      <div className="relative mt-6 pt-4 border-t border-gray-800">
+        <input className="w-full p-4 bg-gray-900 border border-gray-700 rounded text-white focus:border-purple-500 outline-none text-sm md:text-base" placeholder={TRANSLATIONS[lang].custom_q_ph} value={customQuestion} onChange={(e) => setCustomQuestion(e.target.value)} />
+        <button onClick={() => { if (!customQuestion) return; handleQuestionSelect(customQuestion); }} className="absolute right-2 top-6 bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded mt-0.5">{TRANSLATIONS[lang].next}</button>
+      </div>
+      <button onClick={() => navigateTo(AppState.CATEGORY_SELECT)} className="w-full py-3 mt-4 text-gray-500 hover:text-gray-300">{TRANSLATIONS[lang].back}</button>
+    </div>
+  </div> 
+)}
           {appState === AppState.SHUFFLING && ( <ShufflingAnimation onComplete={() => navigateTo(AppState.CARD_SELECT)} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} rugColor={user.rugColor} /> )}
           {appState === AppState.CARD_SELECT && ( <CardSelection onSelectCards={handleCardSelect} lang={lang} skin={user.currentSkin} activeCustomSkin={user.activeCustomSkin} rugColor={user.rugColor} /> )}
           {appState === AppState.RESULT && ( <ResultView question={selectedQuestion} selectedCards={selectedCards} onRetry={() => { setReadingPromise(null); navigateTo(AppState.CATEGORY_SELECT); }} lang={lang} readingPromise={readingPromise} onReadingComplete={handleReadingComplete} user={user} spendCoins={spendCoins} onLogin={() => setAuthMode("LOGIN")} /> )}
