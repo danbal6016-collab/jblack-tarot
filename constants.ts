@@ -95,34 +95,46 @@ export const CATEGORIES: QuestionCategory[] = [
 ];
 export const CATEGORY_TRANSLATIONS: any = {
   ko: {
-    LOVE: { label: "연애운", questions: ["그 사람의 속마음은?", "우리는 사귈 수 있을까?", "재회 가능성이 있을까?"] },
-    MONEY: { label: "재물운", questions: ["금전운이 좋아질까?", "투자해도 될까?", "언제 돈이 들어올까?"] },
-    WORK: { label: "직업/사업", questions: ["이직해도 될까?", "승진할 수 있을까?", "사업이 번창할까?"] },
-    DAILY: { label: "오늘의 운세", questions: ["오늘 하루는 어떨까?", "주의해야 할 점은?", "오늘의 행운은?"] },
+    FANDOM: { label: "덕질", questions: ["최애는 나를 어떻게 생각하는가?", "최애와 만날 확률이 가장 높은 장소는?", "최애의 취향은 무엇인가?", "최애는 지금 누구와 교제 중인가?", "내가 탈덕을 한다면 이유가 무엇일까?", "최애와 나의 관계는 어떤가?", "최애와 나의 궁합은 어떤가?", "이 덕질은 언제까지 유지될까?", "내 최애의 병크는 무엇인가?", "최애와 진짜 사귈 수 있을까?", "아무도 모르는 내 최애의 숨겨진 모습은?"] },
+    LOVE: { label: "연애", questions: ["나의 다음 연애는 언제쯤 시작되는가?", "나의 미래 배우자는 어떤 사람인가?", "그 사람에게 가장 크게 복수하는 법은?", "지금 만나고 있는 이 사람과의 끝은?", "나를 짝사랑하고 있는 사람은 누구인가?", "그 사람은 나에게 먼저 연락을 하게 되는가?", "이성에게 가장 호감을 사는 나의 매력 포인트는?", "그 사람은 나를 어떻게 생각하는가?", "그 사람과 나의 연인 발전 가능성은?", "지금 관계를 발전시키기 위해 내가 해야 할 행동은?", "현재 그 관계의 가장 큰 문제점은?", "상대는 나에게 무엇을 숨기고 있는가?", "그 관계의 미래는 어떻게 되는가?", "미래에 내가 만나게 될 이성은 어떤 스타일인가?", "내 연애 흐름은 어떻게 되는가?"] },
+    APPEARANCE: { label: "외모", questions: ["나에게 가장 효과 좋은 다이어트 방법은?", "성형을 한다면 어디를 하는 게 좋은가?", "나만의 독보적 분위기는 무엇인가?", "나에겐 어떤 스타일링이 가장 잘 어울리는가?", "나의 외모는 사람들에게 어떤 인상을 주는가?"] },
+    CAREER: { label: "진로", questions: ["내가 미래에서 가장 성공하는 법은?", "내 업계 사람들은 나에 대해 뭐라고 생각하는가?", "나에게 숨겨진 잠재력은 무엇일까?", "어떤 길을 택해야 내 삶의 만족도가 높아지는가?", "내가 내 커리어에서 겪을 수 있는 큰 어려움은?"] },
+    WEALTH: { label: "금전", questions: ["나의 금전복을 확 향상시키는 방법은?", "나의 금전운이 특별히 높아지는 시기는?", "현재 재정 상태를 개선하려면 어떻게 해야 하는가?", "새로 시작하려는 일은 금전적으로 어떤 영향을 줄까?", "어떤 방식이 나에게 가장 큰 돈이 되는가?", "1년 후 나의 재정 상황은 어떻게 되는가?", "나의 타고난 금전복은 어느 정도인가?"] },
+    HEALTH: { label: "건강", questions: ["나를 죽게 할 병은 무엇인가?", "나의 건강을 개선하기 위해서 무엇을 해야 하는가?", "내가 가질 수 있는 잠재적 질병은?", "어떤 식의 건강 관리가 나에게 필요한가?"] },
+    STUDY: { label: "학업", questions: ["나는 어떤 종류의 대학에 가게 되는가?", "지금 공부 방식이 나에게 가장 효율적인가?", "현재 나의 학업 상태는 어떠한가?", "앞으로 나의 학업적 성취의 흐름은?", "내 학업에 가장 크게 방해가 되는 요소는?"] },
+    RELATIONSHIP: { label: "대인관계", questions: ["이 관계에서 내가 무의식적으로 원하는 것은?", "상대는 지금 이 관계를 어떻게 느끼는가?", "상대가 나에게 숨기고 있는 것은 무엇일까?", "상대방이 이 관계에서 바라고 있는 것은?", "이 관계가 발전하려면 무엇이 필요한가?", "이 관계는 나에게 어떤 영향을 끼칠까?"] },
     FACE: { label: "관상", questions: [] },
     LIFE: { label: "인생", questions: [] },
-    SECRET_COMPAT: { label: "은밀한 궁합", questions: [] },
-    PARTNER_LIFE: { label: "그 사람의 인생", questions: [] }
+    SECRET_COMPAT: { label: "수위", questions: [] },
+    PARTNER_LIFE: { label: "연예인", questions: [] }
   },
   en: {
-    LOVE: { label: "Love", questions: ["What are their thoughts?", "Will we date?", "Possible reunion?"] },
-    MONEY: { label: "Wealth", questions: ["Will I get rich?", "Should I invest?", "When money comes?"] },
-    WORK: { label: "Career", questions: ["Should I quit?", "Will I be promoted?", "Business luck?"] },
-    DAILY: { label: "Today", questions: ["How is my day?", "What to avoid?", "Today's luck?"] },
-    FACE: { label: "Physiognomy", questions: [] },
-    LIFE: { label: "Life Path", questions: [] },
-    SECRET_COMPAT: { label: "Secret Compat", questions: [] },
-    PARTNER_LIFE: { label: "Their Life", questions: [] }
+    FANDOM: { label: "Fandom", questions: ["What does my favorite think of me?", "Where am I most likely to run into them?", "What is my favorite's ideal type?", "Is my favorite currently seeing someone?", "Why would I eventually leave this fandom?", "What is the true nature of our relationship?", "How compatible are we in theory?", "How long will this dedication last?", "What is my favorite's hidden controversy?", "Is it possible to actually date them?", "What is a hidden side of my favorite?"] },
+    LOVE: { label: "Love", questions: ["When will my next relationship start?", "Who is my future partner?", "How to get back at that person?", "How will my current relationship end?", "Who is secretly in love with me?", "Will they reach out first?", "What is my most appealing trait?", "How do they perceive me?", "Chance of becoming lovers?", "What actions should I take now?", "Biggest issue in this relationship?", "What are they hiding from me?", "Future of this relationship?", "What style is my future partner?", "Overall romantic trajectory?"] },
+    APPEARANCE: { label: "Appearance", questions: ["Best diet method for me?", "Best area for cosmetic procedures?", "My unique vibe?", "Best styling for me?", "Impression I give to others?"] },
+    CAREER: { label: "Career", questions: ["How to succeed the most?", "Industry reputation?", "My hidden potential?", "Path for highest satisfaction?", "Major career challenges?"] },
+    WEALTH: { label: "Wealth", questions: ["How to improve financial luck?", "When is my financial peak?", "Steps to improve finances?", "Financial impact of new venture?", "Highest income source?", "Finances in 1 year?", "My innate financial luck?"] },
+    HEALTH: { label: "Health", questions: ["Major health risks?", "How to improve health?", "Potential illnesses?", "Best health management?"] },
+    STUDY: { label: "Study", questions: ["What type of university?", "Is my study method effective?", "Current academic standing?", "Academic progress flow?", "Biggest hindrance to study?"] },
+    RELATIONSHIP: { label: "Relation", questions: ["My subconscious desire here?", "How they feel about this?", "What they are hiding?", "What they hope for?", "What is needed to progress?", "Impact on me?"] },
+    FACE: { label: "Face", questions: [] },
+    LIFE: { label: "Life", questions: [] },
+    SECRET_COMPAT: { label: "Secret", questions: [] },
+    PARTNER_LIFE: { label: "Celebrity", questions: [] }
   },
   zh: {
-    LOVE: { label: "爱情", questions: ["他的真心是什么？", "我们会交往吗？", "复合的可能性？"] },
-    MONEY: { label: "财运", questions: ["财运会变好吗？", "可以投资吗？", "什么时候进财？"] },
-    WORK: { label: "事业", questions: ["可以换工作吗？", "能升职吗？", "事业会繁荣吗？"] },
-    DAILY: { label: "今日运势", questions: ["今天过得怎么样？", "需要注意什么？", "今日幸运？"] },
-    FACE: { label: "面상", questions: [] },
+    FANDOM: { label: "德质", questions: ["我喜欢的人对我到底是怎么想的？", "我最有可能在哪里遇见我喜欢的人？", "我喜欢的人偏好的类型是什么？", "他现在是在和谁交往，还是单身？", "如果我脱粉了，最可能的原因是什么？", "我和他之间的关系本质上是什么？", "我和他的契合度如何？", "这种投入大概还能持续多久？", "他有没有什么争议的地方？", "我有可能真的和他交往吗？", "他有没有什么不为人知的一面？"] },
+    LOVE: { label: "爱情", questions: ["我的下一段恋情大概何时开始？", "我未来的伴侣会是什么样的人？", "如何最有效地“反击”那个人？", "这段关系最有可能会如何结束？", "是否有人在暗恋我？", "那个人会不会主动联系我？", "在异性眼中我的魅力点是什么？", "那个人是如何看待我的？", "我们发展成恋人的可能性？", "我该采取什么行动来推进？", "这段关系中最大的问题？", "他在对我隐瞒什么？", "这段关系的未来如何？", "未来遇到的异性是什么类型？", "我的整体感情发展趋势？"] },
+    APPEARANCE: { label: "外貌", questions: ["最适合我的减肥方法是什么？", "哪些部位更适合进行微调？", "我独特的气质或氛围是什么？", "什么样的风格最适合我？", "我的外表给别人的第一印象？"] },
+    CAREER: { label: "事业", questions: ["我最有可能成功的路径是什么？", "行业内是如何评价我的？", "我有哪些潜在能力？", "哪种方向能获得最高满足感？", "职业发展中的主要困难？"] },
+    WEALTH: { label: "财运", questions: ["提升财运最有效的方法？", "财运在哪个时期达到最高点？", "如何改善目前的财务状况？", "新事业带来的财务影响？", "哪种方式能带来最大收益？", "一年后的财务状况？", "我天生的财运水平？"] },
+    HEALTH: { label: "健康", questions: ["我需要注意的主要健康风险？", "如何改善整体健康状况？", "我可能关注的潜在疾病？", "最适合我的健康管理方式？"] },
+    STUDY: { label: "学业", questions: ["我最有可能进入哪类大学？", "现在的学习方式有效吗？", "目前的学业状态评价？", "未来的学业发展趋势？", "影响学业的主要因素？"] },
+    RELATIONSHIP: { label: "社交", questions: ["我潜意识里真正想要的是什么？", "对方如何看待这段关系？", "对方是否对我有所隐瞒？", "对方期待的是什么？", "关系进一步发展需要什么？", "这段关系对我的影响？"] },
+    FACE: { label: "面相", questions: [] },
     LIFE: { label: "人生", questions: [] },
-    SECRET_COMPAT: { label: "隐秘契合度", questions: [] },
-    PARTNER_LIFE: { label: "他的人生", questions: [] }
+    SECRET_COMPAT: { label: "隐秘", questions: [] },
+    PARTNER_LIFE: { label: "明星", questions: [] }
   }
 };
 
