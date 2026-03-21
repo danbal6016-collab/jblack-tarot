@@ -291,6 +291,12 @@ export const getTarotReading = async (
 
   return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
+// --- 스페셜 타로 분량 강제 명령어 ---
+const LENGTH_INSTRUCTION = {
+    ko: "\n\n[분량 강제 지시사항] 총 분량이 합쳐서 반드시 '최소 25줄 이상'이 되도록 작성할 것. 절대 짧게 요약하지 말고, 각 항목을 소름 돋을 정도로 길고 상세하게 풀어낼 것.",
+    en: "\n\n[CRITICAL LENGTH MANDATE] The combined total output MUST be 'at least 25 lines long'. Do not summarize. Expand every section in extreme detail.",
+    zh: "\n\n[严格分量强制指令] 所有部分加起来的总行数必须'至少超过25行'。绝对不要简短总结，必须极其详细地展开每个项目。"
+};
 
 export const getCompatibilityReading = async (
     myInfo: UserInfo, 
@@ -357,7 +363,7 @@ export const getCompatibilityReading = async (
           [그 사람의 취향]
         `;
     }
-
+prompt += LENGTH_INSTRUCTION[lang];
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
@@ -421,7 +427,7 @@ export const getPartnerLifeReading = async (partnerBirth: string, lang: Language
           [덕질 조언 (Fandom Advice)]
         `;
     }
-
+prompt += LENGTH_INSTRUCTION[lang];
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
@@ -477,7 +483,7 @@ export const getFaceReading = async (imageBase64: string, userInfo?: UserInfo, l
             [운명적 조언]
         `;
     }
-
+prompt += LENGTH_INSTRUCTION[lang];
     const imagePart = { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } };
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.9, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-2.5-flash', [imagePart], lang);
@@ -555,7 +561,7 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
         `;
     }
 
-  
+  prompt += LENGTH_INSTRUCTION[lang];
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 0.8, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
 };
