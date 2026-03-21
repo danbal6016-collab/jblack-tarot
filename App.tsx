@@ -1582,7 +1582,7 @@ const App: React.FC = () => {
   
   const processPayment = () => {
     if (!pendingPackage) return;
-    alert("3월 22일 자정에 오픈!");
+    alert("3월 22일 오픈!");
     setPendingPackage(null);
     setShopStep('AMOUNT');
     setShowShop(false);
