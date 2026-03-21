@@ -720,11 +720,39 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
 };
 
 const ShufflingAnimation: React.FC<{ onComplete: () => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null; rugColor?: string }> = ({ onComplete, lang, skin, activeCustomSkin, rugColor }) => {
-    useEffect(() => { playShuffleLoop(); const timer = setTimeout(() => { stopShuffleLoop(); onComplete(); }, 1200); return () => { clearTimeout(timer); stopShuffleLoop(); }; }, [onComplete]);
+   useEffect(() => { 
+    playSound('SELECT'); // 카드가 나타날 때 기본 효과음 타격
+    playShuffleLoop();  // 셔플 사운드 루프 시작
+    
+    const timer = setTimeout(() => { 
+        stopShuffleLoop(); 
+        onComplete(); 
+    }, 1500); // 1.5초 동안 스무스하게 셔플
+    
+    return () => { 
+        clearTimeout(timer); 
+        stopShuffleLoop(); 
+    }; 
+}, [onComplete]);
     const noiseSvg = "data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.3'/%3E%3C/svg%3E";
     const rugStyle = { background: `radial-gradient(circle at center, ${rugColor || '#2e0b49'} 0%, #000000 100%), url("${noiseSvg}")`, backgroundBlendMode: 'multiply' };
     const cardBackStyle = activeCustomSkin ? { backgroundImage: `url(${activeCustomSkin.imageUrl})`, backgroundSize: 'cover' } : {};
-    return ( <div className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in rug-texture !border-0 !outline-none !shadow-none" style={rugStyle}><style>{`@keyframes cosmic-shuffle { 0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); } 25% { transform: translate3d(-120px, -20px, 0) rotate(-10deg) scale(1.05); z-index: 10; filter: brightness(1.2); } 50% { transform: translate3d(0, -40px, 0) rotate(0deg) scale(1.1); z-index: 20; filter: brightness(1.5) drop-shadow(0 0 15px #a855f7); } 75% { transform: translate3d(120px, -20px, 0) rotate(10deg) scale(1.05); z-index: 10; filter: brightness(1.2); } 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1); } } @keyframes deck-pulse-fancy { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(168,85,247,0.3); } 50% { transform: scale(1.02); box-shadow: 0 0 40px rgba(168,85,247,0.6); } }`}</style><div className="relative w-40 h-64 z-20" style={{ animation: 'deck-pulse-fancy 1.5s infinite ease-in-out', willChange: 'transform, box-shadow' }}><div className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-500/30 shadow-[0_0_20px_rgba(0,0,0,0.8)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={cardBackStyle}></div>{[...Array(8)].map((_, i) => (<div key={`left-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={{ animation: `cosmic-shuffle 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite`, animationDelay: `${i * 0.08}s`, boxShadow: '0 4px 10px rgba(0,0,0,0.5)', willChange: 'transform, filter', ...cardBackStyle }}></div>))}{[...Array(8)].map((_, i) => (<div key={`right-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={{ animation: `cosmic-shuffle 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite reverse`, animationDelay: `${i * 0.08}s`, boxShadow: '0 4px 10px rgba(0,0,0,0.5)', willChange: 'transform, filter', ...cardBackStyle }}></div>))}<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-24 h-24 bg-purple-500/30 blur-3xl rounded-full animate-pulse"></div></div></div><p className="mt-32 text-purple-200 font-occult animate-pulse text-2xl z-20 shadow-black drop-shadow-md">{lang === 'ko' ? "운명을 섞는 중..." : "Shuffling Fate..."}</p></div> );
+    return ( 
+    <div className="flex flex-col items-center justify-center min-h-screen relative z-10 animate-fade-in rug-texture !border-0 !outline-none !shadow-none">
+      <style>{`
+  @keyframes cosmic-shuffle {
+    0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1) blur(0px); } 
+    25% { transform: translate3d(-140px, -30px, 0) rotate(-15deg) scale(1.05); z-index: 10; filter: brightness(1.2) blur(1.5px); } 
+    50% { transform: translate3d(0, -50px, 0) rotate(0deg) scale(1.1); z-index: 20; filter: brightness(1.5) drop-shadow(0 0 20px #a855f7) blur(0px); } 
+    75% { transform: translate3d(140px, -30px, 0) rotate(15deg) scale(1.05); z-index: 10; filter: brightness(1.2) blur(1.5px); } 
+    100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); z-index: 1; filter: brightness(1) blur(0px); } 
+  } 
+  @keyframes deck-pulse-fancy { 
+    0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(168,85,247,0.4); } 
+    50% { transform: scale(1.03); box-shadow: 0 0 50px rgba(168,85,247,0.8); } 
+  }
+`}</style>
+            <div className="relative w-40 h-64 z-20" style={{ animation: 'deck-pulse-fancy 1.5s infinite ease-in-out', willChange: 'transform, box-shadow' }}><div className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-500/30 shadow-[0_0_20px_rgba(0,0,0,0.8)] card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={cardBackStyle}></div>{[...Array(8)].map((_, i) => (<div key={`left-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={{ animation: `cosmic-shuffle 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite`, animationDelay: `${i * 0.08}s`, boxShadow: '0 4px 10px rgba(0,0,0,0.5)', willChange: 'transform, filter', ...cardBackStyle }}></div>))}{[...Array(8)].map((_, i) => (<div key={`right-${i}`} className={`absolute inset-0 bg-purple-900 rounded-lg border border-purple-400/40 card-back ${SKINS.find(s => s.id === skin)?.cssClass}`} style={{ animation: `cosmic-shuffle 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite reverse`, animationDelay: `${i * 0.08}s`, boxShadow: '0 4px 10px rgba(0,0,0,0.5)', willChange: 'transform, filter', ...cardBackStyle }}></div>))}<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-24 h-24 bg-purple-500/30 blur-3xl rounded-full animate-pulse"></div></div></div><p className="mt-32 text-purple-200 font-occult animate-pulse text-2xl z-20 shadow-black drop-shadow-md">{lang === 'ko' ? "운명을 섞는 중..." : "Shuffling Fate..."}</p></div> );
 };
 
 const CardSelection: React.FC<{ onSelectCards: (indices: number[]) => void; lang: Language; skin: string; activeCustomSkin?: CustomSkin | null; rugColor?: string }> = ({ onSelectCards, lang, skin, activeCustomSkin, rugColor }) => {
@@ -1582,7 +1610,20 @@ const App: React.FC = () => {
       if (user.email === 'Guest') { const guestReadings = parseInt(localStorage.getItem('guest_readings') || '0'); if (guestReadings >= 1) { setShowGuestBlock(true); return; } localStorage.setItem('guest_readings', (guestReadings + 1).toString()); } else { if (!checkTierLimit()) return; if (!spendCoins(10)) return; updateUser(prev => ({...prev, readingsToday: prev.readingsToday + 1})); } 
       const selected = indices.map(i => { const cardName = TAROT_DECK[i]; return { id: i, name: cardName, isReversed: Math.random() < 0.3, imagePlaceholder: getFallbackTarotImage(i), generatedImage: undefined, backDesign: 0 }; }); 
       setSelectedCards(selected); navigateTo(AppState.RESULT); setReadingPromise(getTarotReading(selectedQuestion, selected, user.userInfo, lang, user.history, user.tier)); 
-      selected.forEach((card, idx) => { generateTarotCardImage(card.name).then(base64 => { const imageUrl = `data:image/png;base64,${base64}`; setSelectedCards(prev => { const newCards = [...prev]; if (newCards[idx] && newCards[idx].name === card.name) { newCards[idx] = { ...newCards[idx], generatedImage: imageUrl }; } return newCards; }); }).catch(err => { const seed = Math.floor(Math.random() * 1000000); const genUrl = `https://image.pollinations.ai/prompt/tarot%20card%20${encodeURIComponent(card.name)}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=300&height=500&nologo=true&seed=${seed}&model=flux-schnell`; setSelectedCards(prev => { const newCards = [...prev]; if (newCards[idx] && newCards[idx].name === card.name) { newCards[idx] = { ...newCards[idx], generatedImage: genUrl }; } return newCards; }); }); }); 
+      // handleCardSelect 함수 안의 기존 selected.forEach 블록을 이걸로 완전히 교체!
+Promise.all(selected.map(async (card) => {
+    try {
+        const base64 = await generateTarotCardImage(card.name);
+        return { ...card, generatedImage: `data:image/png;base64,${base64}` };
+    } catch (err) {
+        // 백업 플랜: pollinations.ai
+        const seed = Math.floor(Math.random() * 1000000); 
+        const genUrl = `https://image.pollinations.ai/prompt/tarot%20card%20${encodeURIComponent(card.name)}%20mystical%20dark%20fantasy%20style%20deep%20purple%20and%20gold%20smoke%20effect%20detailed%204k%20no%20text?width=300&height=500&nologo=true&seed=${seed}&model=flux-schnell`; 
+        return { ...card, generatedImage: genUrl };
+    }
+})).then(updatedCards => {
+    setSelectedCards(updatedCards);
+});
   };
   const isFirstPurchase = user.totalSpent === 0 && user.email !== 'Guest';
   const isGuest = user.email === 'Guest';
