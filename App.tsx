@@ -1459,8 +1459,6 @@ const App: React.FC = () => {
     });
     alert("삭제되었습니다.");
 };
-    });
-};
   const handleApplySkinCode = async () => { 
       if (checkGuestAction()) return; 
       if (!inputSkinCode) return;
