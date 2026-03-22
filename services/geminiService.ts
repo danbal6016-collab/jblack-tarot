@@ -342,26 +342,26 @@ export const getCompatibilityReading = async (
           [The Destructive Nighttime Chemistry]
           [The Physical Touch that Breaks Their Control]
         `;
-    } else {
-       prompt = `
+   } else {
+        prompt = `
           ${randomSeed}
-          [심층 속궁합 정밀 분석 - 은근한 관능/야시꾸리 모드]
+          [심층 속궁합 정밀 분석 - 19금 가십/잼얘 모드]
           나: ${myInfo.name} (생년월일: ${myInfo.birthDate})
           상대방: 생년월일 ${partnerBirth}
           
           핵심 과제:
           1. 내부적으로 사주를 계산하여 속궁합 묘사. 사주 용어 절대 금지.
-          2. [톤앤매너 극대화] 대놓고 저급한 단어를 쓰는 기계적인 야설체 절대 금지. 대신 은근히 야시꾸리하고 앙큼하며 도발적인 바이브를 유지할 것.
-          3. 타로 리더가 고객에게만 넌지시 던지듯, 직접적인 묘사 없이도 상상력을 자극하고 진짜 겪은 듯한 리얼한 육체적 텐션을 묘사할 것.
+          2. [톤앤매너 극대화: 19금 잼얘] 억지로 무게 잡는 '피폐 로맨스 야설' 말투 절대 금지(표독스럽고 오글거림). 친한 친구랑 술자리에서 몰래 속닥거리는 '현실 19금 가십(잼얘)' 톤으로 아주 맛깔나게 작성할 것.
+          3. "그 사람 십중팔구 확률로 무지하게 크다. 진짜 기대하셔도 좋을 듯", "낮에는 멀쩡해 보이는데 밤에는 완전 미친놈일 관상" 같이 리얼하고 솔직한 화법을 구사할 것.
+          4. 직접적이고 뻔한 야설이 아니라, 상상력을 자극하면서도 진짜 친구가 썰 풀어주는 것처럼 은근히 야시꾸리하고 앙큼하게 작성할 것.
           
           구조:
-          [본능적 끌림과 숨 막히는 텐션]
-          [그 사람이 침대 위에서 억누르고 있는 은밀한 취향]
-          [두 사람이 얽혔을 때 만들어내는 파괴적 시너지]
-          [상대방의 이성을 끊어버릴 스킨십 포인트]
+          [솔직히 말하는 두 사람의 육체적 끌림]
+          [그 사람의 은밀한 취향과 밤의 모습]
+          [침대 위에서 그 사람 어떨까?]
+          [상대방을 미치게 만들 현실 스킨십 꿀팁]
         `;
     }
-
     prompt += LENGTH_INSTRUCTION[lang];
     const config = { systemInstruction: getBaseInstruction(lang), temperature: 1.0, maxOutputTokens: 8192 };
     return await callGenAI(prompt, config, 'gemini-2.5-flash', undefined, lang);
@@ -537,8 +537,8 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
             [Innate Personality & Nature]
             [Cautionary Points]
         `;
-    } else {
-        prompt = `
+   } else {
+        prompt = `
             ${randomSeed} 
             [인생 정밀 분석 - 천기누설 비밀 모드]
             이름: ${userInfo.name}
@@ -549,12 +549,13 @@ export const getLifeReading = async (userInfo: UserInfo, lang: Language = 'ko'):
             1. 내부적으로 사주 계산. 사주 용어 절대 금지.
             2. [톤앤매너 극대화] 남들이 함부로 알아서는 안 되는 '금기된 비밀'을 은밀하게 귀띔해주듯 작성할 것. 
             3. 조심스럽지만 확신에 찬 어조로, "이건 진짜 너한테만 알려주는 건데..." 같은 몰입감 높은 뉘앙스를 풍길 것.
+            4. [미래 배우자 묘사 필수 조건] 배우자의 외모(얼굴 생김새, 분위기), 키(대략적인 수치나 느낌), 피지컬(어깨 넓이, 골격 등 체형)을 눈앞에 그리듯이 매우 구체적으로 묘사할 것.
 
             구조:
             [재물운]
             [천재적 재능과 숨겨진 잠재력]
             [인생의 황금기]
-            [미래 배우자 상세 분석]
+            [미래 배우자 상세 분석 (외모, 키, 피지컬, 직업 필수 포함)]
             [내 인생의 귀인]
             [타고난 성격과 성향]
             [인생에서 주의해야 할 점]
