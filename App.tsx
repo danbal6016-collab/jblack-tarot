@@ -380,6 +380,13 @@ const ChatView: React.FC<{
     const handleSendMessage = async () => {
         const text = inputText.trim();
         if (!text) return;
+      for (const forbidden of FORBIDDEN_KEYWORDS) {
+    if (text.includes(forbidden)) {
+        setShowDangerPopup(true);
+        setInputText("");
+        return;
+    }
+}
 
         const channel = channelRef.current;
         if (!channel) return;
