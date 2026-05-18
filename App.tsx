@@ -707,7 +707,7 @@ const UserInfoForm: React.FC<{ onSubmit: (info: UserInfo) => void; lang: Languag
         if (birthDate.length !== 8) return alert("Birthdate must be 8 digits (YYYYMMDD).");
         if (!agreed) return alert(TRANSLATIONS[lang].privacy_alert);
 
-        const info: UserInfo = { name, birthDate, country, timezone: COUNTRIES.find(c => c.nameEn === country)?.timezone || 'Asia/Seoul', zodiacSign: 'Unknown', nameChangeCount: 0, birthDateChanged: false, countryChanged: false };
+        const info: UserInfo = { name, birthDate, country, timezone: COUNTRIES.find(c => c.nameEn === country)?.timezone || 'Asia/Seoul', zodiacSign: 'Unknown', nameChangeCount: 0, birthDateChangeCount: 0, countryChanged: false };
         onSubmit(info);
     };
     return (
@@ -1086,7 +1086,7 @@ const App: React.FC = () => {
   const [tierChangeDirection, setTierChangeDirection] = useState<'UP' | 'DOWN'>('UP');
   const [tierChangeNewTier, setTierChangeNewTier] = useState<UserTier>(UserTier.BRONZE);
   const [attendanceReward, setAttendanceReward] = useState(0);
-  const [editProfileData, setEditProfileData] = useState<UserInfo>({ name: '', birthDate: '', country: '', timezone: '', zodiacSign: '', nameChangeCount: 0, birthDateChanged: false, countryChanged: false });
+  const [editProfileData, setEditProfileData] = useState<UserInfo>({ name: '', birthDate: '', country: '', timezone: '', zodiacSign: '', nameChangeCount: 0, birthDateChangeCount: 0, countryChanged: false });
   const [customSkinImage, setCustomSkinImage] = useState<string | null>(null);
   const [customFrameImage, setCustomFrameImage] = useState<string | null>(null);
   const [customBgImage, setCustomBgImage] = useState<string | null>(null);
@@ -1561,7 +1561,49 @@ const App: React.FC = () => {
 };
   const handleRugChange = (color: string) => { if (checkGuestAction()) return; updateUser(prev => ({ ...prev, rugColor: color })); };
   const handleOpenProfile = () => { if (user.userInfo) setEditProfileData({ ...user.userInfo }); setShowProfile(true); };
-  const handleSaveProfile = async () => { if (!user.userInfo) return; if (checkGuestAction()) return; const currentInfo = user.userInfo; const nextInfo = { ...editProfileData }; if (nextInfo.name !== currentInfo.name) { const currentCount = currentInfo.nameChangeCount || 0; if (currentCount >= 5) { alert("이름 변경 횟수(5회)를 초과했습니다."); return; } nextInfo.nameChangeCount = currentCount + 1; } else { nextInfo.nameChangeCount = currentInfo.nameChangeCount; } if (nextInfo.birthDate !== currentInfo.birthDate) { if (currentInfo.birthDateChanged) { alert("생년월일은 한 번만 변경할 수 있습니다."); return; } nextInfo.birthDateChanged = true; } if (nextInfo.country !== currentInfo.country) { if (currentInfo.countryChanged) { alert("국가는 한 번만 변경할 수 있습니다."); return; } nextInfo.countryChanged = true; } updateUser(prev => ({ ...prev, userInfo: nextInfo })); setShowProfile(false); alert("프로필이 저장되었습니다."); };
+  const handleSaveProfile = async () => {
+    if (!user.userInfo) return;
+    if (checkGuestAction()) return;
+
+    const currentInfo = user.userInfo;
+    const nextInfo = { ...editProfileData };
+
+    if (nextInfo.name !== currentInfo.name) {
+        const currentCount = currentInfo.nameChangeCount || 0;
+        if (currentCount >= 5) {
+            alert("이름 변경 횟수(5회)를 초과했습니다.");
+            return;
+        }
+        nextInfo.nameChangeCount = currentCount + 1;
+    } else {
+        nextInfo.nameChangeCount = currentInfo.nameChangeCount;
+    }
+
+    if (nextInfo.birthDate !== currentInfo.birthDate) {
+        const currentBirthDateChangeCount = currentInfo.birthDateChangeCount || 0;
+
+        if (currentBirthDateChangeCount >= 2) {
+            alert("생년월일 변경 횟수(2회)를 초과했습니다.");
+            return;
+        }
+
+        nextInfo.birthDateChangeCount = currentBirthDateChangeCount + 1;
+    } else {
+        nextInfo.birthDateChangeCount = currentInfo.birthDateChangeCount || 0;
+    }
+
+    if (nextInfo.country !== currentInfo.country) {
+        if (currentInfo.countryChanged) {
+            alert("국가는 한 번만 변경할 수 있습니다.");
+            return;
+        }
+        nextInfo.countryChanged = true;
+    }
+
+    updateUser(prev => ({ ...prev, userInfo: nextInfo }));
+    setShowProfile(false);
+    alert("프로필이 저장되었습니다.");
+};
   
   const handleDeleteAccount = async () => { 
       if (confirm(TRANSLATIONS[lang].delete_confirm)) { 
@@ -1710,7 +1752,18 @@ Promise.all(selected.map(async (card) => {
                       <div className="flex justify-center mb-6"><div className="w-24 h-24 rounded-full bg-gray-800 border-2 border-purple-500 flex items-center justify-center overflow-hidden relative group cursor-pointer">{editProfileData.profileImage ? <img src={editProfileData.profileImage} className="w-full h-full object-cover" /> : <span className="text-4xl">👤</span>}<div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-xs text-white">Change</div><input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{ const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onload=()=>setEditProfileData(prev => ({...prev, profileImage: r.result as string})); r.readAsDataURL(f); } }}/></div></div>
                       <div className="space-y-4">
                           <div><label className="text-xs text-gray-500 block mb-1">Name (Changed: {user.userInfo?.nameChangeCount || 0}/5)</label><input value={editProfileData.name} onChange={(e) => setEditProfileData(prev => ({...prev, name: e.target.value}))} className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.nameChangeCount && user.userInfo.nameChangeCount >= 5 ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={!!(user.userInfo?.nameChangeCount && user.userInfo.nameChangeCount >= 5)} /></div>
-                          <div><label className="text-xs text-gray-500 block mb-1">Birthdate (Changeable Once)</label><input value={editProfileData.birthDate} onChange={(e) => setEditProfileData(prev => ({...prev, birthDate: e.target.value}))} placeholder="YYYYMMDD" className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.birthDateChanged ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={user.userInfo?.birthDateChanged} /></div>
+                         <div>
+    <label className="text-xs text-gray-500 block mb-1">
+        Birthdate (Changed: {user.userInfo?.birthDateChangeCount || 0}/2)
+    </label>
+    <input
+        value={editProfileData.birthDate}
+        onChange={(e) => setEditProfileData(prev => ({ ...prev, birthDate: e.target.value }))}
+        placeholder="YYYYMMDD"
+        className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${(user.userInfo?.birthDateChangeCount || 0) >= 2 ? 'opacity-50 cursor-not-allowed' : ''}`}
+        disabled={(user.userInfo?.birthDateChangeCount || 0) >= 2}
+    />
+</div>
                           <div><label className="text-xs text-gray-500 block mb-1">Country (Changeable Once)</label><select value={COUNTRIES.find(c => c.nameEn === editProfileData.country)?.code || ''} onChange={(e) => { const c = COUNTRIES.find(cnt => cnt.code === e.target.value); if(c) setEditProfileData(prev => ({...prev, country: c.nameEn})); }} className={`w-full p-2 bg-gray-800 rounded border border-gray-700 text-white ${user.userInfo?.countryChanged ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={user.userInfo?.countryChanged} >{COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.nameKo}</option>)}</select></div>
                           <div><label className="text-xs text-gray-500 block mb-1">Bio (Public Description)</label><textarea value={editProfileData.bio || ''} onChange={(e) => setEditProfileData(prev => ({...prev, bio: e.target.value}))} className="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white h-20 resize-none" placeholder="Introduce yourself..." /></div>
                       </div>
