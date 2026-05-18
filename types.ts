@@ -67,7 +67,7 @@ export interface UserInfo {
   
   // Edit Limits
   nameChangeCount: number; // Max 3
-  birthDateChanged: boolean; // Max 1
+birthDateChangeCount?: number;
   countryChanged: boolean; // Max 1
 }
 
